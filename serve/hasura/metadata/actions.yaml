@@ -1,0 +1,81 @@
+actions:
+  - name: registerUser
+    definition:
+      kind: synchronous
+      handler: "{{ACTIONS_BASE_URL}}/api/auth/register"
+      forward_client_headers: true
+    permissions:
+      - role: anonymous
+    comment: Register a new user account
+
+  - name: loginUser
+    definition:
+      kind: synchronous
+      handler: "{{ACTIONS_BASE_URL}}/api/auth/login"
+      forward_client_headers: true
+    permissions:
+      - role: anonymous
+    comment: Authenticate user and return JWT token
+
+  - name: refreshToken
+    definition:
+      kind: synchronous
+      handler: "{{ACTIONS_BASE_URL}}/api/auth/refresh"
+      forward_client_headers: true
+    permissions:
+      - role: anonymous
+    comment: Refresh JWT token using refresh token
+
+  - name: logoutUser
+    definition:
+      kind: synchronous
+      handler: "{{ACTIONS_BASE_URL}}/api/auth/logout"
+      forward_client_headers: true
+    permissions:
+      - role: user
+    comment: Invalidate user session and refresh tokens
+
+  - name: updatePassword
+    definition:
+      kind: synchronous
+      handler: "{{ACTIONS_BASE_URL}}/api/auth/update-password"
+      forward_client_headers: true
+    permissions:
+      - role: user
+    comment: Update user password
+
+  - name: requestPasswordReset
+    definition:
+      kind: synchronous
+      handler: "{{ACTIONS_BASE_URL}}/api/auth/request-reset"
+      forward_client_headers: true
+    permissions:
+      - role: anonymous
+    comment: Request password reset email
+
+  - name: createConversation
+    definition:
+      kind: synchronous
+      handler: "{{ACTIONS_BASE_URL}}/api/messaging/create-conversation"
+      forward_client_headers: true
+    permissions:
+      - role: user
+    comment: Create a new conversation with participants
+
+  - name: searchUsers
+    definition:
+      kind: synchronous
+      handler: "{{ACTIONS_BASE_URL}}/api/users/search"
+      forward_client_headers: true
+    permissions:
+      - role: user
+    comment: Search for users by email or name
+
+  - name: getUnreadCounts
+    definition:
+      kind: synchronous
+      handler: "{{ACTIONS_BASE_URL}}/api/messaging/unread-counts"
+      forward_client_headers: true
+    permissions:
+      - role: user
+    comment: Get unread message counts for all conversations

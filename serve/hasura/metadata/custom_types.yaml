@@ -1,0 +1,129 @@
+input_objects:
+  - name: RegisterUserInput
+    fields:
+      - name: email
+        type: String!
+      - name: password
+        type: String!
+      - name: firstName
+        type: String!
+      - name: lastName
+        type: String!
+      - name: phone
+        type: String
+      - name: location
+        type: String
+      - name: disabilityType
+        type: String
+      - name: accessibilityNeeds
+        type: String
+      - name: communicationPreference
+        type: String
+      - name: emergencyContact
+        type: String
+
+  - name: LoginInput
+    fields:
+      - name: email
+        type: String!
+      - name: password
+        type: String!
+
+  - name: RefreshTokenInput
+    fields:
+      - name: refreshToken
+        type: String!
+
+  - name: UpdatePasswordInput
+    fields:
+      - name: currentPassword
+        type: String!
+      - name: newPassword
+        type: String!
+
+  - name: RequestPasswordResetInput
+    fields:
+      - name: email
+        type: String!
+
+  - name: CreateConversationInput
+    fields:
+      - name: participantIds
+        type: "[String!]!"
+      - name: name
+        type: String
+      - name: isGroup
+        type: Boolean
+
+  - name: SearchUsersInput
+    fields:
+      - name: query
+        type: String!
+      - name: limit
+        type: Int
+
+objects:
+  - name: AuthResponse
+    fields:
+      - name: success
+        type: Boolean!
+      - name: message
+        type: String
+      - name: accessToken
+        type: String
+      - name: refreshToken
+        type: String
+      - name: user
+        type: UserInfo
+
+  - name: UserInfo
+    fields:
+      - name: id
+        type: String!
+      - name: email
+        type: String!
+      - name: firstName
+        type: String!
+      - name: lastName
+        type: String!
+      - name: location
+        type: String
+      - name: disabilityType
+        type: String
+      - name: communicationPreference
+        type: String
+
+  - name: ConversationResponse
+    fields:
+      - name: success
+        type: Boolean!
+      - name: message
+        type: String
+      - name: conversationId
+        type: String
+
+  - name: SearchUsersResponse
+    fields:
+      - name: users
+        type: "[UserInfo!]!"
+
+  - name: UnreadCountsResponse
+    fields:
+      - name: counts
+        type: "[ConversationUnreadCount!]!"
+      - name: total
+        type: Int!
+
+  - name: ConversationUnreadCount
+    fields:
+      - name: conversationId
+        type: String!
+      - name: count
+        type: Int!
+
+  - name: GenericResponse
+    fields:
+      - name: success
+        type: Boolean!
+      - name: message
+        type: String

@@ -1,0 +1,811 @@
+- table:
+    name: users
+    schema: public
+  object_relationships:
+    - name: accessibility_settings
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: user_accessibility_settings
+            schema: public
+  array_relationships:
+    - name: event_registrations
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: event_registrations
+            schema: public
+    - name: conversation_participations
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: conversation_participants
+            schema: public
+    - name: sent_messages
+      using:
+        foreign_key_constraint_on:
+          column: sender_id
+          table:
+            name: messages
+            schema: public
+    - name: bookmarks
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: user_bookmarks
+            schema: public
+    - name: notifications
+      using:
+        foreign_key_constraint_on:
+          column: user_id
+          table:
+            name: notifications
+            schema: public
+  select_permissions:
+    - role: user
+      permission:
+        columns:
+          - id
+          - email
+          - first_name
+          - last_name
+          - location
+          - disability_type
+          - communication_preference
+          - created_at
+        filter:
+          _or:
+            - id:
+                _eq: X-Hasura-User-Id
+            - conversation_participations:
+                conversation:
+                  participants:
+                    user_id:
+                      _eq: X-Hasura-User-Id
+  update_permissions:
+    - role: user
+      permission:
+        columns:
+          - first_name
+          - last_name
+          - phone
+          - location
+          - disability_type
+          - accessibility_needs
+          - communication_preference
+          - emergency_contact
+        filter:
+          id:
+            _eq: X-Hasura-User-Id
+        check: null
+
+- table:
+    name: user_accessibility_settings
+    schema: public
+  object_relationships:
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+  select_permissions:
+    - role: user
+      permission:
+        columns:
+          - id
+          - user_id
+          - high_contrast
+          - font_size
+          - reduced_motion
+          - screen_reader_optimized
+          - keyboard_navigation
+          - voice_command_enabled
+          - created_at
+          - updated_at
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+  update_permissions:
+    - role: user
+      permission:
+        columns:
+          - high_contrast
+          - font_size
+          - reduced_motion
+          - screen_reader_optimized
+          - keyboard_navigation
+          - voice_command_enabled
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+        check: null
+
+- table:
+    name: events
+    schema: public
+  object_relationships:
+    - name: organizer
+      using:
+        foreign_key_constraint_on: organizer_id
+  array_relationships:
+    - name: registrations
+      using:
+        foreign_key_constraint_on:
+          column: event_id
+          table:
+            name: event_registrations
+            schema: public
+    - name: accessibility_features
+      using:
+        foreign_key_constraint_on:
+          column: event_id
+          table:
+            name: event_accessibility_features
+            schema: public
+    - name: tags
+      using:
+        foreign_key_constraint_on:
+          column: event_id
+          table:
+            name: event_tag_relations
+            schema: public
+  select_permissions:
+    - role: anonymous
+      permission:
+        columns:
+          - id
+          - title
+          - description
+          - event_date
+          - event_time
+          - location
+          - event_type
+          - category
+          - capacity
+          - registered_count
+          - organizer_name
+          - image_url
+          - image_alt
+          - is_featured
+        filter:
+          _and:
+            - is_published:
+                _eq: true
+            - deleted_at:
+                _is_null: true
+    - role: user
+      permission:
+        columns:
+          - id
+          - title
+          - description
+          - event_date
+          - event_time
+          - end_date
+          - end_time
+          - location
+          - virtual_link
+          - event_type
+          - category
+          - capacity
+          - registered_count
+          - organizer_id
+          - organizer_name
+          - image_url
+          - image_alt
+          - is_featured
+          - created_at
+        filter:
+          _and:
+            - is_published:
+                _eq: true
+            - deleted_at:
+                _is_null: true
+
+- table:
+    name: event_registrations
+    schema: public
+  object_relationships:
+    - name: event
+      using:
+        foreign_key_constraint_on: event_id
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+  insert_permissions:
+    - role: user
+      permission:
+        columns:
+          - event_id
+          - user_id
+          - accommodation_notes
+        check:
+          user_id:
+            _eq: X-Hasura-User-Id
+  select_permissions:
+    - role: user
+      permission:
+        columns:
+          - id
+          - event_id
+          - user_id
+          - accommodation_notes
+          - status
+          - registered_at
+          - cancelled_at
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+  update_permissions:
+    - role: user
+      permission:
+        columns:
+          - accommodation_notes
+          - cancelled_at
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+        check: null
+  delete_permissions:
+    - role: user
+      permission:
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+
+- table:
+    name: accessibility_features
+    schema: public
+  array_relationships:
+    - name: events
+      using:
+        foreign_key_constraint_on:
+          column: feature_id
+          table:
+            name: event_accessibility_features
+            schema: public
+    - name: articles
+      using:
+        foreign_key_constraint_on:
+          column: feature_id
+          table:
+            name: article_accessibility_features
+            schema: public
+  select_permissions:
+    - role: anonymous
+      permission:
+        columns:
+          - id
+          - name
+          - description
+          - icon
+        filter: {}
+    - role: user
+      permission:
+        columns:
+          - id
+          - name
+          - description
+          - icon
+        filter: {}
+
+- table:
+    name: event_accessibility_features
+    schema: public
+  object_relationships:
+    - name: event
+      using:
+        foreign_key_constraint_on: event_id
+    - name: feature
+      using:
+        foreign_key_constraint_on: feature_id
+  select_permissions:
+    - role: anonymous
+      permission:
+        columns:
+          - event_id
+          - feature_id
+        filter: {}
+    - role: user
+      permission:
+        columns:
+          - event_id
+          - feature_id
+        filter: {}
+
+- table:
+    name: event_tags
+    schema: public
+  select_permissions:
+    - role: anonymous
+      permission:
+        columns:
+          - id
+          - name
+        filter: {}
+    - role: user
+      permission:
+        columns:
+          - id
+          - name
+        filter: {}
+
+- table:
+    name: event_tag_relations
+    schema: public
+  object_relationships:
+    - name: event
+      using:
+        foreign_key_constraint_on: event_id
+    - name: tag
+      using:
+        foreign_key_constraint_on: tag_id
+  select_permissions:
+    - role: anonymous
+      permission:
+        columns:
+          - event_id
+          - tag_id
+        filter: {}
+    - role: user
+      permission:
+        columns:
+          - event_id
+          - tag_id
+        filter: {}
+
+- table:
+    name: conversations
+    schema: public
+  object_relationships:
+    - name: created_by_user
+      using:
+        foreign_key_constraint_on: created_by
+  array_relationships:
+    - name: participants
+      using:
+        foreign_key_constraint_on:
+          column: conversation_id
+          table:
+            name: conversation_participants
+            schema: public
+    - name: messages
+      using:
+        foreign_key_constraint_on:
+          column: conversation_id
+          table:
+            name: messages
+            schema: public
+  insert_permissions:
+    - role: user
+      permission:
+        columns:
+          - name
+          - is_group
+          - created_by
+        check:
+          created_by:
+            _eq: X-Hasura-User-Id
+  select_permissions:
+    - role: user
+      permission:
+        columns:
+          - id
+          - name
+          - is_group
+          - created_by
+          - created_at
+          - updated_at
+        filter:
+          participants:
+            user_id:
+              _eq: X-Hasura-User-Id
+  update_permissions:
+    - role: user
+      permission:
+        columns:
+          - name
+        filter:
+          _and:
+            - is_group:
+                _eq: true
+            - participants:
+                _and:
+                  - user_id:
+                      _eq: X-Hasura-User-Id
+                  - is_admin:
+                      _eq: true
+
+- table:
+    name: conversation_participants
+    schema: public
+  object_relationships:
+    - name: conversation
+      using:
+        foreign_key_constraint_on: conversation_id
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+  insert_permissions:
+    - role: user
+      permission:
+        columns:
+          - conversation_id
+          - user_id
+          - is_admin
+        check:
+          conversation:
+            _or:
+              - created_by:
+                  _eq: X-Hasura-User-Id
+              - participants:
+                  _and:
+                    - user_id:
+                        _eq: X-Hasura-User-Id
+                    - is_admin:
+                        _eq: true
+  select_permissions:
+    - role: user
+      permission:
+        columns:
+          - id
+          - conversation_id
+          - user_id
+          - joined_at
+          - left_at
+          - is_admin
+          - last_read_at
+          - notifications_enabled
+        filter:
+          conversation:
+            participants:
+              user_id:
+                _eq: X-Hasura-User-Id
+  update_permissions:
+    - role: user
+      permission:
+        columns:
+          - last_read_at
+          - notifications_enabled
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+
+- table:
+    name: messages
+    schema: public
+  object_relationships:
+    - name: conversation
+      using:
+        foreign_key_constraint_on: conversation_id
+    - name: sender
+      using:
+        foreign_key_constraint_on: sender_id
+    - name: reply_to
+      using:
+        foreign_key_constraint_on: reply_to_id
+  array_relationships:
+    - name: read_receipts
+      using:
+        foreign_key_constraint_on:
+          column: message_id
+          table:
+            name: message_read_receipts
+            schema: public
+  insert_permissions:
+    - role: user
+      permission:
+        columns:
+          - conversation_id
+          - sender_id
+          - content
+          - message_type
+          - reply_to_id
+        check:
+          _and:
+            - sender_id:
+                _eq: X-Hasura-User-Id
+            - conversation:
+                participants:
+                  user_id:
+                    _eq: X-Hasura-User-Id
+  select_permissions:
+    - role: user
+      permission:
+        columns:
+          - id
+          - conversation_id
+          - sender_id
+          - content
+          - message_type
+          - reply_to_id
+          - is_edited
+          - created_at
+          - updated_at
+        filter:
+          conversation:
+            participants:
+              user_id:
+                _eq: X-Hasura-User-Id
+  update_permissions:
+    - role: user
+      permission:
+        columns:
+          - content
+          - is_edited
+        filter:
+          sender_id:
+            _eq: X-Hasura-User-Id
+
+- table:
+    name: message_read_receipts
+    schema: public
+  object_relationships:
+    - name: message
+      using:
+        foreign_key_constraint_on: message_id
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+  insert_permissions:
+    - role: user
+      permission:
+        columns:
+          - message_id
+          - user_id
+        check:
+          user_id:
+            _eq: X-Hasura-User-Id
+  select_permissions:
+    - role: user
+      permission:
+        columns:
+          - id
+          - message_id
+          - user_id
+          - read_at
+        filter:
+          message:
+            conversation:
+              participants:
+                user_id:
+                  _eq: X-Hasura-User-Id
+
+- table:
+    name: articles
+    schema: public
+  array_relationships:
+    - name: accessibility_features
+      using:
+        foreign_key_constraint_on:
+          column: article_id
+          table:
+            name: article_accessibility_features
+            schema: public
+    - name: tags
+      using:
+        foreign_key_constraint_on:
+          column: article_id
+          table:
+            name: article_tag_relations
+            schema: public
+    - name: bookmarks
+      using:
+        foreign_key_constraint_on:
+          column: article_id
+          table:
+            name: user_bookmarks
+            schema: public
+  select_permissions:
+    - role: anonymous
+      permission:
+        columns:
+          - id
+          - title
+          - summary
+          - content
+          - category
+          - source
+          - source_url
+          - author
+          - region
+          - priority
+          - read_time_minutes
+          - image_url
+          - image_alt
+          - has_audio
+          - audio_url
+          - has_video
+          - video_url
+          - published_at
+        filter:
+          _and:
+            - is_published:
+                _eq: true
+            - deleted_at:
+                _is_null: true
+    - role: user
+      permission:
+        columns:
+          - id
+          - title
+          - summary
+          - content
+          - category
+          - source
+          - source_url
+          - author
+          - region
+          - priority
+          - read_time_minutes
+          - image_url
+          - image_alt
+          - has_audio
+          - audio_url
+          - has_video
+          - video_url
+          - published_at
+          - created_at
+        filter:
+          _and:
+            - is_published:
+                _eq: true
+            - deleted_at:
+                _is_null: true
+
+- table:
+    name: article_accessibility_features
+    schema: public
+  object_relationships:
+    - name: article
+      using:
+        foreign_key_constraint_on: article_id
+    - name: feature
+      using:
+        foreign_key_constraint_on: feature_id
+  select_permissions:
+    - role: anonymous
+      permission:
+        columns:
+          - article_id
+          - feature_id
+        filter: {}
+    - role: user
+      permission:
+        columns:
+          - article_id
+          - feature_id
+        filter: {}
+
+- table:
+    name: article_tags
+    schema: public
+  select_permissions:
+    - role: anonymous
+      permission:
+        columns:
+          - id
+          - name
+        filter: {}
+    - role: user
+      permission:
+        columns:
+          - id
+          - name
+        filter: {}
+
+- table:
+    name: article_tag_relations
+    schema: public
+  object_relationships:
+    - name: article
+      using:
+        foreign_key_constraint_on: article_id
+    - name: tag
+      using:
+        foreign_key_constraint_on: tag_id
+  select_permissions:
+    - role: anonymous
+      permission:
+        columns:
+          - article_id
+          - tag_id
+        filter: {}
+    - role: user
+      permission:
+        columns:
+          - article_id
+          - tag_id
+        filter: {}
+
+- table:
+    name: user_bookmarks
+    schema: public
+  object_relationships:
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+    - name: article
+      using:
+        foreign_key_constraint_on: article_id
+  insert_permissions:
+    - role: user
+      permission:
+        columns:
+          - user_id
+          - article_id
+        check:
+          user_id:
+            _eq: X-Hasura-User-Id
+  select_permissions:
+    - role: user
+      permission:
+        columns:
+          - id
+          - user_id
+          - article_id
+          - created_at
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+  delete_permissions:
+    - role: user
+      permission:
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+
+- table:
+    name: notifications
+    schema: public
+  object_relationships:
+    - name: user
+      using:
+        foreign_key_constraint_on: user_id
+  select_permissions:
+    - role: user
+      permission:
+        columns:
+          - id
+          - user_id
+          - title
+          - body
+          - type
+          - reference_type
+          - reference_id
+          - is_read
+          - read_at
+          - created_at
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+  update_permissions:
+    - role: user
+      permission:
+        columns:
+          - is_read
+          - read_at
+        filter:
+          user_id:
+            _eq: X-Hasura-User-Id
+
+- table:
+    name: audit_logs
+    schema: public
+  select_permissions:
+    - role: admin
+      permission:
+        columns:
+          - id
+          - user_id
+          - action
+          - entity_type
+          - entity_id
+          - old_values
+          - new_values
+          - ip_address
+          - user_agent
+          - created_at
+        filter: {}

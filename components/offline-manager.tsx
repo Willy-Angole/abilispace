@@ -2,21 +2,28 @@
 
 import type React from "react"
 
-import { useState, useEffect, createContext, useContext } from "react"
+import { useState, useEffect, createContext, useContext, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { WifiOff, Wifi, Upload, AlertCircle, CheckCircle, Clock } from "lucide-react"
+import { WifiOff, Wifi, Upload, AlertCircle, CheckCircle, Clock, HardDrive } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { offlineStorage, STORES } from "@/lib/offline-storage"
+import { syncService } from "@/lib/sync-service"
 
 interface OfflineContextType {
   isOnline: boolean
   pendingSync: number
   syncData: () => Promise<void>
-  cacheData: (key: string, data: any) => void
-  getCachedData: (key: string) => any
-  isDataCached: (key: string) => boolean
+  cacheData: (key: string, data: unknown) => Promise<void>
+  getCachedData: (key: string) => Promise<unknown | null>
+  isDataCached: (key: string) => Promise<boolean>
+  cacheArticles: (articles: { id: string }[]) => Promise<void>
+  cacheEvents: (events: { id: string }[]) => Promise<void>
+  getCachedArticles: () => Promise<unknown[]>
+  getCachedEvents: () => Promise<unknown[]>
+  getStorageInfo: () => Promise<{ used: number; quota: number; percentage: number } | null>
 }
 
 const OfflineContext = createContext<OfflineContextType | null>(null)
@@ -39,21 +46,34 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null)
   const { toast } = useToast()
 
+  // Initialize IndexedDB and load state
+  useEffect(() => {
+    const init = async () => {
+      // Initialize IndexedDB
+      try {
+        await offlineStorage.init()
+        console.log("[OfflineProvider] IndexedDB initialized")
+      } catch (error) {
+        console.error("[OfflineProvider] Failed to initialize IndexedDB:", error)
+      }
+
+      // Get pending count
+      const count = await offlineStorage.getPendingCount()
+      setPendingSync(count)
+
+      // Get last sync time from localStorage (simple metadata)
+      const lastSync = localStorage.getItem("shiriki_lastSync")
+      if (lastSync) {
+        setLastSyncTime(lastSync)
+      }
+    }
+
+    init()
+  }, [])
+
   useEffect(() => {
     // Initialize online status
     setIsOnline(navigator.onLine)
-
-    // Load pending sync count
-    const pending = localStorage.getItem("accessibleApp_pendingSync")
-    if (pending) {
-      setPendingSync(Number.parseInt(pending, 10))
-    }
-
-    // Load last sync time
-    const lastSync = localStorage.getItem("accessibleApp_lastSync")
-    if (lastSync) {
-      setLastSyncTime(lastSync)
-    }
 
     // Listen for online/offline events
     const handleOnline = () => {
@@ -82,142 +102,133 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       registerServiceWorker()
     }
 
+    // Subscribe to sync service events
+    const unsubOnline = syncService.onOnlineStatusChange((online) => {
+      setIsOnline(online)
+    })
+
+    const unsubSync = syncService.onSyncComplete(async (result) => {
+      const count = await offlineStorage.getPendingCount()
+      setPendingSync(count)
+      
+      if (result.synced > 0) {
+        const now = new Date().toISOString()
+        setLastSyncTime(now)
+        localStorage.setItem("shiriki_lastSync", now)
+      }
+    })
+
     return () => {
       window.removeEventListener("online", handleOnline)
       window.removeEventListener("offline", handleOffline)
+      unsubOnline()
+      unsubSync()
     }
-  }, [])
+  }, [toast])
 
   const registerServiceWorker = async () => {
     try {
-      // Create a simple service worker inline
-      const swCode = `
-        const CACHE_NAME = 'Shiriki-v1';
-        const urlsToCache = [
-          '/',
-          '/offline.html',
-          // Add other static assets here
-        ];
+      const registration = await navigator.serviceWorker.register("/sw.js")
+      console.log("[OfflineProvider] Service Worker registered:", registration.scope)
 
-        self.addEventListener('install', (event) => {
-          event.waitUntil(
-            caches.open(CACHE_NAME)
-              .then((cache) => cache.addAll(urlsToCache))
-          );
-        });
-
-        self.addEventListener('fetch', (event) => {
-          event.respondWith(
-            caches.match(event.request)
-              .then((response) => {
-                // Return cached version or fetch from network
-                return response || fetch(event.request);
-              })
-              .catch(() => {
-                // Return offline page for navigation requests
-                if (event.request.mode === 'navigate') {
-                  return caches.match('/offline.html');
-                }
-              })
-          );
-        });
-      `
-
-      const blob = new Blob([swCode], { type: "application/javascript" })
-      const swUrl = URL.createObjectURL(blob)
-
-      const registration = await navigator.serviceWorker.register(swUrl)
-      console.log("[v0] Service Worker registered successfully:", registration)
+      // Listen for messages from service worker
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data.type === "SYNC_TRIGGER") {
+          syncData()
+        }
+      })
     } catch (error) {
-      console.log("[v0] Service Worker registration failed:", error)
+      console.error("[OfflineProvider] Service Worker registration failed:", error)
     }
   }
 
-  const syncData = async () => {
-    if (!isOnline) return
+  const syncData = useCallback(async () => {
+    if (!navigator.onLine) return
 
     try {
-      // Simulate syncing pending data
-      const pendingData = localStorage.getItem("accessibleApp_pendingData")
-      if (pendingData) {
-        const data = JSON.parse(pendingData)
+      const result = await syncService.syncAll()
 
-        // Process each pending item
-        for (const item of data) {
-          // Simulate API call
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          console.log("[v0] Syncing item:", item)
-        }
-
-        // Clear pending data after successful sync
-        localStorage.removeItem("accessibleApp_pendingData")
-        setPendingSync(0)
-        localStorage.setItem("accessibleApp_pendingSync", "0")
+      if (result.synced > 0) {
+        const now = new Date().toISOString()
+        setLastSyncTime(now)
+        localStorage.setItem("shiriki_lastSync", now)
       }
 
-      // Update last sync time
-      const now = new Date().toISOString()
-      setLastSyncTime(now)
-      localStorage.setItem("accessibleApp_lastSync", now)
+      // Update pending count
+      const count = await offlineStorage.getPendingCount()
+      setPendingSync(count)
 
-      toast({
-        title: "Sync Complete",
-        description: "All your offline data has been synchronized successfully.",
-      })
+      if (result.synced > 0 || result.failed === 0) {
+        toast({
+          title: "Sync Complete",
+          description: result.synced > 0
+            ? `${result.synced} item${result.synced !== 1 ? "s" : ""} synchronized successfully.`
+            : "All data is up to date.",
+        })
+      }
+
+      if (result.failed > 0) {
+        toast({
+          title: "Sync Partial",
+          description: `${result.failed} item${result.failed !== 1 ? "s" : ""} failed to sync. Will retry.`,
+          variant: "destructive",
+        })
+      }
     } catch (error) {
-      console.log("[v0] Sync failed:", error)
+      console.error("[OfflineProvider] Sync failed:", error)
       toast({
         title: "Sync Failed",
         description: "Unable to sync your data. Will retry when connection improves.",
         variant: "destructive",
       })
     }
-  }
+  }, [toast])
 
-  const cacheData = (key: string, data: any) => {
+  const cacheData = useCallback(async (key: string, data: unknown) => {
     try {
-      localStorage.setItem(
-        `accessibleApp_cache_${key}`,
-        JSON.stringify({
-          data,
-          timestamp: new Date().toISOString(),
-          version: 1,
-        }),
-      )
+      await offlineStorage.put(STORES.USER_DATA, key, data)
     } catch (error) {
-      console.log("[v0] Failed to cache data:", error)
+      console.error("[OfflineProvider] Failed to cache data:", error)
     }
-  }
+  }, [])
 
-  const getCachedData = (key: string) => {
+  const getCachedData = useCallback(async (key: string): Promise<unknown | null> => {
     try {
-      const cached = localStorage.getItem(`accessibleApp_cache_${key}`)
-      if (cached) {
-        const parsed = JSON.parse(cached)
-        return parsed.data
-      }
+      return await offlineStorage.get(STORES.USER_DATA, key)
     } catch (error) {
-      console.log("[v0] Failed to get cached data:", error)
+      console.error("[OfflineProvider] Failed to get cached data:", error)
+      return null
     }
-    return null
-  }
+  }, [])
 
-  const isDataCached = (key: string) => {
-    return localStorage.getItem(`accessibleApp_cache_${key}`) !== null
-  }
+  const isDataCached = useCallback(async (key: string): Promise<boolean> => {
+    try {
+      const data = await offlineStorage.get(STORES.USER_DATA, key)
+      return data !== null
+    } catch {
+      return false
+    }
+  }, [])
 
-  const addToPendingSync = (data: any) => {
-    const pending = JSON.parse(localStorage.getItem("accessibleApp_pendingData") || "[]")
-    pending.push({
-      ...data,
-      timestamp: new Date().toISOString(),
-    })
-    localStorage.setItem("accessibleApp_pendingData", JSON.stringify(pending))
+  const cacheArticles = useCallback(async (articles: { id: string }[]) => {
+    await offlineStorage.cacheArticles(articles)
+  }, [])
 
-    const newCount = pending.length
-    setPendingSync(newCount)
-    localStorage.setItem("accessibleApp_pendingSync", newCount.toString())
-  }
+  const cacheEvents = useCallback(async (events: { id: string }[]) => {
+    await offlineStorage.cacheEvents(events)
+  }, [])
+
+  const getCachedArticles = useCallback(async () => {
+    return offlineStorage.getCachedArticles()
+  }, [])
+
+  const getCachedEvents = useCallback(async () => {
+    return offlineStorage.getCachedEvents()
+  }, [])
+
+  const getStorageInfo = useCallback(async () => {
+    return offlineStorage.getStorageInfo()
+  }, [])
 
   const contextValue: OfflineContextType = {
     isOnline,
@@ -226,6 +237,11 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
     cacheData,
     getCachedData,
     isDataCached,
+    cacheArticles,
+    cacheEvents,
+    getCachedArticles,
+    getCachedEvents,
+    getStorageInfo,
   }
 
   return <OfflineContext.Provider value={contextValue}>{children}</OfflineContext.Provider>
@@ -236,15 +252,27 @@ interface OfflineStatusProps {
 }
 
 export function OfflineStatus({ className }: OfflineStatusProps) {
-  const { isOnline, pendingSync, syncData } = useOffline()
+  const { isOnline, pendingSync, syncData, getStorageInfo } = useOffline()
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null)
+  const [storageInfo, setStorageInfo] = useState<{ used: number; quota: number; percentage: number } | null>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   useEffect(() => {
-    const lastSync = localStorage.getItem("accessibleApp_lastSync")
+    const lastSync = localStorage.getItem("shiriki_lastSync")
     if (lastSync) {
       setLastSyncTime(lastSync)
     }
-  }, [])
+
+    // Get storage info
+    getStorageInfo().then(setStorageInfo)
+  }, [getStorageInfo])
+
+  const handleSync = async () => {
+    setIsSyncing(true)
+    await syncData()
+    setIsSyncing(false)
+    setLastSyncTime(new Date().toISOString())
+  }
 
   const formatLastSync = (timestamp: string) => {
     const date = new Date(timestamp)
@@ -259,6 +287,14 @@ export function OfflineStatus({ className }: OfflineStatusProps) {
       const diffInHours = Math.floor(diffInMinutes / 60)
       return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`
     }
+  }
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 B"
+    const k = 1024
+    const sizes = ["B", "KB", "MB", "GB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
   return (
@@ -293,9 +329,9 @@ export function OfflineStatus({ className }: OfflineStatusProps) {
                   </span>
                 </div>
                 {isOnline && (
-                  <Button size="sm" variant="outline" onClick={syncData}>
-                    <Upload className="h-3 w-3 mr-1" />
-                    Sync Now
+                  <Button size="sm" variant="outline" onClick={handleSync} disabled={isSyncing}>
+                    <Upload className={`h-3 w-3 mr-1 ${isSyncing ? "animate-spin" : ""}`} />
+                    {isSyncing ? "Syncing..." : "Sync Now"}
                   </Button>
                 )}
               </div>
@@ -305,6 +341,13 @@ export function OfflineStatus({ className }: OfflineStatusProps) {
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CheckCircle className="h-3 w-3" />
                 Last synced: {formatLastSync(lastSyncTime)}
+              </div>
+            )}
+
+            {storageInfo && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <HardDrive className="h-3 w-3" />
+                Storage: {formatBytes(storageInfo.used)} / {formatBytes(storageInfo.quota)} ({storageInfo.percentage.toFixed(1)}%)
               </div>
             )}
 

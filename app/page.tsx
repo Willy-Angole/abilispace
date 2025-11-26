@@ -5,14 +5,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, Calendar, MessageSquare, Newspaper, Accessibility } from "lucide-react"
 import { RegisterForm } from "@/components/register-form"
 import { LoginForm } from "@/components/login-form"
+import { ForgotPasswordForm } from "@/components/forgot-password-form"
+import { VerifyCodeForm } from "@/components/verify-code-form"
+import { ResetPasswordForm } from "@/components/reset-password-form"
 import { Dashboard } from "@/components/dashboard"
 import { OfflineProvider, OfflineIndicator } from "@/components/offline-manager"
 import { AccessibilityFloatingButton } from "@/components/accessibility-provider"
 import Image from "next/image"
 
+type ViewState = "welcome" | "register" | "login" | "forgot-password" | "verify-code" | "reset-password" | "dashboard"
+
 export default function HomePage() {
-  const [currentView, setCurrentView] = useState<"welcome" | "register" | "login" | "dashboard">("welcome")
+  const [currentView, setCurrentView] = useState<ViewState>("welcome")
   const [user, setUser] = useState<any>(null)
+  const [resetEmail, setResetEmail] = useState<string>("")
+  const [resetCode, setResetCode] = useState<string>("")
 
   useEffect(() => {
     // Check if user is already logged in
@@ -35,17 +42,68 @@ export default function HomePage() {
     setCurrentView("welcome")
   }
 
+  const handleUserUpdate = (updatedUser: any) => {
+    setUser(updatedUser)
+    localStorage.setItem("accessibleApp_user", JSON.stringify(updatedUser))
+  }
+
+  const handleForgotPasswordSuccess = (email: string) => {
+    setResetEmail(email)
+    setCurrentView("verify-code")
+  }
+
+  const handleVerifyCodeSuccess = (code: string) => {
+    setResetCode(code)
+    setCurrentView("reset-password")
+  }
+
+  const handlePasswordResetSuccess = () => {
+    setResetEmail("")
+    setResetCode("")
+    setCurrentView("login")
+  }
+
+  const handleRegistrationSuccess = () => {
+    setCurrentView("login")
+  }
+
   return (
     <OfflineProvider>
       <OfflineIndicator />
       <AccessibilityFloatingButton />
 
       {currentView === "dashboard" && user ? (
-        <Dashboard user={user} onLogout={handleLogout} />
+        <Dashboard user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
       ) : currentView === "register" ? (
-        <RegisterForm onSuccess={handleLogin} onBack={() => setCurrentView("welcome")} />
+        <RegisterForm 
+          onSuccess={handleRegistrationSuccess} 
+          onBack={() => setCurrentView("welcome")} 
+          onSignIn={() => setCurrentView("login")}
+        />
       ) : currentView === "login" ? (
-        <LoginForm onSuccess={handleLogin} onBack={() => setCurrentView("welcome")} />
+        <LoginForm 
+          onSuccess={handleLogin} 
+          onBack={() => setCurrentView("welcome")} 
+          onForgotPassword={() => setCurrentView("forgot-password")}
+        />
+      ) : currentView === "forgot-password" ? (
+        <ForgotPasswordForm 
+          onSuccess={handleForgotPasswordSuccess} 
+          onBack={() => setCurrentView("login")} 
+        />
+      ) : currentView === "verify-code" ? (
+        <VerifyCodeForm 
+          email={resetEmail}
+          onSuccess={handleVerifyCodeSuccess} 
+          onBack={() => setCurrentView("forgot-password")} 
+        />
+      ) : currentView === "reset-password" ? (
+        <ResetPasswordForm 
+          email={resetEmail}
+          code={resetCode}
+          onSuccess={handlePasswordResetSuccess} 
+          onBack={() => setCurrentView("verify-code")} 
+        />
       ) : (
         <main className="min-h-screen bg-background">
           <div className="container mx-auto px-4 py-8 max-w-4xl">

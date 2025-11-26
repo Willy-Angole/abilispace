@@ -1,11 +1,23 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { AccessibilityProvider } from "@/components/accessibility-provider"
+import { OfflineProvider, OfflineIndicator } from "@/components/offline-manager"
+import { SkipLinks } from "@/components/skip-links"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+}
 
 export const metadata: Metadata = {
   title: "Shiriki - Inclusive Platform for People with Disabilities",
@@ -26,11 +38,7 @@ export const metadata: Metadata = {
   creator: "Shiriki",
   publisher: "Shiriki",
   robots: "index, follow",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
+  manifest: "/manifest.json",
 }
 
 export default function RootLayout({
@@ -49,14 +57,17 @@ export default function RootLayout({
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <AccessibilityProvider>
-          <a
-            href="#main-content"
-            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-primary text-primary-foreground px-4 py-2 rounded-md z-50 focus:z-[100]"
-          >
-            Skip to main content
-          </a>
-          {children}
-          <Toaster />
+          <OfflineProvider>
+            <SkipLinks
+              links={[
+                { id: "main-content", label: "Skip to main content" },
+                { id: "navigation", label: "Skip to navigation" },
+              ]}
+            />
+            <OfflineIndicator />
+            {children}
+            <Toaster />
+          </OfflineProvider>
         </AccessibilityProvider>
         <Analytics />
       </body>

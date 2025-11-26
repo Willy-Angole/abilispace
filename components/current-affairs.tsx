@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Newspaper,
   Search,
@@ -19,249 +20,283 @@ import {
   Eye,
   Share2,
   MessageCircle,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-
-interface NewsArticle {
-  id: string
-  title: string
-  summary: string
-  content: string
-  category: string
-  source: string
-  publishedAt: string
-  readTime: number
-  tags: string[]
-  isBookmarked?: boolean
-  hasAudio?: boolean
-  hasVideo?: boolean
-  accessibilityFeatures: string[]
-  region: string
-  priority: "high" | "medium" | "low"
-  imageAlt?: string
-}
+import {
+  getArticles,
+  getArticleById,
+  getCategories,
+  getBookmarks,
+  bookmarkArticle,
+  removeBookmark,
+  getTrendingArticles,
+  type Article,
+  type ArticleFilters,
+  type CategoryCount,
+  type Pagination,
+} from "@/lib/articles"
+import { isAuthenticated } from "@/lib/auth"
 
 interface CurrentAffairsProps {
-  user: any
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
+}
+
+// Debounce hook for search input
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
 }
 
 export function CurrentAffairs({ user }: CurrentAffairsProps) {
-  const [articles, setArticles] = useState<NewsArticle[]>([])
-  const [filteredArticles, setFilteredArticles] = useState<NewsArticle[]>([])
+  // Data state
+  const [articles, setArticles] = useState<Article[]>([])
+  const [pagination, setPagination] = useState<Pagination | null>(null)
+  const [categories, setCategories] = useState<CategoryCount[]>([])
+  const [trendingArticles, setTrendingArticles] = useState<Article[]>([])
+
+  // UI state
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
+  const [showFilters, setShowFilters] = useState(false)
+  const [isBookmarking, setIsBookmarking] = useState(false)
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
+
+  // Filter state
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [selectedRegion, setSelectedRegion] = useState<string>("all")
-  const [showFilters, setShowFilters] = useState(false)
+  const [selectedPriority, setSelectedPriority] = useState<string>("all")
   const [accessibilityFilters, setAccessibilityFilters] = useState<string[]>([])
-  const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null)
-  const [bookmarkedArticles, setBookmarkedArticles] = useState<string[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+
   const { toast } = useToast()
+  const debouncedSearch = useDebounce(searchQuery, 300)
 
-  // Load articles and bookmarks on component mount
-  useEffect(() => {
-    loadArticles()
-    loadBookmarks()
-  }, [user.id])
-
-  // Filter articles based on search and filters
-  useEffect(() => {
-    let filtered = articles
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (article) =>
-          article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          article.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          article.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())),
-      )
+  // Build filters object
+  const filters = useMemo<ArticleFilters>(() => {
+    const f: ArticleFilters = {
+      page: currentPage,
+      limit: 12,
     }
 
-    // Category filter
+    if (debouncedSearch) {
+      f.search = debouncedSearch
+    }
     if (selectedCategory !== "all") {
-      filtered = filtered.filter((article) => article.category === selectedCategory)
+      f.category = selectedCategory
     }
-
-    // Region filter
     if (selectedRegion !== "all") {
-      filtered = filtered.filter((article) => article.region === selectedRegion)
+      f.region = selectedRegion
     }
-
-    // Accessibility filters
+    if (selectedPriority !== "all") {
+      f.priority = selectedPriority as 'high' | 'medium' | 'low'
+    }
     if (accessibilityFilters.length > 0) {
-      filtered = filtered.filter((article) =>
-        accessibilityFilters.every((filter) =>
-          article.accessibilityFeatures.some((feature) => feature.toLowerCase().includes(filter.toLowerCase())),
-        ),
-      )
+      f.accessibilityFeatures = accessibilityFilters
     }
 
-    // Sort by priority and date
-    filtered.sort((a, b) => {
-      const priorityOrder = { high: 3, medium: 2, low: 1 }
-      if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-        return priorityOrder[b.priority] - priorityOrder[a.priority]
+    return f
+  }, [debouncedSearch, selectedCategory, selectedRegion, selectedPriority, accessibilityFilters, currentPage])
+
+  // Fetch categories and trending on mount
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const [categoriesRes, trendingRes] = await Promise.all([
+          getCategories(),
+          getTrendingArticles(5),
+        ])
+
+        if (categoriesRes.success) {
+          setCategories(categoriesRes.data)
+        }
+        if (trendingRes.success) {
+          setTrendingArticles(trendingRes.data)
+        }
+      } catch (err) {
+        console.error("Failed to fetch metadata:", err)
       }
-      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    })
+    }
 
-    setFilteredArticles(filtered)
-  }, [articles, searchQuery, selectedCategory, selectedRegion, accessibilityFilters])
+    fetchMetadata()
+  }, [])
 
-  const loadArticles = () => {
-    const savedArticles = localStorage.getItem("accessibleApp_articles")
-    if (savedArticles) {
-      const loadedArticles = JSON.parse(savedArticles)
-      setArticles(loadedArticles)
+  // Fetch articles when filters change
+  const fetchArticles = useCallback(async (append = false) => {
+    if (!append) {
+      setIsLoading(true)
     } else {
-      // Sample articles focused on disability rights and accessibility
-      const sampleArticles: NewsArticle[] = [
-        {
-          id: "1",
-          title: "New Accessibility Standards Approved for Public Transportation",
-          summary:
-            "Government announces comprehensive accessibility improvements for buses, trains, and stations across the country.",
-          content:
-            "The Ministry of Transportation has approved new accessibility standards that will require all public transportation systems to implement comprehensive accessibility features within the next two years. The standards include audio announcements, tactile guidance systems, wheelchair-accessible vehicles, and improved signage with high contrast and braille options. This landmark decision comes after extensive consultation with disability advocacy groups and represents a significant step forward in ensuring equal access to public transportation for all citizens.",
-          category: "Policy",
-          source: "Government Press Release",
-          publishedAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-          readTime: 3,
-          tags: ["transportation", "accessibility", "policy", "government"],
-          hasAudio: true,
-          hasVideo: false,
-          accessibilityFeatures: ["Audio Description", "High Contrast Text", "Screen Reader Compatible"],
-          region: "National",
-          priority: "high",
-          imageAlt: "Modern accessible bus with wheelchair ramp deployed",
-        },
-        {
-          id: "2",
-          title: "Technology Grant Program Launches for Assistive Device Innovation",
-          summary:
-            "New $50 million fund supports development of cutting-edge assistive technologies for people with disabilities.",
-          content:
-            "A groundbreaking $50 million grant program has been launched to accelerate the development of innovative assistive technologies. The program will fund research and development of devices ranging from advanced prosthetics to AI-powered communication aids. Priority will be given to projects that address gaps in current assistive technology markets, particularly for underserved communities. Applications are now open for researchers, startups, and established companies working on accessibility solutions.",
-          category: "Technology",
-          source: "Tech Innovation Daily",
-          publishedAt: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
-          readTime: 4,
-          tags: ["technology", "grants", "innovation", "assistive-devices"],
-          hasAudio: true,
-          hasVideo: true,
-          accessibilityFeatures: ["Audio Description", "Live Captions", "Screen Reader Compatible"],
-          region: "International",
-          priority: "high",
-          imageAlt: "Researcher testing a robotic prosthetic arm in a laboratory setting",
-        },
-        {
-          id: "3",
-          title: "Employment Rights Victory: Landmark Discrimination Case Settled",
-          summary: "Major corporation agrees to $2.5 million settlement in disability discrimination lawsuit.",
-          content:
-            "A major technology corporation has agreed to a $2.5 million settlement in a class-action lawsuit alleging systematic discrimination against employees with disabilities. The settlement includes not only financial compensation but also mandatory accessibility training for all managers and a commitment to improve workplace accommodations. The case, which took three years to resolve, is being hailed as a significant victory for disability rights advocates and sets an important precedent for future employment discrimination cases.",
-          category: "Legal",
-          source: "Legal Affairs Weekly",
-          publishedAt: new Date(Date.now() - 14400000).toISOString(), // 4 hours ago
-          readTime: 5,
-          tags: ["employment", "discrimination", "legal", "rights"],
-          hasAudio: false,
-          hasVideo: false,
-          accessibilityFeatures: ["High Contrast Text", "Screen Reader Compatible"],
-          region: "National",
-          priority: "medium",
-          imageAlt: "Courthouse steps with people holding signs supporting disability rights",
-        },
-        {
-          id: "4",
-          title: "Breakthrough in Brain-Computer Interface Technology",
-          summary:
-            "New research shows promising results for helping paralyzed patients control devices with thought alone.",
-          content:
-            "Researchers at leading universities have achieved a major breakthrough in brain-computer interface technology, demonstrating that paralyzed patients can control computer cursors and robotic arms with unprecedented precision using only their thoughts. The study, published in a prestigious medical journal, shows success rates of over 90% in controlled trials. This technology could revolutionize independence for people with severe mobility impairments, offering new possibilities for communication, mobility, and daily living activities.",
-          category: "Medical",
-          source: "Medical Research Today",
-          publishedAt: new Date(Date.now() - 21600000).toISOString(), // 6 hours ago
-          readTime: 6,
-          tags: ["medical", "research", "brain-computer-interface", "paralysis"],
-          hasAudio: true,
-          hasVideo: true,
-          accessibilityFeatures: ["Audio Description", "Live Captions", "Screen Reader Compatible", "Sign Language"],
-          region: "International",
-          priority: "high",
-          imageAlt: "Patient using brain-computer interface to control a robotic arm",
-        },
-        {
-          id: "5",
-          title: "Accessible Housing Initiative Receives Major Funding Boost",
-          summary: "New $100 million program aims to create 5,000 fully accessible housing units over next five years.",
-          content:
-            "A comprehensive accessible housing initiative has received a major funding boost with the announcement of a $100 million program designed to create 5,000 fully accessible housing units over the next five years. The program will focus on universal design principles, ensuring that homes are accessible to people with various types of disabilities from the outset. Features will include roll-in showers, wider doorways, accessible kitchens, and smart home technology integration. Priority will be given to areas with the greatest need for accessible housing options.",
-          category: "Housing",
-          source: "Housing Development News",
-          publishedAt: new Date(Date.now() - 28800000).toISOString(), // 8 hours ago
-          readTime: 4,
-          tags: ["housing", "accessibility", "funding", "universal-design"],
-          hasAudio: false,
-          hasVideo: true,
-          accessibilityFeatures: ["Live Captions", "Screen Reader Compatible"],
-          region: "National",
-          priority: "medium",
-          imageAlt: "Modern accessible apartment with wide doorways and roll-in shower",
-        },
-        {
-          id: "6",
-          title: "Digital Accessibility Audit Reveals Major Website Compliance Issues",
-          summary:
-            "Study of top 1000 websites finds 70% fail basic accessibility standards, prompting calls for stronger enforcement.",
-          content:
-            "A comprehensive audit of the top 1000 most visited websites has revealed that 70% fail to meet basic accessibility standards, making them difficult or impossible for people with disabilities to use. The study, conducted by accessibility experts, found common issues including missing alt text for images, poor color contrast, and lack of keyboard navigation support. Disability rights advocates are calling for stronger enforcement of digital accessibility laws and increased penalties for non-compliance. Several major companies have already announced plans to address the identified issues.",
-          category: "Digital Rights",
-          source: "Digital Accessibility Report",
-          publishedAt: new Date(Date.now() - 43200000).toISOString(), // 12 hours ago
-          readTime: 5,
-          tags: ["digital-accessibility", "websites", "compliance", "audit"],
-          hasAudio: true,
-          hasVideo: false,
-          accessibilityFeatures: ["Audio Description", "High Contrast Text", "Screen Reader Compatible"],
-          region: "International",
-          priority: "medium",
-          imageAlt: "Person using screen reader software to navigate a website",
-        },
-      ]
+      setIsLoadingMore(true)
+    }
+    setError(null)
 
-      setArticles(sampleArticles)
-      localStorage.setItem("accessibleApp_articles", JSON.stringify(sampleArticles))
+    try {
+      let response
+      
+      if (showBookmarksOnly) {
+        response = await getBookmarks(currentPage, 12)
+      } else {
+        response = await getArticles(filters)
+      }
+
+      if (response.success) {
+        if (append) {
+          setArticles((prev) => [...prev, ...response.data])
+        } else {
+          setArticles(response.data)
+        }
+        setPagination(response.pagination)
+      } else {
+        setError("Failed to load articles")
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load articles"
+      setError(message)
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }, [filters, showBookmarksOnly, currentPage, toast])
+
+  useEffect(() => {
+    fetchArticles()
+  }, [fetchArticles])
+
+  // Reset to page 1 when filters change (except page itself)
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1)
+    }
+  }, [debouncedSearch, selectedCategory, selectedRegion, selectedPriority, accessibilityFilters, showBookmarksOnly])
+
+  // Handle bookmark toggle
+  const handleToggleBookmark = async (articleId: string, currentlyBookmarked: boolean) => {
+    if (!isAuthenticated()) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to bookmark articles.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsBookmarking(true)
+
+    try {
+      if (currentlyBookmarked) {
+        await removeBookmark(articleId)
+        // Update article in list
+        setArticles((prev) =>
+          prev.map((article) =>
+            article.id === articleId ? { ...article, isBookmarked: false } : article
+          )
+        )
+        // Update selected article if viewing
+        if (selectedArticle?.id === articleId) {
+          setSelectedArticle((prev) => prev ? { ...prev, isBookmarked: false } : prev)
+        }
+        toast({
+          title: "Bookmark Removed",
+          description: "Article removed from your bookmarks",
+        })
+      } else {
+        await bookmarkArticle(articleId)
+        // Update article in list
+        setArticles((prev) =>
+          prev.map((article) =>
+            article.id === articleId ? { ...article, isBookmarked: true } : article
+          )
+        )
+        // Update selected article if viewing
+        if (selectedArticle?.id === articleId) {
+          setSelectedArticle((prev) => prev ? { ...prev, isBookmarked: true } : prev)
+        }
+        toast({
+          title: "Article Bookmarked",
+          description: "Article saved for offline reading",
+        })
+      }
+    } catch (err) {
+      const message = (err as { message?: string })?.message || "Failed to update bookmark"
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsBookmarking(false)
     }
   }
 
-  const loadBookmarks = () => {
-    const savedBookmarks = localStorage.getItem(`accessibleApp_bookmarks_${user.id}`)
-    if (savedBookmarks) {
-      setBookmarkedArticles(JSON.parse(savedBookmarks))
+  // View article details
+  const handleViewArticle = async (article: Article) => {
+    try {
+      // Fetch fresh article data with full content
+      const response = await getArticleById(article.id)
+      if (response.success) {
+        setSelectedArticle(response.data)
+      } else {
+        setSelectedArticle(article)
+      }
+    } catch {
+      // Fall back to cached article data
+      setSelectedArticle(article)
     }
   }
 
-  const toggleBookmark = (articleId: string) => {
-    const updatedBookmarks = bookmarkedArticles.includes(articleId)
-      ? bookmarkedArticles.filter((id) => id !== articleId)
-      : [...bookmarkedArticles, articleId]
-
-    setBookmarkedArticles(updatedBookmarks)
-    localStorage.setItem(`accessibleApp_bookmarks_${user.id}`, JSON.stringify(updatedBookmarks))
-
-    toast({
-      title: bookmarkedArticles.includes(articleId) ? "Bookmark Removed" : "Article Bookmarked",
-      description: bookmarkedArticles.includes(articleId)
-        ? "Article removed from your bookmarks"
-        : "Article saved to your bookmarks for offline reading",
-    })
-  }
-
+  // Toggle accessibility filter
   const toggleAccessibilityFilter = (filter: string) => {
-    setAccessibilityFilters((prev) => (prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]))
+    setAccessibilityFilters((prev) =>
+      prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]
+    )
   }
 
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchQuery("")
+    setSelectedCategory("all")
+    setSelectedRegion("all")
+    setSelectedPriority("all")
+    setAccessibilityFilters([])
+    setShowBookmarksOnly(false)
+    setCurrentPage(1)
+  }
+
+  // Load more articles
+  const loadMore = () => {
+    if (pagination && currentPage < pagination.totalPages) {
+      setCurrentPage((prev) => prev + 1)
+      fetchArticles(true)
+    }
+  }
+
+  // Utility functions
   const formatTimeAgo = (timestamp: string) => {
     const date = new Date(timestamp)
     const now = new Date()
@@ -290,11 +325,25 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
     }
   }
 
+  // Check if filters are active
+  const hasActiveFilters =
+    searchQuery !== "" ||
+    selectedCategory !== "all" ||
+    selectedRegion !== "all" ||
+    selectedPriority !== "all" ||
+    accessibilityFilters.length > 0 ||
+    showBookmarksOnly
+
+  // Article Detail View
   if (selectedArticle) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" role="main" aria-label="Article Details">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => setSelectedArticle(null)}>
+          <Button
+            variant="ghost"
+            onClick={() => setSelectedArticle(null)}
+            aria-label="Go back to articles list"
+          >
             ← Back to Articles
           </Button>
           <Badge variant={getPriorityColor(selectedArticle.priority)}>
@@ -305,23 +354,26 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
         <Card>
           <CardHeader>
             <div className="space-y-4">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between flex-wrap gap-4">
                 <div className="space-y-2 flex-1">
                   <CardTitle className="text-2xl leading-tight">{selectedArticle.title}</CardTitle>
                   <CardDescription className="text-base">
-                    {selectedArticle.source} • {formatTimeAgo(selectedArticle.publishedAt)} • {selectedArticle.readTime}{" "}
-                    min read
+                    {selectedArticle.source} • {formatTimeAgo(selectedArticle.publishedAt)} •{" "}
+                    {selectedArticle.readTimeMinutes} min read
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2 ml-4">
+                <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => toggleBookmark(selectedArticle.id)}
-                    aria-label={bookmarkedArticles.includes(selectedArticle.id) ? "Remove bookmark" : "Add bookmark"}
+                    onClick={() => handleToggleBookmark(selectedArticle.id, selectedArticle.isBookmarked || false)}
+                    disabled={isBookmarking}
+                    aria-label={selectedArticle.isBookmarked ? "Remove bookmark" : "Add bookmark"}
                   >
-                    {bookmarkedArticles.includes(selectedArticle.id) ? (
-                      <BookmarkCheck className="h-4 w-4" />
+                    {isBookmarking ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : selectedArticle.isBookmarked ? (
+                      <BookmarkCheck className="h-4 w-4 text-primary" />
                     ) : (
                       <Bookmark className="h-4 w-4" />
                     )}
@@ -337,13 +389,13 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
                 <Badge variant="outline">{selectedArticle.region}</Badge>
                 {selectedArticle.hasAudio && (
                   <Badge variant="outline" className="flex items-center gap-1">
-                    <Volume2 className="h-3 w-3" />
+                    <Volume2 className="h-3 w-3" aria-hidden="true" />
                     Audio Available
                   </Badge>
                 )}
                 {selectedArticle.hasVideo && (
                   <Badge variant="outline" className="flex items-center gap-1">
-                    <Eye className="h-3 w-3" />
+                    <Eye className="h-3 w-3" aria-hidden="true" />
                     Video Content
                   </Badge>
                 )}
@@ -352,45 +404,61 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
               <div className="space-y-2">
                 <p className="font-medium text-sm">Accessibility Features:</p>
                 <div className="flex flex-wrap gap-1">
-                  {selectedArticle.accessibilityFeatures.map((feature, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {feature}
-                    </Badge>
-                  ))}
+                  {selectedArticle.accessibilityFeatures.length > 0 ? (
+                    selectedArticle.accessibilityFeatures.map((feature, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {feature}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">None specified</span>
+                  )}
                 </div>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="prose prose-sm max-w-none">
-              <p className="text-lg font-medium text-muted-foreground leading-relaxed">{selectedArticle.summary}</p>
-              <div className="mt-6 space-y-4 text-foreground leading-relaxed">
-                {selectedArticle.content.split("\n").map((paragraph, index) => (
-                  <p key={index}>{paragraph}</p>
-                ))}
-              </div>
+              <p className="text-lg font-medium text-muted-foreground leading-relaxed">
+                {selectedArticle.summary}
+              </p>
+              {selectedArticle.content && (
+                <div className="mt-6 space-y-4 text-foreground leading-relaxed">
+                  {selectedArticle.content.split("\n").map((paragraph, index) => (
+                    <p key={index}>{paragraph}</p>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="border-t pt-6">
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className="text-sm font-medium">Tags:</span>
-                {selectedArticle.tags.map((tag, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    #{tag}
-                  </Badge>
-                ))}
+            {selectedArticle.tags.length > 0 && (
+              <div className="border-t pt-6">
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <span className="text-sm font-medium">Tags:</span>
+                  {selectedArticle.tags.map((tag, index) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      #{tag}
+                    </Badge>
+                  ))}
+                </div>
               </div>
+            )}
 
-              <div className="flex gap-3">
-                <Button variant="outline" className="flex items-center gap-2 bg-transparent">
-                  <MessageCircle className="h-4 w-4" />
-                  Discuss in Community
-                </Button>
-                <Button variant="outline" className="flex items-center gap-2 bg-transparent">
-                  <ExternalLink className="h-4 w-4" />
+            <div className="flex gap-3 flex-wrap">
+              <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                Discuss in Community
+              </Button>
+              {selectedArticle.sourceUrl && (
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2 bg-transparent"
+                  onClick={() => window.open(selectedArticle.sourceUrl, '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
                   View Original Source
                 </Button>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -398,14 +466,36 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
     )
   }
 
+  // Articles List View
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6" role="main" aria-label="Current Affairs">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold">Current Affairs</h2>
-        <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-          <Filter className="h-4 w-4 mr-2" />
-          Filters
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => fetchArticles()}
+            disabled={isLoading}
+            aria-label="Refresh articles"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            aria-expanded={showFilters}
+            aria-controls="filters-panel"
+          >
+            <Filter className="h-4 w-4 mr-2" aria-hidden="true" />
+            Filters
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-2">
+                Active
+              </Badge>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -414,7 +504,7 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
           <div className="space-y-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 placeholder="Search articles by title, content, or tags..."
                 value={searchQuery}
@@ -427,22 +517,21 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
             {/* Quick Filters */}
             <div className="flex flex-wrap gap-2">
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-40" aria-label="Filter by category">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="Policy">Policy</SelectItem>
-                  <SelectItem value="Technology">Technology</SelectItem>
-                  <SelectItem value="Legal">Legal</SelectItem>
-                  <SelectItem value="Medical">Medical</SelectItem>
-                  <SelectItem value="Housing">Housing</SelectItem>
-                  <SelectItem value="Digital Rights">Digital Rights</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.category} value={cat.category}>
+                      {cat.category} ({cat.count})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
               <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-36" aria-label="Filter by region">
                   <SelectValue placeholder="Region" />
                 </SelectTrigger>
                 <SelectContent>
@@ -452,14 +541,41 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
                   <SelectItem value="Local">Local</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+                <SelectTrigger className="w-32" aria-label="Filter by priority">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant={showBookmarksOnly ? "default" : "outline"}
+                onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
+                className="flex items-center gap-2"
+              >
+                <Bookmark className="h-4 w-4" aria-hidden="true" />
+                Bookmarks
+              </Button>
             </div>
 
             {/* Advanced Filters */}
             {showFilters && (
-              <div className="border-t pt-4 space-y-4">
+              <div id="filters-panel" className="border-t pt-4 space-y-4">
                 <div>
-                  <Label className="text-sm font-medium mb-3 block">Accessibility Features</Label>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <Label className="text-sm font-medium mb-3 block">
+                    Accessibility Features
+                  </Label>
+                  <div
+                    className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+                    role="group"
+                    aria-label="Accessibility feature filters"
+                  >
                     {[
                       "Audio Description",
                       "Live Captions",
@@ -469,11 +585,11 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
                     ].map((feature) => (
                       <div key={feature} className="flex items-center space-x-2">
                         <Checkbox
-                          id={feature}
+                          id={`article-filter-${feature}`}
                           checked={accessibilityFilters.includes(feature)}
                           onCheckedChange={() => toggleAccessibilityFilter(feature)}
                         />
-                        <Label htmlFor={feature} className="text-sm">
+                        <Label htmlFor={`article-filter-${feature}`} className="text-sm cursor-pointer">
                           {feature}
                         </Label>
                       </div>
@@ -488,114 +604,204 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
 
       {/* Results Summary */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          Showing {filteredArticles.length} of {articles.length} articles
+        <span aria-live="polite">
+          {isLoading ? (
+            "Loading articles..."
+          ) : (
+            <>
+              Showing {articles.length} of {pagination?.total || 0} articles
+              {showBookmarksOnly && " (Bookmarks)"}
+            </>
+          )}
         </span>
-        {(searchQuery || selectedCategory !== "all" || selectedRegion !== "all" || accessibilityFilters.length > 0) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearchQuery("")
-              setSelectedCategory("all")
-              setSelectedRegion("all")
-              setAccessibilityFilters([])
-            }}
-          >
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
             Clear Filters
           </Button>
         )}
       </div>
 
-      {/* Articles Grid */}
-      <div className="grid gap-4">
-        {filteredArticles.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <Newspaper className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                No articles found matching your criteria. Try adjusting your filters.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredArticles.map((article) => (
-            <Card key={article.id} className="hover:shadow-md transition-shadow">
+      {/* Error State */}
+      {error && (
+        <Card className="border-destructive">
+          <CardContent className="pt-6 text-center">
+            <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+            <p className="text-destructive">{error}</p>
+            <Button variant="outline" onClick={() => fetchArticles()} className="mt-4">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {isLoading && !error && (
+        <div className="grid gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={getPriorityColor(article.priority)}>{article.priority.toUpperCase()}</Badge>
-                      <Badge variant="outline">{article.category}</Badge>
-                      <Badge variant="outline">{article.region}</Badge>
-                    </div>
-                    <CardTitle className="text-lg leading-tight">{article.title}</CardTitle>
-                    <CardDescription>
-                      {article.source} • {formatTimeAgo(article.publishedAt)} • {article.readTime} min read
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    {bookmarkedArticles.includes(article.id) && <BookmarkCheck className="h-4 w-4 text-primary" />}
-                    {article.hasAudio && <Volume2 className="h-4 w-4 text-muted-foreground" />}
-                    {article.hasVideo && <Eye className="h-4 w-4 text-muted-foreground" />}
-                  </div>
-                </div>
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{article.summary}</p>
-
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {article.accessibilityFeatures.slice(0, 3).map((feature, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {feature}
-                    </Badge>
-                  ))}
-                  {article.accessibilityFeatures.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{article.accessibilityFeatures.length - 3} more
-                    </Badge>
-                  )}
-                </div>
-
+                <Skeleton className="h-16 w-full mb-4" />
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => setSelectedArticle(article)}>
-                    Read Full Article
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => toggleBookmark(article.id)}
-                    aria-label={bookmarkedArticles.includes(article.id) ? "Remove bookmark" : "Add bookmark"}
-                  >
-                    {bookmarkedArticles.includes(article.id) ? (
-                      <BookmarkCheck className="h-3 w-3 mr-1" />
-                    ) : (
-                      <Bookmark className="h-3 w-3 mr-1" />
-                    )}
-                    {bookmarkedArticles.includes(article.id) ? "Saved" : "Save"}
-                  </Button>
+                  <Skeleton className="h-8 w-32" />
+                  <Skeleton className="h-8 w-20" />
                 </div>
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Bookmarked Articles Section */}
-      {bookmarkedArticles.length > 0 && (
+      {/* Articles Grid */}
+      {!isLoading && !error && (
+        <div className="grid gap-4">
+          {articles.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Newspaper className="h-12 w-12 text-muted-foreground mx-auto mb-4" aria-hidden="true" />
+                <p className="text-muted-foreground">
+                  {showBookmarksOnly
+                    ? "You haven't bookmarked any articles yet."
+                    : "No articles found matching your criteria. Try adjusting your filters."}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            articles.map((article) => (
+              <Card key={article.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between flex-wrap gap-2">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant={getPriorityColor(article.priority)}>
+                          {article.priority.toUpperCase()}
+                        </Badge>
+                        <Badge variant="outline">{article.category}</Badge>
+                        <Badge variant="outline">{article.region}</Badge>
+                      </div>
+                      <CardTitle className="text-lg leading-tight">{article.title}</CardTitle>
+                      <CardDescription>
+                        {article.source} • {formatTimeAgo(article.publishedAt)} •{" "}
+                        {article.readTimeMinutes} min read
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {article.isBookmarked && (
+                        <BookmarkCheck
+                          className="h-4 w-4 text-primary"
+                          aria-label="Bookmarked"
+                        />
+                      )}
+                      {article.hasAudio && (
+                        <Volume2
+                          className="h-4 w-4 text-muted-foreground"
+                          aria-label="Has audio"
+                        />
+                      )}
+                      {article.hasVideo && (
+                        <Eye
+                          className="h-4 w-4 text-muted-foreground"
+                          aria-label="Has video"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4 leading-relaxed line-clamp-2">
+                    {article.summary}
+                  </p>
+
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {article.accessibilityFeatures.slice(0, 3).map((feature, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {feature}
+                      </Badge>
+                    ))}
+                    {article.accessibilityFeatures.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{article.accessibilityFeatures.length - 3} more
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleViewArticle(article)}>
+                      Read Full Article
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleToggleBookmark(article.id, article.isBookmarked || false)}
+                      disabled={isBookmarking}
+                      aria-label={article.isBookmarked ? "Remove bookmark" : "Add bookmark"}
+                    >
+                      {isBookmarking ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : article.isBookmarked ? (
+                        <BookmarkCheck className="h-3 w-3 mr-1 text-primary" />
+                      ) : (
+                        <Bookmark className="h-3 w-3 mr-1" />
+                      )}
+                      {article.isBookmarked ? "Saved" : "Save"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Load More */}
+      {pagination && currentPage < pagination.totalPages && !isLoading && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={loadMore} disabled={isLoadingMore}>
+            {isLoadingMore ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>Load More Articles</>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Trending Articles Section */}
+      {trendingArticles.length > 0 && !showBookmarksOnly && !hasActiveFilters && (
         <Card className="bg-muted/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bookmark className="h-5 w-5" />
-              Your Bookmarked Articles ({bookmarkedArticles.length})
+              <Newspaper className="h-5 w-5" aria-hidden="true" />
+              Trending Articles
             </CardTitle>
-            <CardDescription>Articles saved for offline reading and future reference</CardDescription>
+            <CardDescription>Most popular articles this week</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Your bookmarked articles are stored locally and available for offline reading. Access them anytime, even
-              without an internet connection.
-            </p>
+            <div className="space-y-3">
+              {trendingArticles.slice(0, 5).map((article, index) => (
+                <button
+                  key={article.id}
+                  onClick={() => handleViewArticle(article)}
+                  className="flex items-start gap-3 w-full text-left hover:bg-muted p-2 rounded-md transition-colors"
+                >
+                  <span className="text-2xl font-bold text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm line-clamp-2">{article.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {article.category} • {article.readTimeMinutes} min read
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -8,251 +8,360 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar, MapPin, Users, Search, Filter, Accessibility, Video, Heart } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Calendar, MapPin, Users, Search, Filter, Accessibility, Video, Heart, Loader2, RefreshCw, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-
-interface Event {
-  id: string
-  title: string
-  description: string
-  date: string
-  time: string
-  location: string
-  type: "virtual" | "in-person" | "hybrid"
-  category: string
-  accessibility: string[]
-  capacity: number
-  registered: number
-  organizer: string
-  tags: string[]
-  isRegistered?: boolean
-}
+import {
+  getEvents,
+  getEventById,
+  getCategories,
+  getAccessibilityFeatures as fetchAccessibilityFeatures,
+  registerForEvent,
+  cancelRegistration,
+  type Event,
+  type EventFilters,
+  type CategoryCount,
+  type AccessibilityFeature,
+  type Pagination,
+} from "@/lib/events"
+import { isAuthenticated } from "@/lib/auth"
 
 interface EventDiscoveryProps {
-  user: any
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
+}
+
+type EventType = 'virtual' | 'in_person' | 'hybrid'
+
+// Debounce hook for search input
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
 }
 
 export function EventDiscovery({ user }: EventDiscoveryProps) {
+  // Data state
   const [events, setEvents] = useState<Event[]>([])
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
+  const [pagination, setPagination] = useState<Pagination | null>(null)
+  const [categories, setCategories] = useState<CategoryCount[]>([])
+  const [accessibilityOptions, setAccessibilityOptions] = useState<AccessibilityFeature[]>([])
+
+  // UI state
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [showFilters, setShowFilters] = useState(false)
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [showAccommodationDialog, setShowAccommodationDialog] = useState(false)
+  const [accommodationNotes, setAccommodationNotes] = useState("")
+  const [pendingRegistrationEventId, setPendingRegistrationEventId] = useState<string | null>(null)
+
+  // Filter state
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [selectedType, setSelectedType] = useState<string>("all")
   const [accessibilityFilters, setAccessibilityFilters] = useState<string[]>([])
-  const [showFilters, setShowFilters] = useState(false)
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+
   const { toast } = useToast()
+  const debouncedSearch = useDebounce(searchQuery, 300)
 
-  // Sample events data
-  useEffect(() => {
-    const sampleEvents: Event[] = [
-      {
-        id: "1",
-        title: "Accessible Tech Workshop",
-        description:
-          "Join us for an interactive workshop on the latest assistive technologies. Learn about screen readers, voice recognition software, and adaptive hardware solutions.",
-        date: "2025-01-02",
-        time: "14:00",
-        location: "Community Center, Lagos",
-        type: "hybrid",
-        category: "Technology",
-        accessibility: ["Sign Language", "Live Captions", "Wheelchair Access", "Audio Description"],
-        capacity: 50,
-        registered: 23,
-        organizer: "Tech for All Foundation",
-        tags: ["assistive-tech", "workshop", "hands-on"],
-      },
-      {
-        id: "2",
-        title: "Employment Rights Discussion Panel",
-        description:
-          "A comprehensive panel discussion about employment rights for people with disabilities. Expert speakers will cover legal protections, workplace accommodations, and advocacy strategies.",
-        date: "2025-01-05",
-        time: "10:00",
-        location: "Virtual Event",
-        type: "virtual",
-        category: "Advocacy",
-        accessibility: ["Sign Language", "Live Captions", "Screen Reader Compatible"],
-        capacity: 200,
-        registered: 87,
-        organizer: "Disability Rights Coalition",
-        tags: ["employment", "rights", "advocacy", "panel"],
-      },
-      {
-        id: "3",
-        title: "Adaptive Sports Day",
-        description:
-          "Come and try various adaptive sports including wheelchair basketball, blind football, and seated volleyball. All skill levels welcome!",
-        date: "2025-01-08",
-        time: "09:00",
-        location: "Sports Complex, Abuja",
-        type: "in-person",
-        category: "Sports",
-        accessibility: ["Wheelchair Access", "Equipment Provided", "Sign Language"],
-        capacity: 100,
-        registered: 45,
-        organizer: "Adaptive Sports Nigeria",
-        tags: ["sports", "adaptive", "recreation", "community"],
-      },
-      {
-        id: "4",
-        title: "Mental Health Support Group",
-        description:
-          "A safe space to discuss mental health challenges and coping strategies. Facilitated by licensed counselors with experience in disability-related mental health.",
-        date: "2025-01-10",
-        time: "18:00",
-        location: "Virtual Event",
-        type: "virtual",
-        category: "Health",
-        accessibility: ["Live Captions", "Screen Reader Compatible", "Private Chat Options"],
-        capacity: 30,
-        registered: 18,
-        organizer: "Mental Wellness Hub",
-        tags: ["mental-health", "support", "counseling", "peer-support"],
-      },
-      {
-        id: "5",
-        title: "Accessible Art Exhibition Opening",
-        description:
-          "Experience art through multiple senses at our inclusive exhibition featuring tactile sculptures, audio descriptions, and braille information cards.",
-        date: "2025-01-12",
-        time: "16:00",
-        location: "National Gallery, Accra",
-        type: "in-person",
-        category: "Arts",
-        accessibility: ["Audio Description", "Tactile Experience", "Braille Materials", "Wheelchair Access"],
-        capacity: 80,
-        registered: 34,
-        organizer: "Inclusive Arts Collective",
-        tags: ["art", "exhibition", "tactile", "inclusive"],
-      },
-      {
-        id: "6",
-        title: "Digital Accessibility Training",
-        description:
-          "Learn how to make websites and digital content accessible. Covers WCAG guidelines, testing tools, and practical implementation strategies.",
-        date: "2025-01-15",
-        time: "13:00",
-        location: "Virtual Event",
-        type: "virtual",
-        category: "Technology",
-        accessibility: ["Live Captions", "Screen Reader Compatible", "Keyboard Navigation Demo"],
-        capacity: 150,
-        registered: 92,
-        organizer: "Digital Inclusion Institute",
-        tags: ["web-accessibility", "training", "wcag", "digital-inclusion"],
-      },
-    ]
-
-    // Load events from localStorage or use sample data
-    const savedEvents = localStorage.getItem("accessibleApp_events")
-    const loadedEvents = savedEvents ? JSON.parse(savedEvents) : sampleEvents
-
-    // Load user registrations
-    const userRegistrations = JSON.parse(localStorage.getItem(`accessibleApp_registrations_${user.id}`) || "[]")
-    const eventsWithRegistration = loadedEvents.map((event: Event) => ({
-      ...event,
-      isRegistered: userRegistrations.includes(event.id),
-    }))
-
-    setEvents(eventsWithRegistration)
-    setFilteredEvents(eventsWithRegistration)
-
-    // Save sample events if not already saved
-    if (!savedEvents) {
-      localStorage.setItem("accessibleApp_events", JSON.stringify(sampleEvents))
-    }
-  }, [user.id])
-
-  // Filter events based on search and filters
-  useEffect(() => {
-    let filtered = events
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (event) =>
-          event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())),
-      )
+  // Build filters object
+  const filters = useMemo<EventFilters>(() => {
+    const f: EventFilters = {
+      page: currentPage,
+      limit: 12,
     }
 
-    // Category filter
+    if (debouncedSearch) {
+      f.search = debouncedSearch
+    }
     if (selectedCategory !== "all") {
-      filtered = filtered.filter((event) => event.category === selectedCategory)
+      f.category = selectedCategory
     }
-
-    // Type filter
     if (selectedType !== "all") {
-      filtered = filtered.filter((event) => event.type === selectedType)
+      f.type = selectedType as EventType
     }
-
-    // Accessibility filters
     if (accessibilityFilters.length > 0) {
-      filtered = filtered.filter((event) =>
-        accessibilityFilters.every((filter) =>
-          event.accessibility.some((acc) => acc.toLowerCase().includes(filter.toLowerCase())),
-        ),
-      )
+      f.accessibilityFeatures = accessibilityFilters
     }
 
-    setFilteredEvents(filtered)
-  }, [events, searchQuery, selectedCategory, selectedType, accessibilityFilters])
+    return f
+  }, [debouncedSearch, selectedCategory, selectedType, accessibilityFilters, currentPage])
 
-  const handleRegister = (eventId: string) => {
-    const userRegistrations = JSON.parse(localStorage.getItem(`accessibleApp_registrations_${user.id}`) || "[]")
+  // Fetch categories and accessibility features on mount
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const [categoriesRes, featuresRes] = await Promise.all([
+          getCategories(),
+          fetchAccessibilityFeatures(),
+        ])
 
-    if (!userRegistrations.includes(eventId)) {
-      userRegistrations.push(eventId)
-      localStorage.setItem(`accessibleApp_registrations_${user.id}`, JSON.stringify(userRegistrations))
+        if (categoriesRes.success) {
+          setCategories(categoriesRes.data)
+        }
+        if (featuresRes.success) {
+          setAccessibilityOptions(featuresRes.data)
+        }
+      } catch (err) {
+        console.error("Failed to fetch metadata:", err)
+      }
+    }
 
-      // Update events state
-      setEvents((prev) =>
-        prev.map((event) =>
-          event.id === eventId ? { ...event, isRegistered: true, registered: event.registered + 1 } : event,
-        ),
-      )
+    fetchMetadata()
+  }, [])
 
+  // Fetch events when filters change
+  const fetchEvents = useCallback(async (append = false) => {
+    if (!append) {
+      setIsLoading(true)
+    } else {
+      setIsLoadingMore(true)
+    }
+    setError(null)
+
+    try {
+      const response = await getEvents(filters)
+
+      if (response.success) {
+        if (append) {
+          setEvents((prev) => [...prev, ...response.data])
+        } else {
+          setEvents(response.data)
+        }
+        setPagination(response.pagination)
+      } else {
+        setError("Failed to load events")
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load events"
+      setError(message)
       toast({
-        title: "Registration Successful!",
-        description: "You have been registered for this event. Check your email for details.",
+        title: "Error",
+        description: message,
+        variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }, [filters, toast])
+
+  useEffect(() => {
+    fetchEvents()
+  }, [fetchEvents])
+
+  // Reset to page 1 when filters change (except page itself)
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1)
+    }
+  }, [debouncedSearch, selectedCategory, selectedType, accessibilityFilters])
+
+  // Handle registration
+  const handleRegister = async (eventId: string, withAccommodation = false) => {
+    if (!isAuthenticated()) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to register for events.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (withAccommodation && !showAccommodationDialog) {
+      setPendingRegistrationEventId(eventId)
+      setShowAccommodationDialog(true)
+      return
+    }
+
+    setIsRegistering(true)
+
+    try {
+      const response = await registerForEvent({
+        eventId,
+        accommodationNotes: accommodationNotes || undefined,
+      })
+
+      if (response.success) {
+        // Update event in list
+        setEvents((prev) =>
+          prev.map((event) =>
+            event.id === eventId
+              ? { ...event, isRegistered: true, registeredCount: event.registeredCount + 1 }
+              : event
+          )
+        )
+
+        // Update selected event if viewing
+        if (selectedEvent?.id === eventId) {
+          setSelectedEvent((prev) =>
+            prev ? { ...prev, isRegistered: true, registeredCount: prev.registeredCount + 1 } : prev
+          )
+        }
+
+        toast({
+          title: "Registration Successful!",
+          description: "You have been registered for this event.",
+        })
+
+        // Reset state
+        setShowAccommodationDialog(false)
+        setAccommodationNotes("")
+        setPendingRegistrationEventId(null)
+      }
+    } catch (err) {
+      const message = (err as { message?: string })?.message || "Failed to register"
+      toast({
+        title: "Registration Failed",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsRegistering(false)
     }
   }
 
-  const handleUnregister = (eventId: string) => {
-    const userRegistrations = JSON.parse(localStorage.getItem(`accessibleApp_registrations_${user.id}`) || "[]")
-    const updatedRegistrations = userRegistrations.filter((id: string) => id !== eventId)
-    localStorage.setItem(`accessibleApp_registrations_${user.id}`, JSON.stringify(updatedRegistrations))
+  // Handle unregistration
+  const handleUnregister = async (eventId: string) => {
+    if (!isAuthenticated()) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to manage registrations.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    // Update events state
-    setEvents((prev) =>
-      prev.map((event) =>
-        event.id === eventId ? { ...event, isRegistered: false, registered: Math.max(0, event.registered - 1) } : event,
-      ),
-    )
+    setIsRegistering(true)
 
-    toast({
-      title: "Unregistered Successfully",
-      description: "You have been removed from this event.",
-    })
+    try {
+      const response = await cancelRegistration(eventId)
+
+      if (response.success) {
+        // Update event in list
+        setEvents((prev) =>
+          prev.map((event) =>
+            event.id === eventId
+              ? { ...event, isRegistered: false, registeredCount: Math.max(0, event.registeredCount - 1) }
+              : event
+          )
+        )
+
+        // Update selected event if viewing
+        if (selectedEvent?.id === eventId) {
+          setSelectedEvent((prev) =>
+            prev ? { ...prev, isRegistered: false, registeredCount: Math.max(0, prev.registeredCount - 1) } : prev
+          )
+        }
+
+        toast({
+          title: "Unregistered Successfully",
+          description: "You have been removed from this event.",
+        })
+      }
+    } catch (err) {
+      const message = (err as { message?: string })?.message || "Failed to unregister"
+      toast({
+        title: "Unregistration Failed",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsRegistering(false)
+    }
   }
 
+  // View event details
+  const handleViewEvent = async (event: Event) => {
+    try {
+      // Fetch fresh event data
+      const response = await getEventById(event.id)
+      if (response.success) {
+        setSelectedEvent(response.data)
+      } else {
+        setSelectedEvent(event)
+      }
+    } catch {
+      // Fall back to cached event data
+      setSelectedEvent(event)
+    }
+  }
+
+  // Toggle accessibility filter
   const toggleAccessibilityFilter = (filter: string) => {
-    setAccessibilityFilters((prev) => (prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]))
+    setAccessibilityFilters((prev) =>
+      prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]
+    )
   }
 
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchQuery("")
+    setSelectedCategory("all")
+    setSelectedType("all")
+    setAccessibilityFilters([])
+    setCurrentPage(1)
+  }
+
+  // Load more events
+  const loadMore = () => {
+    if (pagination && currentPage < pagination.totalPages) {
+      setCurrentPage((prev) => prev + 1)
+      fetchEvents(true)
+    }
+  }
+
+  // Utility functions
   const getEventTypeIcon = (type: string) => {
     switch (type) {
       case "virtual":
-        return <Video className="h-4 w-4" />
-      case "in-person":
-        return <MapPin className="h-4 w-4" />
+        return <Video className="h-4 w-4" aria-hidden="true" />
+      case "in_person":
+        return <MapPin className="h-4 w-4" aria-hidden="true" />
       case "hybrid":
-        return <Users className="h-4 w-4" />
+        return <Users className="h-4 w-4" aria-hidden="true" />
       default:
-        return <Calendar className="h-4 w-4" />
+        return <Calendar className="h-4 w-4" aria-hidden="true" />
+    }
+  }
+
+  const getEventTypeLabel = (type: string) => {
+    switch (type) {
+      case "virtual":
+        return "Virtual"
+      case "in_person":
+        return "In-Person"
+      case "hybrid":
+        return "Hybrid"
+      default:
+        return type
     }
   }
 
@@ -266,11 +375,32 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
     })
   }
 
+  const formatTime = (timeString: string) => {
+    // Handle HH:MM:SS or HH:MM format
+    const [hours, minutes] = timeString.split(":")
+    const hour = parseInt(hours, 10)
+    const ampm = hour >= 12 ? "PM" : "AM"
+    const hour12 = hour % 12 || 12
+    return `${hour12}:${minutes} ${ampm}`
+  }
+
+  // Check if filters are active
+  const hasActiveFilters =
+    searchQuery !== "" ||
+    selectedCategory !== "all" ||
+    selectedType !== "all" ||
+    accessibilityFilters.length > 0
+
+  // Event Detail View
   if (selectedEvent) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" role="main" aria-label="Event Details">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => setSelectedEvent(null)}>
+          <Button
+            variant="ghost"
+            onClick={() => setSelectedEvent(null)}
+            aria-label="Go back to events list"
+          >
             ← Back to Events
           </Button>
           <h2 className="text-2xl font-bold">Event Details</h2>
@@ -278,14 +408,23 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
 
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="space-y-2">
                 <CardTitle className="text-2xl">{selectedEvent.title}</CardTitle>
-                <CardDescription className="text-base">Organized by {selectedEvent.organizer}</CardDescription>
+                <CardDescription className="text-base">
+                  Organized by {selectedEvent.organizerName}
+                </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                {getEventTypeIcon(selectedEvent.type)}
-                <Badge variant={selectedEvent.type === "virtual" ? "secondary" : "default"}>{selectedEvent.type}</Badge>
+                {getEventTypeIcon(selectedEvent.eventType)}
+                <Badge variant={selectedEvent.eventType === "virtual" ? "secondary" : "default"}>
+                  {getEventTypeLabel(selectedEvent.eventType)}
+                </Badge>
+                {selectedEvent.isFeatured && (
+                  <Badge variant="default" className="bg-yellow-500">
+                    Featured
+                  </Badge>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -295,80 +434,144 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span className="font-medium">Date & Time</span>
                 </div>
                 <p className="text-sm text-muted-foreground ml-6">
-                  {formatDate(selectedEvent.date)} at {selectedEvent.time}
+                  {formatDate(selectedEvent.eventDate)} at {formatTime(selectedEvent.eventTime)}
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <MapPin className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span className="font-medium">Location</span>
                 </div>
-                <p className="text-sm text-muted-foreground ml-6">{selectedEvent.location}</p>
+                <p className="text-sm text-muted-foreground ml-6">
+                  {selectedEvent.location || "Virtual Event"}
+                </p>
+                {selectedEvent.virtualLink && (
+                  <a
+                    href={selectedEvent.virtualLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary ml-6 hover:underline"
+                  >
+                    Join Virtual Event
+                  </a>
+                )}
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span className="font-medium">Capacity</span>
                 </div>
                 <p className="text-sm text-muted-foreground ml-6">
-                  {selectedEvent.registered} / {selectedEvent.capacity} registered
+                  {selectedEvent.registeredCount} / {selectedEvent.capacity} registered
                 </p>
+                {selectedEvent.registeredCount >= selectedEvent.capacity && (
+                  <p className="text-sm text-destructive ml-6">This event is full</p>
+                )}
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Accessibility className="h-4 w-4 text-muted-foreground" />
+                  <Accessibility className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span className="font-medium">Accessibility Features</span>
                 </div>
                 <div className="flex flex-wrap gap-1 ml-6">
-                  {selectedEvent.accessibility.map((feature, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {feature}
-                    </Badge>
-                  ))}
+                  {selectedEvent.accessibilityFeatures.length > 0 ? (
+                    selectedEvent.accessibilityFeatures.map((feature, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {feature}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">None specified</span>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
+            {selectedEvent.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedEvent.tags.map((tag, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    #{tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4 flex-wrap">
               {selectedEvent.isRegistered ? (
-                <Button variant="outline" onClick={() => handleUnregister(selectedEvent.id)} className="min-h-12">
-                  <Heart className="h-4 w-4 mr-2 fill-current" />
+                <Button
+                  variant="outline"
+                  onClick={() => handleUnregister(selectedEvent.id)}
+                  disabled={isRegistering}
+                  className="min-h-12"
+                  aria-describedby="registration-status"
+                >
+                  {isRegistering ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Heart className="h-4 w-4 mr-2 fill-current text-red-500" aria-hidden="true" />
+                  )}
                   Registered - Click to Unregister
                 </Button>
               ) : (
                 <Button
-                  onClick={() => handleRegister(selectedEvent.id)}
-                  disabled={selectedEvent.registered >= selectedEvent.capacity}
+                  onClick={() => handleRegister(selectedEvent.id, true)}
+                  disabled={isRegistering || selectedEvent.registeredCount >= selectedEvent.capacity}
                   className="min-h-12"
                 >
-                  {selectedEvent.registered >= selectedEvent.capacity ? "Event Full" : "Register for Event"}
+                  {isRegistering && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {selectedEvent.registeredCount >= selectedEvent.capacity
+                    ? "Event Full"
+                    : "Register for Event"}
                 </Button>
               )}
-              <Button variant="outline" className="min-h-12 bg-transparent">
-                Share Event
-              </Button>
             </div>
+            <span id="registration-status" className="sr-only">
+              {selectedEvent.isRegistered ? "You are registered for this event" : "You are not registered for this event"}
+            </span>
           </CardContent>
         </Card>
       </div>
     )
   }
 
+  // Events List View
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6" role="main" aria-label="Event Discovery">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold">Discover Events</h2>
-        <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-          <Filter className="h-4 w-4 mr-2" />
-          Filters
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => fetchEvents()}
+            disabled={isLoading}
+            aria-label="Refresh events"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            aria-expanded={showFilters}
+            aria-controls="filters-panel"
+          >
+            <Filter className="h-4 w-4 mr-2" aria-hidden="true" />
+            Filters
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-2">
+                Active
+              </Badge>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -377,7 +580,7 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
           <div className="space-y-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 placeholder="Search events by title, description, or tags..."
                 value={searchQuery}
@@ -390,27 +593,27 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
             {/* Quick Filters */}
             <div className="flex flex-wrap gap-2">
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-40" aria-label="Filter by category">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="Technology">Technology</SelectItem>
-                  <SelectItem value="Advocacy">Advocacy</SelectItem>
-                  <SelectItem value="Sports">Sports</SelectItem>
-                  <SelectItem value="Health">Health</SelectItem>
-                  <SelectItem value="Arts">Arts</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.category} value={cat.category}>
+                      {cat.category} ({cat.count})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
               <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-32" aria-label="Filter by event type">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="virtual">Virtual</SelectItem>
-                  <SelectItem value="in-person">In-Person</SelectItem>
+                  <SelectItem value="in_person">In-Person</SelectItem>
                   <SelectItem value="hybrid">Hybrid</SelectItem>
                 </SelectContent>
               </Select>
@@ -418,28 +621,50 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
 
             {/* Advanced Filters */}
             {showFilters && (
-              <div className="border-t pt-4 space-y-4">
+              <div id="filters-panel" className="border-t pt-4 space-y-4">
                 <div>
-                  <Label className="text-sm font-medium mb-3 block">Accessibility Features</Label>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {[
-                      "Sign Language",
-                      "Live Captions",
-                      "Wheelchair Access",
-                      "Audio Description",
-                      "Screen Reader Compatible",
-                    ].map((feature) => (
-                      <div key={feature} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={feature}
-                          checked={accessibilityFilters.includes(feature)}
-                          onCheckedChange={() => toggleAccessibilityFilter(feature)}
-                        />
-                        <Label htmlFor={feature} className="text-sm">
-                          {feature}
-                        </Label>
-                      </div>
-                    ))}
+                  <Label className="text-sm font-medium mb-3 block">
+                    Accessibility Features
+                  </Label>
+                  <div
+                    className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+                    role="group"
+                    aria-label="Accessibility feature filters"
+                  >
+                    {accessibilityOptions.length > 0 ? (
+                      accessibilityOptions.map((feature) => (
+                        <div key={feature.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`filter-${feature.id}`}
+                            checked={accessibilityFilters.includes(feature.name)}
+                            onCheckedChange={() => toggleAccessibilityFilter(feature.name)}
+                          />
+                          <Label htmlFor={`filter-${feature.id}`} className="text-sm cursor-pointer">
+                            {feature.name}
+                          </Label>
+                        </div>
+                      ))
+                    ) : (
+                      // Fallback to common features if API hasn't loaded
+                      [
+                        "Sign Language",
+                        "Live Captions",
+                        "Wheelchair Access",
+                        "Audio Description",
+                        "Screen Reader Compatible",
+                      ].map((feature) => (
+                        <div key={feature} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`filter-${feature}`}
+                            checked={accessibilityFilters.includes(feature)}
+                            onCheckedChange={() => toggleAccessibilityFilter(feature)}
+                          />
+                          <Label htmlFor={`filter-${feature}`} className="text-sm cursor-pointer">
+                            {feature}
+                          </Label>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -450,107 +675,244 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
 
       {/* Results Summary */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          Showing {filteredEvents.length} of {events.length} events
+        <span aria-live="polite">
+          {isLoading ? (
+            "Loading events..."
+          ) : (
+            <>
+              Showing {events.length} of {pagination?.total || 0} events
+            </>
+          )}
         </span>
-        {(searchQuery || selectedCategory !== "all" || selectedType !== "all" || accessibilityFilters.length > 0) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearchQuery("")
-              setSelectedCategory("all")
-              setSelectedType("all")
-              setAccessibilityFilters([])
-            }}
-          >
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
             Clear Filters
           </Button>
         )}
       </div>
 
-      {/* Events Grid */}
-      <div className="grid gap-4">
-        {filteredEvents.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">
-                No events found matching your criteria. Try adjusting your filters.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredEvents.map((event) => (
-            <Card key={event.id} className="hover:shadow-md transition-shadow">
+      {/* Error State */}
+      {error && (
+        <Card className="border-destructive">
+          <CardContent className="pt-6 text-center">
+            <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+            <p className="text-destructive">{error}</p>
+            <Button variant="outline" onClick={() => fetchEvents()} className="mt-4">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {isLoading && !error && (
+        <div className="grid gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{event.title}</CardTitle>
-                    <CardDescription>
-                      {formatDate(event.date)} • {event.time} • {event.organizer}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {event.isRegistered && <Heart className="h-4 w-4 text-red-500 fill-current" />}
-                    {getEventTypeIcon(event.type)}
-                    <Badge variant={event.type === "virtual" ? "secondary" : "default"}>{event.type}</Badge>
-                  </div>
-                </div>
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{event.description}</p>
-
-                <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {event.location}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    {event.registered}/{event.capacity}
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {event.category}
-                  </Badge>
-                </div>
-
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {event.accessibility.slice(0, 3).map((feature, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {feature}
-                    </Badge>
-                  ))}
-                  {event.accessibility.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{event.accessibility.length - 3} more
-                    </Badge>
-                  )}
-                </div>
-
+                <Skeleton className="h-16 w-full mb-4" />
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setSelectedEvent(event)}>
-                    View Details
-                  </Button>
-                  {event.isRegistered ? (
-                    <Button size="sm" variant="outline" onClick={() => handleUnregister(event.id)}>
-                      <Heart className="h-3 w-3 mr-1 fill-current" />
-                      Registered
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => handleRegister(event.id)}
-                      disabled={event.registered >= event.capacity}
-                    >
-                      {event.registered >= event.capacity ? "Full" : "Register"}
-                    </Button>
-                  )}
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-8 w-20" />
                 </div>
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Events Grid */}
+      {!isLoading && !error && (
+        <div className="grid gap-4">
+          {events.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">
+                  No events found matching your criteria. Try adjusting your filters.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            events.map((event) => (
+              <Card key={event.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between flex-wrap gap-2">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{event.title}</CardTitle>
+                      <CardDescription>
+                        {formatDate(event.eventDate)} • {formatTime(event.eventTime)} •{" "}
+                        {event.organizerName}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {event.isRegistered && (
+                        <Heart
+                          className="h-4 w-4 text-red-500 fill-current"
+                          aria-label="You are registered for this event"
+                        />
+                      )}
+                      {event.isFeatured && (
+                        <Badge variant="default" className="bg-yellow-500">
+                          Featured
+                        </Badge>
+                      )}
+                      {getEventTypeIcon(event.eventType)}
+                      <Badge variant={event.eventType === "virtual" ? "secondary" : "default"}>
+                        {getEventTypeLabel(event.eventType)}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                    {event.description}
+                  </p>
+
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4 flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" aria-hidden="true" />
+                      <span>{event.location || "Virtual"}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3" aria-hidden="true" />
+                      <span>
+                        {event.registeredCount}/{event.capacity}
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {event.category}
+                    </Badge>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {event.accessibilityFeatures.slice(0, 3).map((feature, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {feature}
+                      </Badge>
+                    ))}
+                    {event.accessibilityFeatures.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{event.accessibilityFeatures.length - 3} more
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleViewEvent(event)}>
+                      View Details
+                    </Button>
+                    {event.isRegistered ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleUnregister(event.id)}
+                        disabled={isRegistering}
+                        aria-label={`Unregister from ${event.title}`}
+                      >
+                        {isRegistering ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Heart className="h-3 w-3 mr-1 fill-current text-red-500" aria-hidden="true" />
+                        )}
+                        Registered
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => handleRegister(event.id)}
+                        disabled={isRegistering || event.registeredCount >= event.capacity}
+                        aria-label={`Register for ${event.title}`}
+                      >
+                        {isRegistering && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                        {event.registeredCount >= event.capacity ? "Full" : "Register"}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Load More */}
+      {pagination && currentPage < pagination.totalPages && !isLoading && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={loadMore} disabled={isLoadingMore}>
+            {isLoadingMore ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>Load More Events</>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Accommodation Notes Dialog */}
+      <Dialog open={showAccommodationDialog} onOpenChange={setShowAccommodationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Accommodation Needs</DialogTitle>
+            <DialogDescription>
+              Let the organizers know about any specific accommodations you may need for this event.
+              This information helps ensure the event is accessible for you.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="accommodation-notes">Accommodation Notes (Optional)</Label>
+            <Textarea
+              id="accommodation-notes"
+              placeholder="E.g., I need a sign language interpreter, wheelchair-accessible seating, materials in large print..."
+              value={accommodationNotes}
+              onChange={(e) => setAccommodationNotes(e.target.value)}
+              className="mt-2"
+              rows={4}
+            />
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAccommodationDialog(false)
+                setAccommodationNotes("")
+                setPendingRegistrationEventId(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (pendingRegistrationEventId) {
+                  setAccommodationNotes("")
+                  handleRegister(pendingRegistrationEventId)
+                }
+              }}
+              disabled={isRegistering}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={() => {
+                if (pendingRegistrationEventId) {
+                  handleRegister(pendingRegistrationEventId)
+                }
+              }}
+              disabled={isRegistering}
+            >
+              {isRegistering && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Register
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

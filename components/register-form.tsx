@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,13 +12,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { GoogleAuthButton } from "@/components/google-auth-button"
+import { register, googleAuth, type User } from "@/lib/auth"
 
 interface RegisterFormProps {
-  onSuccess: (user: any) => void
+  onSuccess: () => void
   onBack: () => void
+  onSignIn: () => void
 }
 
-export function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
+// Divider component for cleaner separation
+const AuthDivider = () => (
+  <div className="relative my-6">
+    <div className="absolute inset-0 flex items-center">
+      <span className="w-full border-t" />
+    </div>
+    <div className="relative flex justify-center text-xs uppercase">
+      <span className="bg-background px-2 text-muted-foreground">
+        or sign up with email
+      </span>
+    </div>
+  </div>
+)
+
+export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -37,7 +54,58 @@ export function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const { toast } = useToast()
+
+  // Handle Google sign-up success
+  const handleGoogleSuccess = useCallback(async (idToken: string) => {
+    setIsGoogleLoading(true)
+    
+    try {
+      // Pass any additional profile info for Google sign-up
+      const additionalInfo = {
+        phone: formData.phone || undefined,
+        location: formData.location || undefined,
+        disabilityType: formData.disabilityType || undefined,
+        accessibilityNeeds: formData.accessibilityNeeds || undefined,
+        communicationPreference: formData.communicationPreference || undefined,
+        emergencyContact: formData.emergencyContact || undefined,
+      }
+
+      const response = await googleAuth(idToken, additionalInfo)
+      
+      if (response.success && response.user) {
+        toast({
+          title: "Account Created!",
+          description: "Please sign in with your new account.",
+        })
+        onSuccess()
+      } else {
+        toast({
+          title: "Sign Up Failed",
+          description: response.message || "Unable to sign up with Google",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Sign Up Failed",
+        description: error instanceof Error ? error.message : "Unable to sign up with Google",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGoogleLoading(false)
+    }
+  }, [formData, onSuccess, toast])
+
+  // Handle Google sign-up error
+  const handleGoogleError = useCallback((error: string) => {
+    toast({
+      title: "Google Sign Up Error",
+      description: error,
+      variant: "destructive",
+    })
+  }, [toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,18 +132,48 @@ export function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
       return
     }
 
-    // Simulate registration process
-    setTimeout(() => {
-      const userData = {
+    try {
+      const response = await register({
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone || undefined,
+        location: formData.location || undefined,
+        disabilityType: formData.disabilityType || undefined,
+        accessibilityNeeds: formData.accessibilityNeeds || undefined,
+        communicationPreference: formData.communicationPreference || undefined,
+        emergencyContact: formData.emergencyContact || undefined,
+      })
+
+      if (response.success && response.user) {
+        toast({
+          title: "Account Created Successfully!",
+          description: "Please sign in with your email and password.",
+        })
+        onSuccess()
+      } else {
+        toast({
+          title: "Registration Failed",
+          description: response.message || "Unable to create account",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      // Fallback to localStorage for demo/offline mode
+      const userData: User = {
         id: Date.now().toString(),
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        location: formData.location,
-        disabilityType: formData.disabilityType,
-        accessibilityNeeds: formData.accessibilityNeeds,
-        communicationPreference: formData.communicationPreference,
-        registeredAt: new Date().toISOString(),
+        phone: formData.phone || undefined,
+        location: formData.location || undefined,
+        disabilityType: formData.disabilityType || undefined,
+        accessibilityNeeds: formData.accessibilityNeeds || undefined,
+        communicationPreference: formData.communicationPreference || undefined,
+        emailVerified: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
       }
 
       // Save to localStorage
@@ -84,19 +182,28 @@ export function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
       localStorage.setItem("accessibleApp_users", JSON.stringify(users))
 
       toast({
-        title: "Welcome to Shiriki!",
-        description: "Your account has been created successfully.",
+        title: "Account Created Successfully!",
+        description: "Please sign in with your email and password.",
       })
 
-      onSuccess(userData)
+      onSuccess()
+    } finally {
       setIsSubmitting(false)
-    }, 1000)
+    }
   }
+
+  const isLoading = isSubmitting || isGoogleLoading
 
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="container mx-auto px-4 max-w-2xl">
-        <Button variant="ghost" onClick={onBack} className="mb-6" aria-label="Go back to welcome page">
+        <Button 
+          variant="ghost" 
+          onClick={onBack} 
+          className="mb-6" 
+          aria-label="Go back to welcome page"
+          disabled={isLoading}
+        >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
@@ -109,6 +216,16 @@ export function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Google Sign-Up Button - Primary Option */}
+            <GoogleAuthButton
+              mode="signup"
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              disabled={isLoading}
+            />
+
+            <AuthDivider />
+
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Personal Information */}
               <fieldset className="space-y-4">
@@ -151,6 +268,7 @@ export function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
                     value={formData.email}
                     onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                     aria-describedby="email-help"
+                    autoComplete="off"
                   />
                   <p id="email-help" className="text-xs text-muted-foreground">
                     We'll use this to send you important updates and notifications
@@ -168,6 +286,7 @@ export function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
                         value={formData.password}
                         onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
                         aria-describedby="password-help"
+                        autoComplete="new-password"
                       />
                       <Button
                         type="button"
@@ -194,6 +313,7 @@ export function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
                         required
                         value={formData.confirmPassword}
                         onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                        autoComplete="new-password"
                       />
                       <Button
                         type="button"
@@ -357,9 +477,20 @@ export function RegisterForm({ onSuccess, onBack }: RegisterFormProps) {
                 </div>
               </fieldset>
 
-              <Button type="submit" className="w-full min-h-12" disabled={isSubmitting}>
-                {isSubmitting ? "Creating Account..." : "Create Account"}
+              <Button type="submit" className="w-full min-h-12" disabled={isLoading}>
+                {isSubmitting ? "Creating Account..." : "Create Account with Email"}
               </Button>
+
+              <div className="text-center text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={onSignIn}
+                  className="font-medium text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                >
+                  Sign in
+                </button>
+              </div>
             </form>
           </CardContent>
         </Card>

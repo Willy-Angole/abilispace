@@ -1,0 +1,185 @@
+# =============================================================================
+# Shiriki Development Stack - Docker Compose Configuration
+# =============================================================================
+# Services: PostgreSQL, Hasura GraphQL Engine, API Server
+# Run: docker-compose up -d
+
+version: '3.9'
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: shiriki-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-shiriki}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shiriki_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-shiriki}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./src/database/seeds.sql:/docker-entrypoint-initdb.d/02-seeds.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shiriki}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shiriki-network
+
+  # ---------------------------------------------------------------------------
+  # Hasura GraphQL Engine
+  # ---------------------------------------------------------------------------
+  hasura:
+    image: hasura/graphql-engine:v2.42.0
+    container_name: shiriki-hasura
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database connection
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-shiriki}:${POSTGRES_PASSWORD:-shiriki_dev_password}@postgres:5432/${POSTGRES_DB:-shiriki}
+      
+      # Admin secret for secure access
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-shiriki_admin_secret}
+      
+      # Enable console in development
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      
+      # Enable dev mode for debugging
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      
+      # Log level
+      HASURA_GRAPHQL_LOG_LEVEL: info
+      
+      # Enable telemetry
+      HASURA_GRAPHQL_ENABLE_TELEMETRY: "false"
+      
+      # Unauthorized role for public access
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: anonymous
+      
+      # JWT configuration for authentication
+      HASURA_GRAPHQL_JWT_SECRET: |
+        {
+          "type": "HS256",
+          "key": "${JWT_ACCESS_SECRET:-your-super-secure-jwt-secret-key-at-least-32-chars}"
+        }
+      
+      # Action handler endpoint
+      HASURA_GRAPHQL_ACTIONS_HANDLER_WEBHOOK_BASEURL: http://api:3000
+      
+      # Metadata directory
+      HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
+      
+      # Enable remote schema permissions
+      HASURA_GRAPHQL_ENABLE_REMOTE_SCHEMA_PERMISSIONS: "true"
+    volumes:
+      - ./hasura/metadata:/hasura-metadata
+    ports:
+      - "${HASURA_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shiriki-network
+
+  # ---------------------------------------------------------------------------
+  # API Server (Production build)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shiriki-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      hasura:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      
+      # Database
+      DATABASE_URL: postgres://${POSTGRES_USER:-shiriki}:${POSTGRES_PASSWORD:-shiriki_dev_password}@postgres:5432/${POSTGRES_DB:-shiriki}
+      
+      # JWT
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-your-super-secure-jwt-secret-key-at-least-32-chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-super-secure-refresh-secret-key-at-least-32-chars}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
+      
+      # Hasura
+      HASURA_GRAPHQL_URL: http://hasura:8080/v1/graphql
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-shiriki_admin_secret}
+      
+      # Rate limiting
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health/live"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - shiriki-network
+
+  # ---------------------------------------------------------------------------
+  # API Server (Development with hot reload)
+  # ---------------------------------------------------------------------------
+  api-dev:
+    image: node:20-alpine
+    container_name: shiriki-api-dev
+    profiles:
+      - development
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      
+      # Database
+      DATABASE_URL: postgres://${POSTGRES_USER:-shiriki}:${POSTGRES_PASSWORD:-shiriki_dev_password}@postgres:5432/${POSTGRES_DB:-shiriki}
+      
+      # JWT
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-your-super-secure-jwt-secret-key-at-least-32-chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-super-secure-refresh-secret-key-at-least-32-chars}
+      
+      # Hasura
+      HASURA_GRAPHQL_URL: http://hasura:8080/v1/graphql
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-shiriki_admin_secret}
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: sh -c "corepack enable pnpm && pnpm install && pnpm run dev"
+    ports:
+      - "${API_PORT:-3000}:3000"
+    networks:
+      - shiriki-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  shiriki-network:
+    driver: bridge
