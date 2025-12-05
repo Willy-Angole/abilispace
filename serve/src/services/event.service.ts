@@ -80,7 +80,8 @@ export class EventService {
      */
     async getEvents(
         filters: EventFilterInput,
-        userId?: string
+        userId?: string,
+        includeExpired: boolean = false
     ): Promise<PaginatedResult<Event>> {
         const {
             category,
@@ -97,6 +98,11 @@ export class EventService {
         const conditions: string[] = ['e.is_published = true', 'e.deleted_at IS NULL'];
         const values: unknown[] = [];
         let paramIndex = 1;
+
+        // By default, exclude past events for regular users (events that ended before today)
+        if (!includeExpired) {
+            conditions.push('e.event_date >= CURRENT_DATE');
+        }
 
         // Category filter
         if (category) {
@@ -297,14 +303,19 @@ export class EventService {
 
         const event = eventResult.rows[0];
 
-        // Check if event is in the past
-        if (new Date(event.event_date) < new Date()) {
+        // Check if event is in the past (compare dates only, not times)
+        // Allow registration until the end of the event day
+        const eventDate = new Date(event.event_date);
+        const today = new Date();
+        eventDate.setHours(23, 59, 59, 999); // End of event day
+        
+        if (eventDate < today) {
             throw Errors.badRequest('Cannot register for past events');
         }
 
         // Check capacity
         if (event.registered_count >= event.capacity) {
-            throw Errors.conflict('Event is at full capacity');
+            throw Errors.conflict('This event is full. No more spots available.');
         }
 
         // Check if already registered
@@ -327,7 +338,7 @@ export class EventService {
             );
 
             if (lockResult.rows[0].registered_count >= lockResult.rows[0].capacity) {
-                throw Errors.conflict('Event is at full capacity');
+                throw Errors.conflict('This event is full. No more spots available.');
             }
 
             // Create registration

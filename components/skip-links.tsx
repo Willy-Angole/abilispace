@@ -43,11 +43,11 @@ export function SkipLinks({ links = DEFAULT_SKIP_LINKS }: SkipLinksProps) {
   return (
     <div
       ref={containerRef}
-      className="fixed top-0 left-0 right-0 z-[9999] flex justify-center bg-background pointer-events-none"
+      className="fixed top-0 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none"
       role="navigation"
       aria-label="Skip links"
     >
-      <div className="flex gap-2 p-2 -translate-y-full focus-within:translate-y-0 transition-transform duration-200 pointer-events-auto">
+      <div className="flex gap-2 p-2 -translate-y-full focus-within:translate-y-0 transition-transform duration-200 pointer-events-auto bg-background rounded-b-md shadow-lg">
         {links.map((link) => (
           <Button
             key={link.id}

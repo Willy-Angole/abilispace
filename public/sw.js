@@ -259,8 +259,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "Shiriki", {
       body: data.body || "New notification",
-      icon: "/icon-192x192.png",
-      badge: "/badge-72x72.png",
+      icon: "/logo.png",
+      badge: "/logo.png",
       tag: data.tag || "default",
       data: data.data,
     })

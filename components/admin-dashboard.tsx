@@ -25,12 +25,17 @@ import {
   Download,
   Clock,
   BarChart3,
+  Plus,
+  X,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -521,7 +526,35 @@ function EventsTab() {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [showRegistrationsDialog, setShowRegistrationsDialog] = useState(false);
+  const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
+  const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
   const { toast } = useToast();
+
+  // Create event form state
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    eventDate: '',
+    eventTime: '',
+    endDate: '',
+    endTime: '',
+    location: '',
+    virtualLink: '',
+    eventType: 'in_person' as 'virtual' | 'in_person' | 'hybrid',
+    category: 'social',
+    capacity: 100,
+    organizerName: '',
+    imageUrl: '',
+    isFeatured: false,
+    isPublished: true,
+  });
+
+  const eventCategories = [
+    'technology', 'advocacy', 'sports', 'health', 'arts',
+    'education', 'social', 'employment', 'legal'
+  ];
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -548,6 +581,72 @@ function EventsTab() {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  const handleCreateEvent = async () => {
+    if (!newEvent.title || !newEvent.description || !newEvent.eventDate || !newEvent.eventTime || !newEvent.organizerName) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCreateLoading(true);
+    try {
+      await adminApi.createEvent(newEvent);
+      toast({
+        title: 'Success',
+        description: 'Event created successfully',
+      });
+      setShowCreateDialog(false);
+      setNewEvent({
+        title: '',
+        description: '',
+        eventDate: '',
+        eventTime: '',
+        endDate: '',
+        endTime: '',
+        location: '',
+        virtualLink: '',
+        eventType: 'in_person',
+        category: 'social',
+        capacity: 100,
+        organizerName: '',
+        imageUrl: '',
+        isFeatured: false,
+        isPublished: true,
+      });
+      fetchEvents();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create event',
+        variant: 'destructive',
+      });
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm('Are you sure you want to delete this event?')) return;
+    
+    try {
+      await adminApi.deleteEvent(eventId);
+      toast({
+        title: 'Success',
+        description: 'Event deleted successfully',
+      });
+      fetchEvents();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete event',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleViewRegistrations = async (event: any) => {
     setSelectedEvent(event);
@@ -602,15 +701,23 @@ function EventsTab() {
     if (!selectedEvent || registrations.length === 0) return;
     
     const csv = [
-      ['Name', 'Email', 'Registered At', 'Status'],
+      ['Name', 'Email', 'Phone', 'Location', 'Disability Type', 'Communication Preference', 'Accessibility Needs', 'Accommodation Notes', 'Emergency Contact', 'Registered At', 'Status', 'Attended'],
       ...registrations.map((r) => [
         `${r.first_name} ${r.last_name}`,
         r.user_email,
+        r.phone || '',
+        r.location || '',
+        r.disability_type || '',
+        r.communication_preference || '',
+        r.accessibility_needs || '',
+        r.accommodation_notes || '',
+        r.emergency_contact || '',
         new Date(r.registered_at).toLocaleString(),
         r.attendance_status || 'registered',
+        r.attended ? 'Yes' : 'No',
       ]),
     ]
-      .map((row) => row.join(','))
+      .map((row) => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       .join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -625,9 +732,15 @@ function EventsTab() {
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle>Event Management</CardTitle>
-          <CardDescription>View and manage platform events</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Event Management</CardTitle>
+            <CardDescription>View and manage platform events</CardDescription>
+          </div>
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Event
+          </Button>
         </CardHeader>
         <CardContent>
           {/* Filters */}
@@ -758,6 +871,15 @@ function EventsTab() {
                               <Star className="h-4 w-4" />
                             )}
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteEvent(event.id)}
+                            title="Delete event"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -796,11 +918,13 @@ function EventsTab() {
 
       {/* Registrations Dialog */}
       <Dialog open={showRegistrationsDialog} onOpenChange={setShowRegistrationsDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Event Registrations</DialogTitle>
             <DialogDescription>
               {selectedEvent?.title} - {registrations.length} registrations
+              <br />
+              <span className="text-xs">Click on a row to view full details</span>
             </DialogDescription>
           </DialogHeader>
           
@@ -814,23 +938,34 @@ function EventsTab() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>Registered</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {registrations.map((reg) => (
-                  <TableRow key={reg.user_id}>
+                  <TableRow 
+                    key={reg.user_id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => {
+                      setSelectedRegistration(reg);
+                      setShowRegistrationDetails(true);
+                    }}
+                  >
                     <TableCell className="font-medium">
                       {reg.first_name} {reg.last_name}
                     </TableCell>
                     <TableCell>{reg.user_email}</TableCell>
+                    <TableCell>{reg.phone || '-'}</TableCell>
+                    <TableCell className="max-w-[150px] truncate">{reg.location || '-'}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(reg.registered_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {reg.attendance_status || 'registered'}
+                      <Badge variant={reg.attended ? 'default' : 'outline'}>
+                        {reg.attended ? 'Attended' : reg.attendance_status || 'registered'}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -849,6 +984,299 @@ function EventsTab() {
                 Export CSV
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Registration Details Dialog */}
+      <Dialog open={showRegistrationDetails} onOpenChange={setShowRegistrationDetails}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Attendee Details</DialogTitle>
+            <DialogDescription>
+              Full information for {selectedRegistration?.first_name} {selectedRegistration?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedRegistration && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">Full Name</Label>
+                  <p className="font-medium">{selectedRegistration.first_name} {selectedRegistration.last_name}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Email</Label>
+                  <p className="font-medium">{selectedRegistration.user_email}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Phone</Label>
+                  <p className="font-medium">{selectedRegistration.phone || 'Not provided'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Location</Label>
+                  <p className="font-medium">{selectedRegistration.location || 'Not provided'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Disability Type</Label>
+                  <p className="font-medium capitalize">{selectedRegistration.disability_type?.replace(/_/g, ' ') || 'Not specified'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Communication Preference</Label>
+                  <p className="font-medium capitalize">{selectedRegistration.communication_preference?.replace(/_/g, ' ') || 'Email'}</p>
+                </div>
+              </div>
+
+              {selectedRegistration.accessibility_needs && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Accessibility Needs</Label>
+                  <p className="font-medium text-sm">{selectedRegistration.accessibility_needs}</p>
+                </div>
+              )}
+
+              {selectedRegistration.accommodation_notes && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Event Accommodation Notes</Label>
+                  <p className="font-medium text-sm bg-muted p-2 rounded">{selectedRegistration.accommodation_notes}</p>
+                </div>
+              )}
+
+              {selectedRegistration.emergency_contact && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Emergency Contact</Label>
+                  <p className="font-medium">{selectedRegistration.emergency_contact}</p>
+                </div>
+              )}
+
+              <div className="border-t pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Registration Date</Label>
+                    <p className="font-medium">{new Date(selectedRegistration.registered_at).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Status</Label>
+                    <Badge variant={selectedRegistration.attended ? 'default' : 'outline'}>
+                      {selectedRegistration.attended ? 'Attended' : selectedRegistration.attendance_status || 'Registered'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRegistrationDetails(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Event Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Event</DialogTitle>
+            <DialogDescription>
+              Fill in the details to create a new event for users to register.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="event-title">Title *</Label>
+              <Input
+                id="event-title"
+                value={newEvent.title}
+                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                placeholder="Event title"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="event-description">Description *</Label>
+              <Textarea
+                id="event-description"
+                value={newEvent.description}
+                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                placeholder="Describe the event..."
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="event-date">Event Date *</Label>
+                <Input
+                  id="event-date"
+                  type="date"
+                  value={newEvent.eventDate}
+                  onChange={(e) => setNewEvent({ ...newEvent, eventDate: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="event-time">Event Time *</Label>
+                <Input
+                  id="event-time"
+                  type="time"
+                  value={newEvent.eventTime}
+                  onChange={(e) => setNewEvent({ ...newEvent, eventTime: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="end-date">End Date</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={newEvent.endDate}
+                  onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="end-time">End Time</Label>
+                <Input
+                  id="end-time"
+                  type="time"
+                  value={newEvent.endTime}
+                  onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="event-type">Event Type *</Label>
+                <Select
+                  value={newEvent.eventType}
+                  onValueChange={(value: 'virtual' | 'in_person' | 'hybrid') => 
+                    setNewEvent({ ...newEvent, eventType: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="in_person">In Person</SelectItem>
+                    <SelectItem value="virtual">Virtual</SelectItem>
+                    <SelectItem value="hybrid">Hybrid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="event-category">Category *</Label>
+                <Select
+                  value={newEvent.category}
+                  onValueChange={(value) => setNewEvent({ ...newEvent, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eventCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="event-location">Location</Label>
+              <Input
+                id="event-location"
+                value={newEvent.location}
+                onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                placeholder="Physical address or venue name"
+              />
+            </div>
+
+            {(newEvent.eventType === 'virtual' || newEvent.eventType === 'hybrid') && (
+              <div className="grid gap-2">
+                <Label htmlFor="virtual-link">Virtual Meeting Link</Label>
+                <Input
+                  id="virtual-link"
+                  value={newEvent.virtualLink}
+                  onChange={(e) => setNewEvent({ ...newEvent, virtualLink: e.target.value })}
+                  placeholder="https://zoom.us/j/..."
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="organizer-name">Organizer Name *</Label>
+                <Input
+                  id="organizer-name"
+                  value={newEvent.organizerName}
+                  onChange={(e) => setNewEvent({ ...newEvent, organizerName: e.target.value })}
+                  placeholder="Name of the organizer"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="event-capacity">Capacity *</Label>
+                <Input
+                  id="event-capacity"
+                  type="number"
+                  min="1"
+                  value={newEvent.capacity}
+                  onChange={(e) => setNewEvent({ ...newEvent, capacity: parseInt(e.target.value) || 100 })}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="image-url">Image URL</Label>
+              <Input
+                id="image-url"
+                value={newEvent.imageUrl}
+                onChange={(e) => setNewEvent({ ...newEvent, imageUrl: e.target.value })}
+                placeholder="https://example.com/image.jpg"
+              />
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="is-featured"
+                  checked={newEvent.isFeatured}
+                  onCheckedChange={(checked) => setNewEvent({ ...newEvent, isFeatured: checked })}
+                />
+                <Label htmlFor="is-featured">Featured Event</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="is-published"
+                  checked={newEvent.isPublished}
+                  onCheckedChange={(checked) => setNewEvent({ ...newEvent, isPublished: checked })}
+                />
+                <Label htmlFor="is-published">Publish Immediately</Label>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateEvent} disabled={createLoading}>
+              {createLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Event
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -991,6 +1419,505 @@ function AnalyticsTab() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// =============================================================================
+// ARTICLES TAB
+// =============================================================================
+
+function ArticlesTab() {
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const { toast } = useToast();
+
+  // Create article form state
+  const [newArticle, setNewArticle] = useState({
+    title: '',
+    summary: '',
+    content: '',
+    category: 'policy',
+    source: '',
+    sourceUrl: '',
+    author: '',
+    region: 'national' as 'national' | 'international' | 'local',
+    priority: 'medium' as 'high' | 'medium' | 'low',
+    readTimeMinutes: 5,
+    imageUrl: '',
+    isPublished: true,
+  });
+
+  const articleCategories = [
+    'policy', 'technology', 'legal', 'medical', 'housing',
+    'digital_rights', 'education', 'employment'
+  ];
+
+  const fetchArticles = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await adminApi.getArticles({
+        page,
+        limit: 20,
+        search,
+        status: statusFilter as any,
+      });
+      setArticles(result.articles);
+      setTotalPages(result.totalPages);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to fetch articles',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, statusFilter, toast]);
+
+  useEffect(() => {
+    fetchArticles();
+  }, [fetchArticles]);
+
+  const handleCreateArticle = async () => {
+    if (!newArticle.title || !newArticle.summary || !newArticle.content || !newArticle.source) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields (title, summary, content, source)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCreateLoading(true);
+    try {
+      await adminApi.createArticle(newArticle);
+      toast({
+        title: 'Success',
+        description: 'Article created successfully',
+      });
+      setShowCreateDialog(false);
+      setNewArticle({
+        title: '',
+        summary: '',
+        content: '',
+        category: 'policy',
+        source: '',
+        sourceUrl: '',
+        author: '',
+        region: 'national',
+        priority: 'medium',
+        readTimeMinutes: 5,
+        imageUrl: '',
+        isPublished: true,
+      });
+      fetchArticles();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create article',
+        variant: 'destructive',
+      });
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleDeleteArticle = async (articleId: string) => {
+    if (!confirm('Are you sure you want to delete this article?')) return;
+    
+    try {
+      await adminApi.deleteArticle(articleId);
+      toast({
+        title: 'Success',
+        description: 'Article deleted successfully',
+      });
+      fetchArticles();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete article',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleTogglePublish = async (articleId: string, isPublished: boolean) => {
+    try {
+      await adminApi.toggleArticlePublished(articleId, !isPublished);
+      toast({
+        title: 'Success',
+        description: `Article ${isPublished ? 'unpublished' : 'published'} successfully`,
+      });
+      fetchArticles();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update article',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Current Affairs & Articles</CardTitle>
+            <CardDescription>Manage news articles and current affairs content</CardDescription>
+          </div>
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Article
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {/* Filters */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search articles..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Articles</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="draft">Drafts</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={fetchArticles}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+
+          {/* Table */}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      {Array.from({ length: 6 }).map((_, j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-4 w-full" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : articles.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      No articles found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  articles.map((article) => (
+                    <TableRow key={article.id}>
+                      <TableCell>
+                        <div className="font-medium max-w-xs truncate">{article.title}</div>
+                        <div className="text-sm text-muted-foreground max-w-xs truncate">
+                          {article.summary}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {article.category?.replace('_', ' ')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {article.source}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            article.priority === 'high'
+                              ? 'destructive'
+                              : article.priority === 'medium'
+                              ? 'default'
+                              : 'secondary'
+                          }
+                        >
+                          {article.priority}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={article.is_published ? 'default' : 'secondary'}>
+                          {article.is_published ? 'Published' : 'Draft'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleTogglePublish(article.id, article.is_published)}
+                            title={article.is_published ? 'Unpublish' : 'Publish'}
+                          >
+                            {article.is_published ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteArticle(article.id)}
+                            title="Delete article"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Create Article Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Article</DialogTitle>
+            <DialogDescription>
+              Add a new current affairs article for users to read.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="article-title">Title *</Label>
+              <Input
+                id="article-title"
+                value={newArticle.title}
+                onChange={(e) => setNewArticle({ ...newArticle, title: e.target.value })}
+                placeholder="Article headline"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="article-summary">Summary *</Label>
+              <Textarea
+                id="article-summary"
+                value={newArticle.summary}
+                onChange={(e) => setNewArticle({ ...newArticle, summary: e.target.value })}
+                placeholder="Brief summary of the article..."
+                rows={2}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="article-content">Content *</Label>
+              <Textarea
+                id="article-content"
+                value={newArticle.content}
+                onChange={(e) => setNewArticle({ ...newArticle, content: e.target.value })}
+                placeholder="Full article content..."
+                rows={6}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="article-category">Category *</Label>
+                <Select
+                  value={newArticle.category}
+                  onValueChange={(value) => setNewArticle({ ...newArticle, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {articleCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat.replace('_', ' ').charAt(0).toUpperCase() + cat.replace('_', ' ').slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="article-priority">Priority</Label>
+                <Select
+                  value={newArticle.priority}
+                  onValueChange={(value: 'high' | 'medium' | 'low') => 
+                    setNewArticle({ ...newArticle, priority: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="article-source">Source *</Label>
+                <Input
+                  id="article-source"
+                  value={newArticle.source}
+                  onChange={(e) => setNewArticle({ ...newArticle, source: e.target.value })}
+                  placeholder="News source name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="source-url">Source URL</Label>
+                <Input
+                  id="source-url"
+                  value={newArticle.sourceUrl}
+                  onChange={(e) => setNewArticle({ ...newArticle, sourceUrl: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="article-author">Author</Label>
+                <Input
+                  id="article-author"
+                  value={newArticle.author}
+                  onChange={(e) => setNewArticle({ ...newArticle, author: e.target.value })}
+                  placeholder="Author name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="article-region">Region</Label>
+                <Select
+                  value={newArticle.region}
+                  onValueChange={(value: 'national' | 'international' | 'local') => 
+                    setNewArticle({ ...newArticle, region: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="local">Local</SelectItem>
+                    <SelectItem value="national">National</SelectItem>
+                    <SelectItem value="international">International</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="read-time">Read Time (minutes)</Label>
+                <Input
+                  id="read-time"
+                  type="number"
+                  min="1"
+                  value={newArticle.readTimeMinutes}
+                  onChange={(e) => setNewArticle({ ...newArticle, readTimeMinutes: parseInt(e.target.value) || 5 })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="article-image">Image URL</Label>
+                <Input
+                  id="article-image"
+                  value={newArticle.imageUrl}
+                  onChange={(e) => setNewArticle({ ...newArticle, imageUrl: e.target.value })}
+                  placeholder="https://example.com/image.jpg"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="article-published"
+                checked={newArticle.isPublished}
+                onCheckedChange={(checked) => setNewArticle({ ...newArticle, isPublished: checked })}
+              />
+              <Label htmlFor="article-published">Publish Immediately</Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateArticle} disabled={createLoading}>
+              {createLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Article
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -1313,14 +2240,14 @@ export function AdminDashboard() {
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
       <header className="bg-background border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
               <Shield className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="font-bold text-lg">Shiriki Admin</h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground truncate">
                 {admin?.first_name} {admin?.last_name}
                 <Badge variant="outline" className="ml-2">
                   {admin?.role?.replace('_', ' ')}
@@ -1328,9 +2255,9 @@ export function AdminDashboard() {
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
+          <Button variant="outline" onClick={handleLogout} className="flex-shrink-0">
+            <LogOut className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Logout</span>
           </Button>
         </div>
       </header>
@@ -1338,10 +2265,11 @@ export function AdminDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full max-w-xl grid-cols-5">
+          <TabsList className="grid w-full max-w-2xl grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
+            <TabsTrigger value="articles">Articles</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -1361,6 +2289,10 @@ export function AdminDashboard() {
 
           <TabsContent value="events">
             <EventsTab />
+          </TabsContent>
+
+          <TabsContent value="articles">
+            <ArticlesTab />
           </TabsContent>
 
           <TabsContent value="analytics">

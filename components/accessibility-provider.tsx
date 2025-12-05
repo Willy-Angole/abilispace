@@ -80,7 +80,7 @@ export function AccessibilityProvider({ children }: AccessibilityProviderProps) 
 
   useEffect(() => {
     // Load saved settings
-    const savedSettings = localStorage.getItem("accessibleApp_accessibility")
+    const savedSettings = localStorage.getItem("shiriki_accessibility")
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings)
       setSettings({ ...defaultSettings, ...parsed })
@@ -95,7 +95,7 @@ export function AccessibilityProvider({ children }: AccessibilityProviderProps) 
     applySettings(settings)
 
     // Save settings
-    localStorage.setItem("accessibleApp_accessibility", JSON.stringify(settings))
+    localStorage.setItem("shiriki_accessibility", JSON.stringify(settings))
   }, [settings])
 
   const detectUserPreferences = () => {

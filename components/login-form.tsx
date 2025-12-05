@@ -107,23 +107,12 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
         })
       }
     } catch (error) {
-      // Fallback to localStorage for demo/offline mode
-      const users = JSON.parse(localStorage.getItem("accessibleApp_users") || "[]")
-      const user = users.find((u: User) => u.email === formData.email)
-
-      if (user) {
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully signed in.",
-        })
-        onSuccess(user)
-      } else {
-        toast({
-          title: "Sign In Failed",
-          description: "Email not found. Please check your email or create an account.",
-          variant: "destructive",
-        })
-      }
+      // Network error - show error message
+      toast({
+        title: "Sign In Failed",
+        description: error instanceof Error ? error.message : "Unable to connect to server. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }

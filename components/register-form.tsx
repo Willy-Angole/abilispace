@@ -123,9 +123,13 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
     }
 
     if (!formData.agreeToTerms || !formData.agreeToAccessibility) {
+      const missing = []
+      if (!formData.agreeToTerms) missing.push("Terms of Service and Privacy Policy")
+      if (!formData.agreeToAccessibility) missing.push("Accessibility Commitment")
+      
       toast({
-        title: "Agreement Required",
-        description: "Please agree to the terms and accessibility commitment.",
+        title: "Please Agree to Continue",
+        description: `You must agree to the following: ${missing.join(" and ")}.`,
         variant: "destructive",
       })
       setIsSubmitting(false)
@@ -160,33 +164,12 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
         })
       }
     } catch (error) {
-      // Fallback to localStorage for demo/offline mode
-      const userData: User = {
-        id: Date.now().toString(),
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone || undefined,
-        location: formData.location || undefined,
-        disabilityType: formData.disabilityType || undefined,
-        accessibilityNeeds: formData.accessibilityNeeds || undefined,
-        communicationPreference: formData.communicationPreference || undefined,
-        emailVerified: false,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      }
-
-      // Save to localStorage
-      const users = JSON.parse(localStorage.getItem("accessibleApp_users") || "[]")
-      users.push(userData)
-      localStorage.setItem("accessibleApp_users", JSON.stringify(users))
-
+      // Show the actual error - don't fake success
       toast({
-        title: "Account Created Successfully!",
-        description: "Please sign in with your email and password.",
+        title: "Registration Failed",
+        description: error instanceof Error ? error.message : "Unable to create account. Please try again.",
+        variant: "destructive",
       })
-
-      onSuccess()
     } finally {
       setIsSubmitting(false)
     }
@@ -300,7 +283,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                       </Button>
                     </div>
                     <p id="password-help" className="text-xs text-muted-foreground">
-                      At least 8 characters with letters and numbers
+                      Min 8 chars with uppercase, lowercase, number & special character (e.g., Password1!)
                     </p>
                   </div>
 

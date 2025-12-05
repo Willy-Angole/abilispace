@@ -171,7 +171,7 @@ export class MessagingService {
         const { participantIds, name, isGroup } = input;
         const allParticipants = new Set([creatorId, ...participantIds]);
 
-        // Validate all participants exist
+        // Validate all participants exist (at minimum, the creator)
         const validationResult = await db.query<{ id: string }>(
             `SELECT id FROM users 
              WHERE id = ANY($1) AND deleted_at IS NULL AND is_active = true`,
@@ -190,6 +190,11 @@ export class MessagingService {
             if (existingConversation) {
                 return existingConversation;
             }
+        }
+
+        // For groups, require a name
+        if (isGroup && !name?.trim()) {
+            throw Errors.badRequest('Group name is required');
         }
 
         // Create conversation in transaction

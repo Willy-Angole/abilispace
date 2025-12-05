@@ -338,6 +338,78 @@ router.patch('/events/:id/feature', adminAuth, requireRole('super_admin', 'admin
   }
 });
 
+// Create new event
+router.post('/events', adminAuth, requireRole('super_admin', 'admin', 'moderator'), async (req: AdminRequest, res: Response) => {
+  try {
+    const {
+      title, description, eventDate, eventTime, endDate, endTime,
+      location, virtualLink, eventType, category, capacity,
+      organizerName, imageUrl, imageAlt, isFeatured, isPublished,
+      accessibilityFeatures, tags
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !eventDate || !eventTime || !eventType || !category || !capacity || !organizerName) {
+      return res.status(400).json({ 
+        error: 'Required fields: title, description, eventDate, eventTime, eventType, category, capacity, organizerName' 
+      });
+    }
+
+    const event = await adminService.createEvent(req.admin!.sub, {
+      title, description, eventDate, eventTime, endDate, endTime,
+      location, virtualLink, eventType, category, capacity,
+      organizerName, imageUrl, imageAlt, isFeatured, isPublished,
+      accessibilityFeatures, tags
+    });
+
+    res.status(201).json({
+      success: true,
+      data: event
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to create event' });
+  }
+});
+
+// Delete event
+router.delete('/events/:id', adminAuth, requireRole('super_admin', 'admin'), async (req: AdminRequest, res: Response) => {
+  try {
+    await adminService.deleteEvent(req.admin!.sub, req.params.id);
+    res.json({
+      success: true,
+      message: 'Event deleted successfully'
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to delete event' });
+  }
+});
+
+// Get event categories
+router.get('/events/categories', adminAuth, async (req: AdminRequest, res: Response) => {
+  try {
+    const categories = await adminService.getEventCategories();
+    res.json({
+      success: true,
+      data: categories
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch categories' });
+  }
+});
+
+// Get accessibility features
+router.get('/events/accessibility-features', adminAuth, async (req: AdminRequest, res: Response) => {
+  try {
+    const features = await adminService.getAccessibilityFeatures();
+    res.json({
+      success: true,
+      data: features
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch accessibility features' });
+  }
+});
+
 // =============================================================================
 // ARTICLE MANAGEMENT ROUTES
 // =============================================================================
@@ -375,6 +447,63 @@ router.patch('/articles/:id/publish', adminAuth, requireRole('super_admin', 'adm
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to update article' });
+  }
+});
+
+// Create new article
+router.post('/articles', adminAuth, requireRole('super_admin', 'admin', 'moderator'), async (req: AdminRequest, res: Response) => {
+  try {
+    const {
+      title, summary, content, category, source, sourceUrl, author,
+      region, priority, readTimeMinutes, imageUrl, imageAlt,
+      hasAudio, audioUrl, hasVideo, videoUrl, isPublished, tags
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !summary || !content || !category || !source) {
+      return res.status(400).json({ 
+        error: 'Required fields: title, summary, content, category, source' 
+      });
+    }
+
+    const article = await adminService.createArticle(req.admin!.sub, {
+      title, summary, content, category, source, sourceUrl, author,
+      region, priority, readTimeMinutes, imageUrl, imageAlt,
+      hasAudio, audioUrl, hasVideo, videoUrl, isPublished, tags
+    });
+
+    res.status(201).json({
+      success: true,
+      data: article
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to create article' });
+  }
+});
+
+// Delete article
+router.delete('/articles/:id', adminAuth, requireRole('super_admin', 'admin'), async (req: AdminRequest, res: Response) => {
+  try {
+    await adminService.deleteArticle(req.admin!.sub, req.params.id);
+    res.json({
+      success: true,
+      message: 'Article deleted successfully'
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to delete article' });
+  }
+});
+
+// Get article categories
+router.get('/articles/categories', adminAuth, async (req: AdminRequest, res: Response) => {
+  try {
+    const categories = await adminService.getArticleCategories();
+    res.json({
+      success: true,
+      data: categories
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch article categories' });
   }
 });
 

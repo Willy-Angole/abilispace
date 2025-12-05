@@ -198,11 +198,11 @@ async function apiRequest<T>(
     const data = await response.json();
 
     if (!response.ok) {
-        const error: ApiError = {
-            success: false,
-            message: data.message || 'Request failed',
-            code: data.code,
-        };
+        // Create a proper error object with the server's message
+        const errorMessage = data.message || data.error || 'Request failed';
+        const error = new Error(errorMessage) as Error & { code?: string; statusCode?: number };
+        error.code = data.code;
+        error.statusCode = response.status;
         throw error;
     }
 

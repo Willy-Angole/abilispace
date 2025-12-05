@@ -174,6 +174,17 @@ async function apiRequest<T>(
     const data = await response.json();
     
     if (!response.ok) {
+        // Handle validation errors (422) with detailed messages
+        if (response.status === 422 && data.errors) {
+            const errorMessages: string[] = [];
+            for (const field in data.errors) {
+                const fieldErrors = data.errors[field];
+                if (Array.isArray(fieldErrors)) {
+                    errorMessages.push(...fieldErrors);
+                }
+            }
+            throw new Error(errorMessages.join('. ') || data.message || 'Validation failed');
+        }
         throw new Error(data.message || 'Request failed');
     }
     
@@ -236,56 +247,8 @@ export async function googleAuth(
         
         return response;
     } catch (error) {
-        // Fallback: Decode Google ID token client-side for demo/offline mode
-        // In production, always validate tokens server-side
-        console.warn('Backend unavailable, using client-side Google auth fallback');
-        
-        try {
-            // Decode the JWT payload (base64)
-            const payload = JSON.parse(atob(idToken.split('.')[1]));
-            
-            const user: User = {
-                id: payload.sub || Date.now().toString(),
-                email: payload.email,
-                firstName: payload.given_name || payload.name?.split(' ')[0] || 'User',
-                lastName: payload.family_name || payload.name?.split(' ').slice(1).join(' ') || '',
-                phone: additionalInfo?.phone,
-                location: additionalInfo?.location,
-                disabilityType: additionalInfo?.disabilityType,
-                accessibilityNeeds: additionalInfo?.accessibilityNeeds,
-                communicationPreference: additionalInfo?.communicationPreference || 'email',
-                emailVerified: payload.email_verified || true,
-                isActive: true,
-                createdAt: new Date().toISOString(),
-            };
-            
-            // Store user in localStorage for demo
-            storeUser(user);
-            
-            // Also store in the legacy format for compatibility with page.tsx
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('accessibleApp_user', JSON.stringify(user));
-                
-                // Add to users list
-                const users = JSON.parse(localStorage.getItem('accessibleApp_users') || '[]');
-                const existingUserIndex = users.findIndex((u: User) => u.email === user.email);
-                if (existingUserIndex >= 0) {
-                    users[existingUserIndex] = user;
-                } else {
-                    users.push(user);
-                }
-                localStorage.setItem('accessibleApp_users', JSON.stringify(users));
-            }
-            
-            return {
-                success: true,
-                message: 'Signed in with Google successfully',
-                user,
-            };
-        } catch (decodeError) {
-            console.error('Failed to decode Google token:', decodeError);
-            throw new Error('Failed to process Google sign-in');
-        }
+        // Re-throw the error - no fallback mode
+        throw error;
     }
 }
 

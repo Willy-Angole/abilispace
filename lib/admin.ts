@@ -4,7 +4,7 @@
  * Provides typed functions for interacting with the admin backend API.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface AdminTokens {
   accessToken: string;
@@ -137,7 +137,7 @@ async function adminFetch<T>(endpoint: string, options: RequestInit = {}): Promi
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}/admin${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL}/api/admin${endpoint}`, {
     ...options,
     headers,
   });
@@ -156,7 +156,7 @@ async function adminFetch<T>(endpoint: string, options: RequestInit = {}): Promi
 // =============================================================================
 
 export async function adminLogin(email: string, password: string): Promise<{ admin: AdminUser; accessToken: string }> {
-  const response = await fetch(`${API_BASE_URL}/admin/auth/login`, {
+  const response = await fetch(`${API_BASE_URL}/api/admin/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -302,6 +302,47 @@ export async function toggleEventFeatured(eventId: string, isFeatured: boolean):
   });
 }
 
+// Create new event
+export interface CreateEventData {
+  title: string;
+  description: string;
+  eventDate: string;
+  eventTime: string;
+  endDate?: string;
+  endTime?: string;
+  location?: string;
+  virtualLink?: string;
+  eventType: 'virtual' | 'in_person' | 'hybrid';
+  category: string;
+  capacity: number;
+  organizerName: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  isFeatured?: boolean;
+  isPublished?: boolean;
+  accessibilityFeatures?: string[];
+  tags?: string[];
+}
+
+export async function createEvent(data: CreateEventData): Promise<EventDetails> {
+  return adminFetch<EventDetails>('/events', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteEvent(eventId: string): Promise<void> {
+  await adminFetch(`/events/${eventId}`, { method: 'DELETE' });
+}
+
+export async function getEventCategories(): Promise<string[]> {
+  return adminFetch<string[]>('/events/categories');
+}
+
+export async function getAdminAccessibilityFeatures(): Promise<Array<{ id: string; name: string; description?: string; icon?: string }>> {
+  return adminFetch('/events/accessibility-features');
+}
+
 // =============================================================================
 // ARTICLES
 // =============================================================================
@@ -326,6 +367,43 @@ export async function toggleArticlePublished(articleId: string, isPublished: boo
     method: 'PATCH',
     body: JSON.stringify({ isPublished }),
   });
+}
+
+// Create new article
+export interface CreateArticleData {
+  title: string;
+  summary: string;
+  content: string;
+  category: string;
+  source: string;
+  sourceUrl?: string;
+  author?: string;
+  region?: 'national' | 'international' | 'local';
+  priority?: 'high' | 'medium' | 'low';
+  readTimeMinutes?: number;
+  imageUrl?: string;
+  imageAlt?: string;
+  hasAudio?: boolean;
+  audioUrl?: string;
+  hasVideo?: boolean;
+  videoUrl?: string;
+  isPublished?: boolean;
+  tags?: string[];
+}
+
+export async function createArticle(data: CreateArticleData): Promise<any> {
+  return adminFetch('/articles', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteArticle(articleId: string): Promise<void> {
+  await adminFetch(`/articles/${articleId}`, { method: 'DELETE' });
+}
+
+export async function getArticleCategories(): Promise<string[]> {
+  return adminFetch<string[]>('/articles/categories');
 }
 
 // =============================================================================

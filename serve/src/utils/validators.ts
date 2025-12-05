@@ -139,10 +139,23 @@ export const searchUsersSchema = z.object({
 // =============================================================================
 
 export const createConversationSchema = z.object({
-    participantIds: z.array(uuidSchema).min(1, 'At least one participant is required'),
+    participantIds: z.array(uuidSchema).default([]),
     name: z.string().max(255).optional(),
     isGroup: z.boolean().default(false),
-});
+}).refine(
+    (data) => {
+        // For groups, name is required but participants are optional
+        if (data.isGroup) {
+            return true; // Groups can start with no participants
+        }
+        // For DMs, at least one participant is required
+        return data.participantIds.length >= 1;
+    },
+    {
+        message: 'Direct messages require at least one participant',
+        path: ['participantIds'],
+    }
+);
 
 export const updateConversationSchema = z.object({
     name: z.string().max(255).optional(),

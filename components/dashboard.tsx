@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +12,7 @@ import { CurrentAffairs } from "@/components/current-affairs"
 import { OfflineStatus } from "@/components/offline-manager"
 import { ProfileEdit } from "@/components/profile-edit"
 import { type User as UserType } from "@/lib/auth"
+import { getUnreadCounts } from "@/lib/messaging"
 import Image from "next/image"
 
 interface DashboardProps {
@@ -24,6 +25,31 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<"events" | "news" | "messages" | "profile">("events")
   const [currentUser, setCurrentUser] = useState<UserType>(user)
   const [isEditing, setIsEditing] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  // Fetch unread message count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await getUnreadCounts()
+        if (response.success && response.data) {
+          setUnreadCount(response.data.total)
+        }
+      } catch (error) {
+        console.error("Failed to fetch unread count:", error)
+      }
+    }
+
+    fetchUnreadCount()
+    
+    // Poll for new messages every 10 seconds (only when not on messages tab)
+    const interval = setInterval(() => {
+      if (activeTab !== "messages") {
+        fetchUnreadCount()
+      }
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [activeTab])
 
   // Get user initials for avatar fallback
   const getInitials = () => {
@@ -78,22 +104,20 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
       </a>
 
       {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="text-2xl font-bold"><Image src="/logo.png" height="30" width="90" alt="SHIRIKI"/></div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground hidden sm:inline">Welcome, {user.firstName}</span>
-              <Button variant="ghost" size="sm" aria-label="Notifications">
-                <Bell className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={onLogout} aria-label="Sign out">
-                <LogOut className="h-4 w-4" />
-              </Button>
+      <header className="bg-background border-b sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex flex-col">
+              <Image src="/logo.png" height={30} width={90} alt="SHIRIKI" style={{ width: 'auto', height: 'auto' }} />
+              <p className="text-xs text-muted-foreground mt-1">
+                Welcome, {currentUser.firstName}
+              </p>
             </div>
           </div>
+          <Button variant="outline" onClick={onLogout} className="flex-shrink-0">
+            <LogOut className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Logout</span>
+          </Button>
         </div>
       </header>
 
@@ -124,11 +148,19 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 </Button>
                 <Button
                   variant={activeTab === "messages" ? "default" : "ghost"}
-                  className="w-full justify-start"
+                  className="w-full justify-start relative"
                   onClick={() => setActiveTab("messages")}
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Messages
+                  {unreadCount > 0 && (
+                    <span className="absolute right-2 flex h-5 w-5 items-center justify-center">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    </span>
+                  )}
                 </Button>
                 <Button
                   variant={activeTab === "profile" ? "default" : "ghost"}
@@ -150,7 +182,12 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
 
             {activeTab === "news" && <CurrentAffairs user={user} />}
 
-            {activeTab === "messages" && <SecureMessaging user={user} />}
+            {activeTab === "messages" && (
+              <SecureMessaging 
+                user={user} 
+                onUnreadCountChange={setUnreadCount}
+              />
+            )}
 
             {activeTab === "profile" && (
               <div className="space-y-6">

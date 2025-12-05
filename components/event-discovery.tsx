@@ -78,6 +78,8 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false)
   const [showAccommodationDialog, setShowAccommodationDialog] = useState(false)
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false)
+  const [pendingWithdrawEventId, setPendingWithdrawEventId] = useState<string | null>(null)
   const [accommodationNotes, setAccommodationNotes] = useState("")
   const [pendingRegistrationEventId, setPendingRegistrationEventId] = useState<string | null>(null)
 
@@ -237,10 +239,41 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
         setPendingRegistrationEventId(null)
       }
     } catch (err) {
-      const message = (err as { message?: string })?.message || "Failed to register"
+      const message = err instanceof Error ? err.message : "Failed to register"
+      
+      // Provide user-friendly messages for common errors
+      let title = "Registration Failed"
+      let description = message
+      
+      if (message.toLowerCase().includes("full") || message.toLowerCase().includes("capacity")) {
+        title = "Event Full"
+        description = "Sorry, this event has reached its maximum capacity. Please check back later or browse other events."
+        
+        // Update the event's registered count to show it's full
+        setEvents((prev) =>
+          prev.map((event) =>
+            event.id === eventId
+              ? { ...event, registeredCount: event.capacity }
+              : event
+          )
+        )
+        
+        if (selectedEvent?.id === eventId) {
+          setSelectedEvent((prev) =>
+            prev ? { ...prev, registeredCount: prev.capacity } : prev
+          )
+        }
+      } else if (message.toLowerCase().includes("past")) {
+        title = "Event Expired"
+        description = "This event has already passed and registration is no longer available."
+      } else if (message.toLowerCase().includes("already registered")) {
+        title = "Already Registered"
+        description = "You are already registered for this event."
+      }
+      
       toast({
-        title: "Registration Failed",
-        description: message,
+        title,
+        description,
         variant: "destructive",
       })
     } finally {
@@ -248,7 +281,13 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
     }
   }
 
-  // Handle unregistration
+  // Handle withdrawal request - show confirmation dialog
+  const handleWithdrawRequest = (eventId: string) => {
+    setPendingWithdrawEventId(eventId)
+    setShowWithdrawDialog(true)
+  }
+
+  // Handle confirmed withdrawal
   const handleUnregister = async (eventId: string) => {
     if (!isAuthenticated()) {
       toast({
@@ -260,6 +299,7 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
     }
 
     setIsRegistering(true)
+    setShowWithdrawDialog(false)
 
     try {
       const response = await cancelRegistration(eventId)
@@ -282,19 +322,20 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
         }
 
         toast({
-          title: "Unregistered Successfully",
-          description: "You have been removed from this event.",
+          title: "Registration Withdrawn",
+          description: "Your spot has been freed up for others. Thank you for letting us know!",
         })
       }
     } catch (err) {
-      const message = (err as { message?: string })?.message || "Failed to unregister"
+      const message = (err as { message?: string })?.message || "Failed to withdraw registration"
       toast({
-        title: "Unregistration Failed",
+        title: "Withdrawal Failed",
         description: message,
         variant: "destructive",
       })
     } finally {
       setIsRegistering(false)
+      setPendingWithdrawEventId(null)
     }
   }
 
@@ -416,6 +457,11 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                {selectedEvent.registeredCount >= selectedEvent.capacity && (
+                  <Badge variant="destructive">
+                    FULL
+                  </Badge>
+                )}
                 {getEventTypeIcon(selectedEvent.eventType)}
                 <Badge variant={selectedEvent.eventType === "virtual" ? "secondary" : "default"}>
                   {getEventTypeLabel(selectedEvent.eventType)}
@@ -508,9 +554,9 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
               {selectedEvent.isRegistered ? (
                 <Button
                   variant="outline"
-                  onClick={() => handleUnregister(selectedEvent.id)}
+                  onClick={() => handleWithdrawRequest(selectedEvent.id)}
                   disabled={isRegistering}
-                  className="min-h-12"
+                  className="min-h-12 border-orange-500 text-orange-600 hover:bg-orange-50"
                   aria-describedby="registration-status"
                 >
                   {isRegistering ? (
@@ -518,7 +564,7 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
                   ) : (
                     <Heart className="h-4 w-4 mr-2 fill-current text-red-500" aria-hidden="true" />
                   )}
-                  Registered - Click to Unregister
+                  Withdraw Registration
                 </Button>
               ) : (
                 <Button
@@ -755,6 +801,11 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
                           aria-label="You are registered for this event"
                         />
                       )}
+                      {event.registeredCount >= event.capacity && (
+                        <Badge variant="destructive" className="text-xs">
+                          FULL
+                        </Badge>
+                      )}
                       {event.isFeatured && (
                         <Badge variant="default" className="bg-yellow-500">
                           Featured
@@ -809,16 +860,17 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleUnregister(event.id)}
+                        onClick={() => handleWithdrawRequest(event.id)}
                         disabled={isRegistering}
-                        aria-label={`Unregister from ${event.title}`}
+                        aria-label={`Withdraw registration from ${event.title}`}
+                        className="border-orange-500 text-orange-600 hover:bg-orange-50"
                       >
                         {isRegistering ? (
                           <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                         ) : (
                           <Heart className="h-3 w-3 mr-1 fill-current text-red-500" aria-hidden="true" />
                         )}
-                        Registered
+                        Withdraw
                       </Button>
                     ) : (
                       <Button
@@ -909,6 +961,46 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
             >
               {isRegistering && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Register
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Withdraw Registration Confirmation Dialog */}
+      <Dialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Withdraw Registration?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to withdraw your registration? Your spot will be freed up for others who may want to attend.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              If you change your mind later, you can register again (subject to availability).
+            </p>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowWithdrawDialog(false)
+                setPendingWithdrawEventId(null)
+              }}
+            >
+              Keep Registration
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pendingWithdrawEventId) {
+                  handleUnregister(pendingWithdrawEventId)
+                }
+              }}
+              disabled={isRegistering}
+            >
+              {isRegistering && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Withdraw Registration
             </Button>
           </DialogFooter>
         </DialogContent>

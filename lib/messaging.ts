@@ -5,7 +5,19 @@
  * Handles DM and group conversations with real-time support.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+// =============================================================================
+// Auth Helper
+// =============================================================================
+
+/**
+ * Check if user is authenticated (has a token)
+ */
+export function isAuthenticated(): boolean {
+    if (typeof window === 'undefined') return false;
+    return !!localStorage.getItem('shiriki_access_token');
+}
 
 // =============================================================================
 // Types
@@ -81,7 +93,7 @@ export interface ApiResponse<T> {
 
 function getAuthHeaders(): HeadersInit {
     if (typeof window === 'undefined') return {};
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('shiriki_access_token');
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -134,7 +146,7 @@ export async function searchUsers(
     limit: number = 10
 ): Promise<ApiResponse<User[]>> {
     const params = new URLSearchParams({ q: query, limit: limit.toString() });
-    return fetchApi<User[]>(`/messaging/users/search?${params}`);
+    return fetchApi<User[]>(`/api/messaging/users/search?${params}`);
 }
 
 // =============================================================================
@@ -149,7 +161,7 @@ export async function createConversation(data: {
     name?: string;
     isGroup?: boolean;
 }): Promise<ApiResponse<Conversation>> {
-    return fetchApi<Conversation>('/messaging/conversations', {
+    return fetchApi<Conversation>('/api/messaging/conversations', {
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -165,7 +177,7 @@ export async function getConversations(
     const params = new URLSearchParams({ limit: limit.toString() });
     if (cursor) params.append('cursor', cursor);
     
-    const response = await fetchApi<Conversation[]>(`/messaging/conversations?${params}`);
+    const response = await fetchApi<Conversation[]>(`/api/messaging/conversations?${params}`);
     return response as ApiResponse<Conversation[]> & { nextCursor?: string };
 }
 
@@ -175,7 +187,7 @@ export async function getConversations(
 export async function getConversation(
     conversationId: string
 ): Promise<ApiResponse<Conversation>> {
-    return fetchApi<Conversation>(`/messaging/conversations/${conversationId}`);
+    return fetchApi<Conversation>(`/api/messaging/conversations/${conversationId}`);
 }
 
 /**
@@ -185,7 +197,7 @@ export async function updateConversation(
     conversationId: string,
     updates: { name?: string; description?: string }
 ): Promise<ApiResponse<Conversation>> {
-    return fetchApi<Conversation>(`/messaging/conversations/${conversationId}`, {
+    return fetchApi<Conversation>(`/api/messaging/conversations/${conversationId}`, {
         method: 'PATCH',
         body: JSON.stringify(updates),
     });
@@ -202,7 +214,7 @@ export async function addMembers(
     conversationId: string,
     memberIds: string[]
 ): Promise<ApiResponse<Conversation>> {
-    return fetchApi<Conversation>(`/messaging/conversations/${conversationId}/members`, {
+    return fetchApi<Conversation>(`/api/messaging/conversations/${conversationId}/members`, {
         method: 'POST',
         body: JSON.stringify({ memberIds }),
     });
@@ -216,7 +228,7 @@ export async function removeMember(
     memberId: string
 ): Promise<ApiResponse<Conversation>> {
     return fetchApi<Conversation>(
-        `/messaging/conversations/${conversationId}/members/${memberId}`,
+        `/api/messaging/conversations/${conversationId}/members/${memberId}`,
         { method: 'DELETE' }
     );
 }
@@ -227,7 +239,7 @@ export async function removeMember(
 export async function leaveConversation(
     conversationId: string
 ): Promise<ApiResponse<void>> {
-    return fetchApi<void>(`/messaging/conversations/${conversationId}/leave`, {
+    return fetchApi<void>(`/api/messaging/conversations/${conversationId}/leave`, {
         method: 'POST',
     });
 }
@@ -240,7 +252,7 @@ export async function makeAdmin(
     memberId: string
 ): Promise<ApiResponse<Conversation>> {
     return fetchApi<Conversation>(
-        `/messaging/conversations/${conversationId}/admin/${memberId}`,
+        `/api/messaging/conversations/${conversationId}/admin/${memberId}`,
         { method: 'POST' }
     );
 }
@@ -257,7 +269,7 @@ export async function sendMessage(data: {
     content: string;
     replyToId?: string;
 }): Promise<ApiResponse<Message>> {
-    return fetchApi<Message>('/messaging/messages', {
+    return fetchApi<Message>('/api/messaging/messages', {
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -279,7 +291,7 @@ export async function getMessages(
     if (cursor) params.append('cursor', cursor);
     
     const response = await fetchApi<Message[]>(
-        `/messaging/conversations/${conversationId}/messages?${params}`
+        `/api/messaging/conversations/${conversationId}/messages?${params}`
     );
     return response as ApiResponse<Message[]> & { nextCursor?: string };
 }
@@ -291,7 +303,7 @@ export async function editMessage(
     messageId: string,
     content: string
 ): Promise<ApiResponse<Message>> {
-    return fetchApi<Message>(`/messaging/messages/${messageId}`, {
+    return fetchApi<Message>(`/api/messaging/messages/${messageId}`, {
         method: 'PATCH',
         body: JSON.stringify({ content }),
     });
@@ -301,7 +313,7 @@ export async function editMessage(
  * Delete a message
  */
 export async function deleteMessage(messageId: string): Promise<ApiResponse<void>> {
-    return fetchApi<void>(`/messaging/messages/${messageId}`, {
+    return fetchApi<void>(`/api/messaging/messages/${messageId}`, {
         method: 'DELETE',
     });
 }
@@ -318,7 +330,7 @@ export async function markMessagesAsRead(
     messageIds?: string[]
 ): Promise<ApiResponse<{ markedCount: number }>> {
     return fetchApi<{ markedCount: number }>(
-        `/messaging/conversations/${conversationId}/read`,
+        `/api/messaging/conversations/${conversationId}/read`,
         {
             method: 'POST',
             body: JSON.stringify({ messageIds }),
@@ -332,7 +344,7 @@ export async function markMessagesAsRead(
 export async function getUnreadCounts(): Promise<
     ApiResponse<{ counts: UnreadCount[]; total: number }>
 > {
-    return fetchApi<{ counts: UnreadCount[]; total: number }>('/messaging/unread-counts');
+    return fetchApi<{ counts: UnreadCount[]; total: number }>('/api/messaging/unread-counts');
 }
 
 // =============================================================================

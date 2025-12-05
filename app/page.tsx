@@ -9,7 +9,6 @@ import { ForgotPasswordForm } from "@/components/forgot-password-form"
 import { VerifyCodeForm } from "@/components/verify-code-form"
 import { ResetPasswordForm } from "@/components/reset-password-form"
 import { Dashboard } from "@/components/dashboard"
-import { OfflineProvider, OfflineIndicator } from "@/components/offline-manager"
 import { AccessibilityFloatingButton } from "@/components/accessibility-provider"
 import Image from "next/image"
 
@@ -21,30 +20,43 @@ export default function HomePage() {
   const [resetEmail, setResetEmail] = useState<string>("")
   const [resetCode, setResetCode] = useState<string>("")
 
+  // Check for existing session on mount
   useEffect(() => {
     // Check if user is already logged in
-    const savedUser = localStorage.getItem("accessibleApp_user")
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
-      setCurrentView("dashboard")
+    const storedUser = localStorage.getItem("shiriki_user")
+    const token = localStorage.getItem("shiriki_access_token")
+    if (storedUser && token) {
+      try {
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+        setCurrentView("dashboard")
+      } catch (e) {
+        // Invalid stored data, clear it
+        localStorage.removeItem("shiriki_user")
+        localStorage.removeItem("shiriki_access_token")
+        localStorage.removeItem("shiriki_refresh_token")
+      }
     }
   }, [])
 
   const handleLogin = (userData: any) => {
     setUser(userData)
-    localStorage.setItem("accessibleApp_user", JSON.stringify(userData))
+    // Only store for current session, will be cleared on page reload
     setCurrentView("dashboard")
   }
 
   const handleLogout = () => {
     setUser(null)
-    localStorage.removeItem("accessibleApp_user")
+    // Clear auth tokens
+    localStorage.removeItem("shiriki_access_token")
+    localStorage.removeItem("shiriki_refresh_token")
+    localStorage.removeItem("shiriki_user")
     setCurrentView("welcome")
   }
 
   const handleUserUpdate = (updatedUser: any) => {
     setUser(updatedUser)
-    localStorage.setItem("accessibleApp_user", JSON.stringify(updatedUser))
+    // Don't persist to localStorage - session only
   }
 
   const handleForgotPasswordSuccess = (email: string) => {
@@ -68,8 +80,7 @@ export default function HomePage() {
   }
 
   return (
-    <OfflineProvider>
-      <OfflineIndicator />
+    <>
       <AccessibilityFloatingButton />
 
       {currentView === "dashboard" && user ? (
@@ -109,7 +120,7 @@ export default function HomePage() {
           <div className="container mx-auto px-4 py-8 max-w-4xl">
             <header className="text-center mb-12">
               <div className="flex items-center justify-center gap-3 my-18">
-                <div className="text-2xl font-bold"><Image src="/logo.png" height="60" width="180" alt="SHIRIKI"/></div>
+                <div className="text-2xl font-bold"><Image src="/logo.png" height={60} width={180} alt="SHIRIKI" style={{ width: 'auto', height: 'auto' }} /></div>
               </div>
               <p className="text-xl text-muted-foreground text-balance max-w-2xl mx-auto">
                 An inclusive platform connecting people with disabilities to live events, current affairs, and
@@ -238,6 +249,6 @@ export default function HomePage() {
           </div>
         </main>
       )}
-    </OfflineProvider>
+    </>
   )
 }

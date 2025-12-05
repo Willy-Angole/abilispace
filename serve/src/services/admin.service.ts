@@ -449,10 +449,13 @@ export async function getEventRegistrations(
   );
   const total = parseInt(countResult.rows[0].total);
 
-  // Get registrations
+  // Get registrations with full user details
   const registrationsResult = await db.query<EventRegistration>(
-    `SELECT er.user_id, u.email as user_email, u.first_name, u.last_name, 
-            er.registered_at, er.attendance_status
+    `SELECT er.id as registration_id, er.user_id, u.email as user_email, 
+            u.first_name, u.last_name, u.phone, u.location,
+            u.disability_type, u.accessibility_needs, u.communication_preference,
+            u.emergency_contact, er.accommodation_notes,
+            er.registered_at, er.attendance_status, er.attended
      FROM event_registrations er
      JOIN users u ON er.user_id = u.id
      WHERE er.event_id = $1 AND er.cancelled_at IS NULL
@@ -876,4 +879,270 @@ export async function updateAdminRole(adminId: string, targetAdminId: string, ro
 // Aggregate stats function (call daily via cron)
 export async function aggregateDailyStats() {
   await db.query(`SELECT aggregate_daily_statistics(CURRENT_DATE)`);
+}
+
+// =============================================================================
+// EVENT CREATION
+// =============================================================================
+
+export interface CreateEventData {
+  title: string;
+  description: string;
+  eventDate: string;
+  eventTime: string;
+  endDate?: string;
+  endTime?: string;
+  location?: string;
+  virtualLink?: string;
+  eventType: 'virtual' | 'in_person' | 'hybrid';
+  category: string;
+  capacity: number;
+  organizerName: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  isFeatured?: boolean;
+  isPublished?: boolean;
+  accessibilityFeatures?: string[];
+  tags?: string[];
+}
+
+export async function createEvent(adminId: string, data: CreateEventData) {
+  return db.transaction(async (client) => {
+    // Insert the event
+    const result = await client.query(
+      `INSERT INTO events (
+        title, description, event_date, event_time, end_date, end_time,
+        location, virtual_link, event_type, category, capacity,
+        organizer_name, image_url, image_alt, is_featured, is_published
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      RETURNING *`,
+      [
+        data.title,
+        data.description,
+        data.eventDate,
+        data.eventTime,
+        data.endDate || null,
+        data.endTime || null,
+        data.location || null,
+        data.virtualLink || null,
+        data.eventType,
+        data.category,
+        data.capacity,
+        data.organizerName,
+        data.imageUrl || null,
+        data.imageAlt || null,
+        data.isFeatured || false,
+        data.isPublished !== false
+      ]
+    );
+
+    const event = result.rows[0];
+
+    // Handle accessibility features
+    if (data.accessibilityFeatures && data.accessibilityFeatures.length > 0) {
+      for (const featureName of data.accessibilityFeatures) {
+        // Get or create the accessibility feature
+        const featureResult = await client.query(
+          `INSERT INTO accessibility_features (name) VALUES ($1)
+           ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+           RETURNING id`,
+          [featureName]
+        );
+        const featureId = featureResult.rows[0].id;
+
+        // Link to event
+        await client.query(
+          `INSERT INTO event_accessibility_features (event_id, feature_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [event.id, featureId]
+        );
+      }
+    }
+
+    // Handle tags
+    if (data.tags && data.tags.length > 0) {
+      for (const tagName of data.tags) {
+        // Get or create the tag
+        const tagResult = await client.query(
+          `INSERT INTO event_tags (name) VALUES ($1)
+           ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+           RETURNING id`,
+          [tagName]
+        );
+        const tagId = tagResult.rows[0].id;
+
+        // Link to event
+        await client.query(
+          `INSERT INTO event_tag_relations (event_id, tag_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [event.id, tagId]
+        );
+      }
+    }
+
+    // Log the action
+    await client.query(
+      `INSERT INTO admin_audit_logs (admin_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'CREATE_EVENT', 'events', event.id, `Created event: ${data.title}`]
+    );
+
+    return event;
+  });
+}
+
+export async function deleteEvent(adminId: string, eventId: string) {
+  return db.transaction(async (client) => {
+    const result = await client.query(
+      `UPDATE events SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL RETURNING *`,
+      [eventId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Event not found');
+    }
+
+    await client.query(
+      `INSERT INTO admin_audit_logs (admin_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'DELETE_EVENT', 'events', eventId, `Deleted event: ${result.rows[0].title}`]
+    );
+
+    return result.rows[0];
+  });
+}
+
+// =============================================================================
+// ARTICLE CREATION
+// =============================================================================
+
+export interface CreateArticleData {
+  title: string;
+  summary: string;
+  content: string;
+  category: string;
+  source: string;
+  sourceUrl?: string;
+  author?: string;
+  region?: 'national' | 'international' | 'local';
+  priority?: 'high' | 'medium' | 'low';
+  readTimeMinutes?: number;
+  imageUrl?: string;
+  imageAlt?: string;
+  hasAudio?: boolean;
+  audioUrl?: string;
+  hasVideo?: boolean;
+  videoUrl?: string;
+  isPublished?: boolean;
+  tags?: string[];
+}
+
+export async function createArticle(adminId: string, data: CreateArticleData) {
+  return db.transaction(async (client) => {
+    // Insert the article
+    const result = await client.query(
+      `INSERT INTO articles (
+        title, summary, content, category, source, source_url, author,
+        region, priority, read_time_minutes, image_url, image_alt,
+        has_audio, audio_url, has_video, video_url, is_published
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      RETURNING *`,
+      [
+        data.title,
+        data.summary,
+        data.content,
+        data.category,
+        data.source,
+        data.sourceUrl || null,
+        data.author || null,
+        data.region || 'national',
+        data.priority || 'medium',
+        data.readTimeMinutes || 5,
+        data.imageUrl || null,
+        data.imageAlt || null,
+        data.hasAudio || false,
+        data.audioUrl || null,
+        data.hasVideo || false,
+        data.videoUrl || null,
+        data.isPublished !== false
+      ]
+    );
+
+    const article = result.rows[0];
+
+    // Handle tags
+    if (data.tags && data.tags.length > 0) {
+      for (const tagName of data.tags) {
+        // Get or create the tag
+        const tagResult = await client.query(
+          `INSERT INTO article_tags (name) VALUES ($1)
+           ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+           RETURNING id`,
+          [tagName]
+        );
+        const tagId = tagResult.rows[0].id;
+
+        // Link to article
+        await client.query(
+          `INSERT INTO article_tag_relations (article_id, tag_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [article.id, tagId]
+        );
+      }
+    }
+
+    // Log the action
+    await client.query(
+      `INSERT INTO admin_audit_logs (admin_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'CREATE_ARTICLE', 'articles', article.id, `Created article: ${data.title}`]
+    );
+
+    return article;
+  });
+}
+
+export async function deleteArticle(adminId: string, articleId: string) {
+  return db.transaction(async (client) => {
+    const result = await client.query(
+      `UPDATE articles SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL RETURNING *`,
+      [articleId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Article not found');
+    }
+
+    await client.query(
+      `INSERT INTO admin_audit_logs (admin_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'DELETE_ARTICLE', 'articles', articleId, `Deleted article: ${result.rows[0].title}`]
+    );
+
+    return result.rows[0];
+  });
+}
+
+// Get accessibility features list
+export async function getAccessibilityFeatures() {
+  const result = await db.query(
+    `SELECT id, name, description, icon FROM accessibility_features ORDER BY name`
+  );
+  return result.rows;
+}
+
+// Get event categories
+export async function getEventCategories() {
+  return [
+    'technology', 'advocacy', 'sports', 'health', 'arts',
+    'education', 'social', 'employment', 'legal'
+  ];
+}
+
+// Get article categories
+export async function getArticleCategories() {
+  return [
+    'policy', 'technology', 'legal', 'medical', 'housing',
+    'digital_rights', 'education', 'employment'
+  ];
 }
