@@ -42,8 +42,9 @@ export class DatabasePool {
             max: 20, // Maximum connections in pool
             min: 2,  // Minimum connections to maintain
             idleTimeoutMillis: 30000, // Close idle connections after 30s
-            connectionTimeoutMillis: 5000, // Fail after 5s if no connection available
+            connectionTimeoutMillis: 30000, // Fail after 30s if no connection available
             maxUses: 7500, // Close connection after 7500 uses (prevents memory leaks)
+            ssl: { rejectUnauthorized: false }, // Railway requires SSL
         });
 
         // Handle pool errors

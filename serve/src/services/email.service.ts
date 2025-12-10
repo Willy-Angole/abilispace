@@ -70,7 +70,7 @@ export class EmailService {
     ): Promise<boolean> {
         const { recipientName, code, expiryMinutes } = data;
 
-        const subject = 'Shiriki - Password Reset Code';
+        const subject = 'Abilispace - Password Reset Code';
         
         const htmlContent = `
 <!DOCTYPE html>
@@ -145,7 +145,7 @@ export class EmailService {
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">🤝 Shiriki</div>
+            <div class="logo">✨ Abilispace</div>
             <p>Inclusive Community Platform</p>
         </div>
         
@@ -169,7 +169,7 @@ export class EmailService {
         </div>
         
         <div class="footer">
-            <p>This is an automated message from Shiriki.</p>
+            <p>This is an automated message from Abilispace.</p>
             <p>Please do not reply to this email.</p>
         </div>
     </div>
@@ -178,7 +178,7 @@ export class EmailService {
         `.trim();
 
         const textContent = `
-Shiriki - Password Reset Code
+Abilispace - Password Reset Code
 
 Hello ${recipientName},
 
@@ -192,12 +192,12 @@ Security Notice: If you didn't request this password reset, please ignore this e
 Your account is safe, and no changes will be made.
 
 ---
-This is an automated message from Shiriki.
+This is an automated message from Abilispace.
         `.trim();
 
         try {
             const info = await this.transporter.sendMail({
-                from: `"Shiriki" <${config.smtp.from}>`,
+                from: `"Abilispace" <${config.smtp.from}>`,
                 to,
                 subject,
                 text: textContent,
@@ -226,7 +226,7 @@ This is an automated message from Shiriki.
         to: string,
         recipientName: string
     ): Promise<boolean> {
-        const subject = 'Shiriki - Password Successfully Reset';
+        const subject = 'Abilispace - Password Successfully Reset';
         
         const htmlContent = `
 <!DOCTYPE html>
@@ -288,7 +288,7 @@ This is an automated message from Shiriki.
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">🤝 Shiriki</div>
+            <div class="logo">✨ Abilispace</div>
             <p>Inclusive Community Platform</p>
         </div>
         
@@ -306,7 +306,7 @@ This is an automated message from Shiriki.
         </div>
         
         <div class="footer">
-            <p>This is an automated message from Shiriki.</p>
+            <p>This is an automated message from Abilispace.</p>
             <p>Please do not reply to this email.</p>
         </div>
     </div>
@@ -315,7 +315,7 @@ This is an automated message from Shiriki.
         `.trim();
 
         const textContent = `
-Shiriki - Password Successfully Reset
+Abilispace - Password Successfully Reset
 
 Hello ${recipientName},
 
@@ -324,12 +324,12 @@ Your password has been successfully reset. You can now sign in with your new pas
 Security Notice: If you didn't make this change, please contact our support team immediately.
 
 ---
-This is an automated message from Shiriki.
+This is an automated message from Abilispace.
         `.trim();
 
         try {
             const info = await this.transporter.sendMail({
-                from: `"Shiriki" <${config.smtp.from}>`,
+                from: `"Abilispace" <${config.smtp.from}>`,
                 to,
                 subject,
                 text: textContent,

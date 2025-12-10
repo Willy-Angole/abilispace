@@ -20,7 +20,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "Shiriki - Inclusive Platform for People with Disabilities",
+  title: "Abilispace - Inclusive Platform for People with Disabilities",
   description:
     "An accessible platform connecting people with disabilities to live events, current affairs, and meaningful conversations. Built with comprehensive accessibility features.",
   generator: "v0.app",
@@ -34,9 +34,9 @@ export const metadata: Metadata = {
     "screen reader",
     "keyboard navigation",
   ],
-  authors: [{ name: "Shiriki Team" }],
-  creator: "Shiriki",
-  publisher: "Shiriki",
+  authors: [{ name: "Abilispace Team" }],
+  creator: "Abilispace",
+  publisher: "Abilispace",
   robots: "index, follow",
   manifest: "/manifest.json",
 }

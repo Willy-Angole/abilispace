@@ -108,7 +108,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex flex-col">
-              <Image src="/logo.png" height={30} width={90} alt="SHIRIKI" style={{ width: 'auto', height: 'auto' }} />
+              <Image src="/logo.png" height={30} width={90} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} />
               <p className="text-xs text-muted-foreground mt-1">
                 Welcome, {currentUser.firstName}
               </p>

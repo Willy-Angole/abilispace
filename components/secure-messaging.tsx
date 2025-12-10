@@ -686,7 +686,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                         No users found matching "{userSearchQuery}"
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Make sure they have an account on Shiriki
+                        Make sure they have an account on Abilispace
                       </p>
                     </div>
                   ) : null}

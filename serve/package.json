@@ -1,7 +1,7 @@
 {
-  "name": "shiriki-backend",
+  "name": "abilispace-backend",
   "version": "1.0.0",
-  "description": "Backend services for Shiriki - Inclusive community platform",
+  "description": "Backend services for Abilispace - Inclusive community platform",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

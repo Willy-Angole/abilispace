@@ -137,7 +137,7 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl text-center">Sign In</CardTitle>
-            <CardDescription className="text-center">Welcome back to Shiriki</CardDescription>
+            <CardDescription className="text-center">Welcome back to Abilispace</CardDescription>
           </CardHeader>
           <CardContent>
             {/* Google Sign-In Button - Primary Option */}

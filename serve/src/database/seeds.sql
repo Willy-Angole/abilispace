@@ -101,7 +101,7 @@ INSERT INTO users (
     is_active
 ) VALUES (
     'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-    'demo@shiriki.org',
+    'demo@abilispace.org',
     '$argon2id$v=19$m=65536,t=3,p=4$dGVzdHNhbHQ$hashgoeshere',
     'Demo',
     'User',
@@ -114,5 +114,5 @@ INSERT INTO users (
 
 -- Create accessibility settings for demo user
 INSERT INTO user_accessibility_settings (user_id)
-SELECT id FROM users WHERE email = 'demo@shiriki.org'
+SELECT id FROM users WHERE email = 'demo@abilispace.org'
 ON CONFLICT (user_id) DO NOTHING;

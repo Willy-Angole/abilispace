@@ -1,9 +1,9 @@
 /* eslint-disable no-restricted-globals */
 
-const CACHE_NAME = "shiriki-v1"
-const STATIC_CACHE = "shiriki-static-v1"
-const DYNAMIC_CACHE = "shiriki-dynamic-v1"
-const API_CACHE = "shiriki-api-v1"
+const CACHE_NAME = "abilispace-v1"
+const STATIC_CACHE = "abilispace-static-v1"
+const DYNAMIC_CACHE = "abilispace-dynamic-v1"
+const API_CACHE = "abilispace-api-v1"
 
 // Static assets to cache immediately on install
 const STATIC_ASSETS = [
@@ -44,7 +44,7 @@ self.addEventListener("activate", (event) => {
           .filter((cacheName) => {
             // Remove old versions of our caches
             return (
-              cacheName.startsWith("shiriki-") &&
+              cacheName.startsWith("abilispace-") &&
               cacheName !== CACHE_NAME &&
               cacheName !== STATIC_CACHE &&
               cacheName !== DYNAMIC_CACHE &&
@@ -165,7 +165,7 @@ async function handleNavigationRequest(request) {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Offline - Shiriki</title>
+        <title>Offline - Abilispace</title>
         <style>
           body { font-family: system-ui, sans-serif; text-align: center; padding: 50px; }
           h1 { color: #333; }
@@ -257,7 +257,7 @@ self.addEventListener("push", (event) => {
   const data = event.data.json()
 
   event.waitUntil(
-    self.registration.showNotification(data.title || "Shiriki", {
+    self.registration.showNotification(data.title || "Abilispace", {
       body: data.body || "New notification",
       icon: "/logo.png",
       badge: "/logo.png",
@@ -305,7 +305,7 @@ self.addEventListener("message", (event) => {
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter((name) => name.startsWith("shiriki-"))
+            .filter((name) => name.startsWith("abilispace-"))
             .map((name) => caches.delete(name))
         )
       })

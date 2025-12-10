@@ -120,7 +120,7 @@ export default function HomePage() {
           <div className="container mx-auto px-4 py-8 max-w-4xl">
             <header className="text-center mb-12">
               <div className="flex items-center justify-center gap-3 my-18">
-                <div className="text-2xl font-bold"><Image src="/logo.png" height={60} width={180} alt="SHIRIKI" style={{ width: 'auto', height: 'auto' }} /></div>
+                <div className="text-2xl font-bold"><Image src="/logo.png" height={60} width={180} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} /></div>
               </div>
               <p className="text-xl text-muted-foreground text-balance max-w-2xl mx-auto">
                 An inclusive platform connecting people with disabilities to live events, current affairs, and

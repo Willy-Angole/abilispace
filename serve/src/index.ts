@@ -127,7 +127,7 @@ class App {
         // Root endpoint
         this.app.get('/', (_req: Request, res: Response) => {
             res.json({
-                name: 'Shiriki API',
+                name: 'Abilispace API',
                 version: '1.0.0',
                 status: 'running',
                 documentation: '/api/docs',

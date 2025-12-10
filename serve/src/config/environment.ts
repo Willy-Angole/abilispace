@@ -136,7 +136,7 @@ export const config = {
         secure: env.SMTP_SECURE,
         user: env.SMTP_USER,
         password: env.SMTP_PASSWORD,
-        from: env.SMTP_FROM || 'noreply@shiriki.org',
+        from: env.SMTP_FROM || 'noreply@abilispace.org',
     },
 
     // Password Reset

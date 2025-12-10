@@ -2187,7 +2187,7 @@ export function AdminDashboard() {
             </div>
             <CardTitle>Admin Dashboard</CardTitle>
             <CardDescription>
-              Sign in to access the Shiriki admin panel
+              Sign in to access the Abilispace admin panel
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -2199,7 +2199,7 @@ export function AdminDashboard() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@shiriki.org"
+                  placeholder="admin@abilispace.org"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -2246,7 +2246,7 @@ export function AdminDashboard() {
               <Shield className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-bold text-lg">Shiriki Admin</h1>
+              <h1 className="font-bold text-lg">Abilispace Admin</h1>
               <p className="text-sm text-muted-foreground truncate">
                 {admin?.first_name} {admin?.last_name}
                 <Badge variant="outline" className="ml-2">
@@ -2308,7 +2308,7 @@ export function AdminDashboard() {
       {/* Footer */}
       <footer className="border-t py-4 mt-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Shiriki Admin Dashboard • Last refresh: {new Date().toLocaleTimeString()}</p>
+          <p>Abilispace Admin Dashboard • Last refresh: {new Date().toLocaleTimeString()}</p>
         </div>
       </footer>
     </div>

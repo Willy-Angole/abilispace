@@ -267,7 +267,7 @@ $$ LANGUAGE plpgsql;
 -- Password hash is for 'Admin@123456' using bcrypt
 INSERT INTO admin_users (email, password_hash, first_name, last_name, role)
 VALUES (
-    'admin@shiriki.org',
+    'admin@abilispace.org',
     '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.HJvJFXp9S0mBuW',
     'System',
     'Administrator',
@@ -279,10 +279,10 @@ VALUES (
 -- =============================================================================
 
 INSERT INTO platform_settings (setting_key, setting_value, setting_type, description, is_public) VALUES
-('platform_name', 'Shiriki', 'string', 'Platform display name', true),
+('platform_name', 'Abilispace', 'string', 'Platform display name', true),
 ('max_event_capacity', '500', 'number', 'Maximum capacity for events', false),
 ('enable_registrations', 'true', 'boolean', 'Allow new user registrations', false),
 ('maintenance_mode', 'false', 'boolean', 'Enable maintenance mode', false),
-('contact_email', 'support@shiriki.org', 'string', 'Support contact email', true),
+('contact_email', 'support@abilispace.org', 'string', 'Support contact email', true),
 ('session_timeout_minutes', '60', 'number', 'User session timeout in minutes', false)
 ON CONFLICT (setting_key) DO NOTHING;
