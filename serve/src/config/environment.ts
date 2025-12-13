@@ -42,6 +42,10 @@ const envSchema = z.object({
     // Google OAuth
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
+    GOOGLE_ALLOWED_CLIENT_IDS: z.string().optional(),
+
+    // Frontend Google configuration (used as fallback)
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().optional(),
 
     // SMTP Email Configuration
     SMTP_HOST: z.string().default('smtp.gmail.com'),
@@ -124,10 +128,31 @@ export const config = {
     },
 
     // Google OAuth
-    google: {
-        clientId: env.GOOGLE_CLIENT_ID,
-        clientSecret: env.GOOGLE_CLIENT_SECRET,
-    },
+    google: (() => {
+        const allowedIds = new Set<string>();
+
+        if (env.GOOGLE_CLIENT_ID) {
+            allowedIds.add(env.GOOGLE_CLIENT_ID.trim());
+        }
+
+        if (env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+            allowedIds.add(env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.trim());
+        }
+
+        if (env.GOOGLE_ALLOWED_CLIENT_IDS) {
+            env.GOOGLE_ALLOWED_CLIENT_IDS
+                .split(',')
+                .map((id) => id.trim())
+                .filter((id) => id.length > 0)
+                .forEach((id) => allowedIds.add(id));
+        }
+
+        return {
+            clientId: env.GOOGLE_CLIENT_ID || env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+            allowedClientIds: Array.from(allowedIds),
+        } as const;
+    })(),
 
     // SMTP Email
     smtp: {

@@ -405,20 +405,45 @@ export class AuthService {
      */
     private async verifyGoogleToken(idToken: string): Promise<GoogleTokenPayload> {
         try {
+            // Log allowed client IDs for debugging
+            logger.debug('Google token verification starting', {
+                allowedClientIds: config.google.allowedClientIds,
+                tokenLength: idToken?.length,
+            });
+
             // Verify token with Google's tokeninfo endpoint
             const response = await fetch(
                 `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
             );
 
             if (!response.ok) {
+                const errorText = await response.text();
+                logger.warn('Google tokeninfo endpoint rejected token', {
+                    status: response.status,
+                    error: errorText,
+                });
                 throw new Error('Invalid Google token');
             }
 
             const payload = await response.json() as GoogleTokenPayload & { aud: string };
 
+            logger.debug('Google token payload received', {
+                aud: payload.aud,
+                email: payload.email,
+                email_verified: payload.email_verified,
+            });
+
             // Verify the token was issued for our app
-            if (config.google.clientId && payload.aud !== config.google.clientId) {
-                throw new Error('Token not issued for this application');
+            if (config.google.allowedClientIds.length > 0) {
+                const isAllowedAud = config.google.allowedClientIds.includes(payload.aud);
+
+                if (!isAllowedAud) {
+                    logger.warn('Token audience mismatch', {
+                        tokenAud: payload.aud,
+                        allowedIds: config.google.allowedClientIds,
+                    });
+                    throw new Error('Token not issued for this application');
+                }
             }
 
             return payload;

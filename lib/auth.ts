@@ -5,8 +5,16 @@
  * and Google OAuth authentication.
  */
 
-// API base URL - configure based on environment
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+// Resolve API base URL at call time (import-time window is undefined in SSR)
+function getApiBaseUrl(): string {
+    if (process.env.NEXT_PUBLIC_API_URL) {
+        return process.env.NEXT_PUBLIC_API_URL;
+    }
+    if (typeof window !== 'undefined') {
+        return window.location.origin;
+    }
+    return 'http://localhost:4000';
+}
 
 /**
  * Auth response from backend
@@ -166,7 +174,7 @@ async function apiRequest<T>(
         (headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
     }
     
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
         ...options,
         headers,
     });
