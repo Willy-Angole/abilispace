@@ -448,7 +448,11 @@ export class AuthService {
 
             return payload;
         } catch (error) {
-            logger.warn('Google token verification failed', { error });
+            logger.error('Google token verification failed', {
+                error,
+                errorMessage: error instanceof Error ? error.message : String(error),
+                errorStack: error instanceof Error ? error.stack : undefined
+            });
             throw Errors.unauthorized('Invalid Google authentication');
         }
     }

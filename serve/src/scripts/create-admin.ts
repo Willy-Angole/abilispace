@@ -1,8 +1,3 @@
-/**
- * Create Admin User Script
- * 
- * Run with: npx ts-node src/scripts/create-admin.ts
- */
 
 import argon2 from 'argon2';
 import { db } from '../database/pool';
