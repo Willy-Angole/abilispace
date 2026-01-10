@@ -1,5 +1,5 @@
 import { db } from '../database/pool';
-import argon2 from 'argon2';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import crypto from 'crypto';
@@ -99,7 +99,7 @@ export async function adminLogin(email: string, password: string, ipAddress?: st
     }
 
     // Verify password
-    const isValidPassword = await argon2.verify(admin.password_hash, password);
+    const isValidPassword = await bcrypt.compare(password, admin.password_hash);
     
     if (!isValidPassword) {
       // Increment failed attempts
@@ -825,7 +825,7 @@ export async function createAdminUser(
 ) {
   return db.transaction(async (client) => {
     // Hash password
-    const passwordHash = await argon2.hash(data.password);
+    const passwordHash = await bcrypt.hash(data.password, 12);
 
     const result = await client.query(
       `INSERT INTO admin_users (email, password_hash, first_name, last_name, role, created_by)

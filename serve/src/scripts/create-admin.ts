@@ -1,5 +1,5 @@
 
-import argon2 from 'argon2';
+import bcrypt from 'bcrypt';
 import { db } from '../database/pool';
 
 async function createAdminUser() {
@@ -15,12 +15,7 @@ async function createAdminUser() {
 
   try {
     // Hash the password
-    const passwordHash = await argon2.hash(password, {
-      type: argon2.argon2id,
-      memoryCost: 65536,
-      timeCost: 3,
-      parallelism: 4,
-    });
+    const passwordHash = await bcrypt.hash(password, 12);
 
     // Check if admin already exists
     const existing = await db.query(
