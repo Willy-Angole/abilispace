@@ -1,0 +1,94 @@
+# Render Blueprint for Abilispace
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Frontend - Next.js Application
+  - type: web
+    name: abilispace-frontend
+    runtime: node
+    region: oregon # or your preferred region
+    plan: free # Options: free, starter, standard, pro
+    buildCommand: corepack enable && pnpm install && pnpm build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
+    startCommand: node .next/standalone/server.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # Set manually in Render dashboard
+      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        sync: false # Set manually in Render dashboard
+    autoDeploy: true
+    branch: main # or your default branch
+
+  # Backend - Express API Server
+  - type: web
+    name: abilispace-backend
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: serve
+    buildCommand: corepack enable && pnpm install && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 4000
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: abilispace-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true # Render will generate a secure value
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_SECURE
+        value: true
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: BCRYPT_ROUNDS
+        value: 12
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 1000
+      - key: CORS_ORIGIN
+        sync: false # Set to your frontend URL
+      - key: LOG_LEVEL
+        value: info
+    autoDeploy: true
+    branch: main
+databases:
+  - name: abilispace-db
+    region: oregon
+    plan: free
+    databaseName: abilispace
+    user: abilispace_user
