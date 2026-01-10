@@ -24,15 +24,11 @@ const envSchema = z.object({
 
     // Database
     DATABASE_URL: z.string().url(),
-    POSTGRES_USER: z.string().default('postgres'),
-    POSTGRES_PASSWORD: z.string(),
-    POSTGRES_DB: z.string().default('shiriki'),
-    POSTGRES_HOST: z.string().default('localhost'),
-    POSTGRES_PORT: z.string().transform(Number).default('5432'),
-
-    // Hasura
-    HASURA_GRAPHQL_ENDPOINT: z.string().url(),
-    HASURA_GRAPHQL_ADMIN_SECRET: z.string(),
+    POSTGRES_USER: z.string().optional(),
+    POSTGRES_PASSWORD: z.string().optional(),
+    POSTGRES_DB: z.string().optional(),
+    POSTGRES_HOST: z.string().optional(),
+    POSTGRES_PORT: z.string().transform(Number).optional(),
 
     // JWT
     JWT_SECRET: z.string().min(32),
@@ -112,12 +108,6 @@ export const config = {
         name: env.POSTGRES_DB,
         host: env.POSTGRES_HOST,
         port: env.POSTGRES_PORT,
-    },
-
-    // Hasura
-    hasura: {
-        endpoint: env.HASURA_GRAPHQL_ENDPOINT,
-        adminSecret: env.HASURA_GRAPHQL_ADMIN_SECRET,
     },
 
     // JWT
