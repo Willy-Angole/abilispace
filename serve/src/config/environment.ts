@@ -182,7 +182,7 @@ export const config = {
     },
 
     // CORS
-    corsOrigin: env.CORS_ORIGIN,
+    corsOrigin: env.CORS_ORIGIN.split(',').map(origin => origin.trim()),
 
     // Logging
     logLevel: env.LOG_LEVEL,
