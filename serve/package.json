@@ -9,6 +9,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
+    "db:setup": "node dist/scripts/setup-database.js",
     "migrate": "ts-node src/database/migrations/runner.ts",
     "seed": "ts-node src/database/seeds/runner.ts",
     "hasura:console": "hasura console --project hasura",

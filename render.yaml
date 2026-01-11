@@ -30,7 +30,7 @@ services:
     region: oregon
     plan: free
     rootDir: serve
-    buildCommand: corepack enable && pnpm install && pnpm build
+    buildCommand: corepack enable && pnpm install && pnpm build && pnpm db:setup
     startCommand: pnpm start
     healthCheckPath: /health
     envVars:
