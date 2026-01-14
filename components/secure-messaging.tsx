@@ -560,15 +560,15 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <h2 className="text-xl sm:text-2xl font-bold">Secure Messages</h2>
-          <Badge variant="outline" className="flex items-center gap-1 text-xs">
-            <Shield className="h-3 w-3" />
-            <span className="hidden xs:inline">End-to-End</span> Encrypted
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <h2 className="text-xl sm:text-2xl font-bold">Secure Messages</h2>
+            <Badge variant="outline" className="flex items-center gap-1 text-xs">
+              <Shield className="h-3 w-3" />
+              <span className="hidden sm:inline">End-to-End</span> Encrypted
+            </Badge>
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -578,7 +578,10 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
           >
             {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </Button>
-          
+        </div>
+        
+        {/* Action Buttons - Clear labels on mobile */}
+        <div className="flex items-center gap-2">
           {/* Create Group Button */}
           <Dialog open={showNewChat} onOpenChange={(open) => {
             setShowNewChat(open)
@@ -586,17 +589,17 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
             else setIsGroup(true) // Default to group creation
           }}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="text-xs sm:text-sm">
-                <Users className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Create Group</span>
+              <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+                <Users className="h-4 w-4 mr-2" />
+                <span>Create Group</span>
               </Button>
             </DialogTrigger>
 
           {/* New Message Button */}
           <DialogTrigger asChild>
-            <Button size="sm" className="text-xs sm:text-sm" onClick={() => setIsGroup(false)}>
-              <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">New Message</span>
+            <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setIsGroup(false)}>
+              <Plus className="h-4 w-4 mr-2" />
+              <span>New Chat</span>
             </Button>
           </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -1194,31 +1197,33 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
               {!editingMessage && (
                 <div className="border-t p-3 sm:p-4">
                   <div className="flex gap-2 items-end">
-                    <Textarea
-                      placeholder="Type your message..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault()
-                          handleSendMessage()
-                        }
-                      }}
-                      className="min-h-[44px] max-h-24 sm:max-h-32 resize-none text-sm flex-1"
-                      rows={1}
-                      aria-label="Type your message"
-                    />
+                    <div className="flex-1 min-w-0">
+                      <Textarea
+                        placeholder="Type your message..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault()
+                            handleSendMessage()
+                          }
+                        }}
+                        className="min-h-[44px] max-h-24 sm:max-h-32 resize-none text-sm w-full"
+                        rows={1}
+                        aria-label="Type your message"
+                      />
+                    </div>
                     <Button
                       onClick={handleSendMessage}
                       disabled={!newMessage.trim() || isSending}
                       size="icon"
-                      className="h-11 w-11 sm:h-10 sm:w-10 shrink-0"
+                      className="h-11 w-11 min-w-[44px] shrink-0"
                       aria-label="Send message"
                     >
                       {isSending ? (
-                        <Loader2 className="h-5 w-5 sm:h-4 sm:w-4 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin" />
                       ) : (
-                        <Send className="h-5 w-5 sm:h-4 sm:w-4" />
+                        <Send className="h-5 w-5" />
                       )}
                     </Button>
                   </div>
