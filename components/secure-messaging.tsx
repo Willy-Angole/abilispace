@@ -86,6 +86,9 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
   const [isSearching, setIsSearching] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   
+  // Mobile view state
+  const [showMobileChat, setShowMobileChat] = useState(false)
+  
   // Dialog states
   const [showNewChat, setShowNewChat] = useState(false)
   const [showAddMembers, setShowAddMembers] = useState(false)
@@ -543,23 +546,35 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     return messagingApi.formatMessageTime(timestamp)
   }
 
+  // Handle selecting a conversation (with mobile support)
+  const handleSelectConversation = (conv: Conversation) => {
+    setActiveConversation(conv)
+    setShowMobileChat(true)
+  }
+
+  // Handle going back to list on mobile
+  const handleBackToList = () => {
+    setShowMobileChat(false)
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold">Secure Messages</h2>
-          <Badge variant="outline" className="flex items-center gap-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <h2 className="text-xl sm:text-2xl font-bold">Secure Messages</h2>
+          <Badge variant="outline" className="flex items-center gap-1 text-xs">
             <Shield className="h-3 w-3" />
-            End-to-End Encrypted
+            <span className="hidden xs:inline">End-to-End</span> Encrypted
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setSoundEnabled(!soundEnabled)}
             aria-label={soundEnabled ? "Disable sound notifications" : "Enable sound notifications"}
+            className="hidden sm:flex"
           >
             {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </Button>
@@ -571,11 +586,19 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
             else setIsGroup(true) // Default to group creation
           }}>
             <DialogTrigger asChild>
-              <Button variant="outline">
-                <Users className="h-4 w-4 mr-2" />
-                Create Group
+              <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                <Users className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Create Group</span>
               </Button>
             </DialogTrigger>
+
+          {/* New Message Button */}
+          <DialogTrigger asChild>
+            <Button size="sm" className="text-xs sm:text-sm" onClick={() => setIsGroup(false)}>
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">New Message</span>
+            </Button>
+          </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -817,12 +840,12 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Conversations List */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Conversations</CardTitle>
+      <div className="flex flex-col md:grid md:gap-4 lg:gap-6 md:grid-cols-3 h-[calc(100vh-220px)] md:h-auto">
+        {/* Conversations List - hidden on mobile when chat is open */}
+        <div className={`md:col-span-1 ${showMobileChat ? 'hidden md:block' : 'block'}`}>
+          <Card className="h-full md:h-auto">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg">Conversations</CardTitle>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -834,8 +857,8 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                 />
               </div>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-96">
+            <CardContent className="p-3 sm:p-6">
+              <ScrollArea className="h-[calc(100vh-380px)] md:h-96">
                 {isLoading ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin" />
@@ -859,12 +882,12 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                               ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30 border-l-4 border-red-500"
                               : "hover:bg-muted"
                           }`}
-                          onClick={() => setActiveConversation(conv)}
+                          onClick={() => handleSelectConversation(conv)}
                           role="button"
                           tabIndex={0}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
-                              setActiveConversation(conv)
+                              handleSelectConversation(conv)
                             }
                           }}
                         >
@@ -920,15 +943,24 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
           </Card>
         </div>
 
-        {/* Chat Area */}
-        <div className="lg:col-span-2">
+        {/* Chat Area - full screen on mobile when active */}
+        <div className={`md:col-span-2 ${showMobileChat ? 'block' : 'hidden md:block'} ${showMobileChat ? 'fixed inset-0 z-50 bg-background md:relative md:inset-auto md:z-auto' : ''}`}>
           {activeConversation ? (
-            <Card className="h-[600px] flex flex-col">
+            <Card className="h-full md:h-[600px] flex flex-col rounded-none md:rounded-lg">
               {/* Chat Header */}
-              <CardHeader className="border-b py-3">
+              <CardHeader className="border-b py-3 px-3 sm:px-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {/* Back button for mobile */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="md:hidden h-8 w-8 mr-1"
+                      onClick={handleBackToList}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
                       {getConversationAvatar(activeConversation).url && (
                         <AvatarImage src={getConversationAvatar(activeConversation).url} />
                       )}
@@ -940,8 +972,8 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                         )}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <CardTitle className="text-lg">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-sm sm:text-lg truncate">
                         {getConversationName(activeConversation)}
                       </CardTitle>
                       {activeConversation.isGroup && (
@@ -951,8 +983,8 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <Badge variant="outline" className="hidden sm:flex items-center gap-1 text-xs">
                       <Lock className="h-3 w-3" />
                       Secure
                     </Badge>
@@ -990,7 +1022,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
               </CardHeader>
 
               {/* Messages */}
-              <CardContent className="flex-1 overflow-y-auto p-4">
+              <CardContent className="flex-1 overflow-y-auto p-3 sm:p-4">
                 {isLoadingMessages ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin" />
@@ -1111,15 +1143,15 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
 
               {/* Reply indicator */}
               {replyTo && (
-                <div className="px-4 py-2 border-t bg-muted/50 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Reply className="h-4 w-4" />
-                    <span>Replying to {replyTo.senderName}</span>
-                    <span className="truncate max-w-[200px] opacity-70">
+                <div className="px-3 sm:px-4 py-2 border-t bg-muted/50 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
+                    <Reply className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">Replying to {replyTo.senderName}</span>
+                    <span className="truncate max-w-[100px] sm:max-w-[200px] opacity-70 hidden xs:inline">
                       {replyTo.content}
                     </span>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setReplyTo(null)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => setReplyTo(null)}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1127,7 +1159,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
 
               {/* Edit mode */}
               {editingMessage && (
-                <div className="px-4 py-2 border-t bg-muted/50">
+                <div className="px-3 sm:px-4 py-2 border-t bg-muted/50">
                   <div className="flex items-center gap-2 mb-2">
                     <Edit2 className="h-4 w-4" />
                     <span className="text-sm">Editing message</span>
@@ -1146,10 +1178,10 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                     <Textarea
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      className="min-h-[44px] max-h-32 resize-none"
+                      className="min-h-[40px] max-h-24 sm:max-h-32 resize-none text-sm"
                       rows={1}
                     />
-                    <Button onClick={handleEditMessage} disabled={!editContent.trim()}>
+                    <Button onClick={handleEditMessage} disabled={!editContent.trim()} size="sm">
                       Save
                     </Button>
                   </div>
@@ -1158,7 +1190,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
 
               {/* Message Input */}
               {!editingMessage && (
-                <div className="border-t p-4">
+                <div className="border-t p-3 sm:p-4">
                   <div className="flex gap-2">
                     <Textarea
                       placeholder="Type your message..."
@@ -1170,7 +1202,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                           handleSendMessage()
                         }
                       }}
-                      className="min-h-[44px] max-h-32 resize-none"
+                      className="min-h-[40px] max-h-24 sm:max-h-32 resize-none text-sm"
                       rows={1}
                       aria-label="Type your message"
                     />
@@ -1190,17 +1222,18 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                   </div>
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                     <Shield className="h-3 w-3" />
-                    Messages are encrypted and secured
+                    <span className="hidden sm:inline">Messages are encrypted and secured</span>
+                    <span className="sm:hidden">Encrypted</span>
                   </p>
                 </div>
               )}
             </Card>
           ) : (
-            <Card className="h-[600px] flex items-center justify-center">
-              <div className="text-center">
-                <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Select a Conversation</h3>
-                <p className="text-muted-foreground">
+            <Card className="h-[400px] md:h-[600px] hidden md:flex items-center justify-center">
+              <div className="text-center p-4">
+                <MessageSquare className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-base sm:text-lg font-medium mb-2">Select a Conversation</h3>
+                <p className="text-sm text-muted-foreground">
                   Choose a conversation from the list or start a new chat
                 </p>
               </div>

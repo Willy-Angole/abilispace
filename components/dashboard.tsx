@@ -5,15 +5,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, MessageSquare, Newspaper, Settings, LogOut, User, Bell, Pencil } from "lucide-react"
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Calendar, MessageSquare, Newspaper, Settings, LogOut, User, Bell, Pencil, Menu, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { EventDiscovery } from "@/components/event-discovery"
 import { SecureMessaging } from "@/components/secure-messaging"
 import { CurrentAffairs } from "@/components/current-affairs"
-import { OfflineStatus } from "@/components/offline-manager"
 import { ProfileEdit } from "@/components/profile-edit"
 import { type User as UserType } from "@/lib/auth"
 import { getUnreadCounts } from "@/lib/messaging"
 import Image from "next/image"
+import { cn } from "@/lib/utils"
 
 interface DashboardProps {
   user: UserType
@@ -26,6 +27,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
   const [currentUser, setCurrentUser] = useState<UserType>(user)
   const [isEditing, setIsEditing] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [isNavCollapsed, setIsNavCollapsed] = useState(false)
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
 
   // Fetch unread message count
   useEffect(() => {
@@ -57,6 +60,20 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const last = currentUser.lastName?.[0] || ""
     return `${first}${last}`.toUpperCase()
   }
+
+  // Handle tab selection (closes mobile nav)
+  const handleTabSelect = (tab: "events" | "news" | "messages" | "profile") => {
+    setActiveTab(tab)
+    setIsMobileNavOpen(false)
+  }
+
+  // Navigation items configuration
+  const navItems = [
+    { id: "events" as const, label: "Events", icon: Calendar },
+    { id: "news" as const, label: "Current Affairs", icon: Newspaper },
+    { id: "messages" as const, label: "Messages", icon: MessageSquare, badge: unreadCount },
+    { id: "profile" as const, label: "Profile", icon: User },
+  ]
 
   // Handle user profile update
   const handleUserUpdate = (updatedUser: UserType) => {
@@ -107,6 +124,49 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
       <header className="bg-background border-b sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile menu button */}
+            <Sheet open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden relative">
+                  <Menu className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                  <span className="sr-only">Open navigation menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle className="flex items-center gap-2">
+                    <Image src="/logo.png" height={24} width={72} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} />
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="p-4 space-y-2" aria-label="Mobile navigation">
+                  {navItems.map((item) => (
+                    <Button
+                      key={item.id}
+                      variant={activeTab === item.id ? "default" : "ghost"}
+                      className="w-full justify-start relative"
+                      onClick={() => handleTabSelect(item.id)}
+                    >
+                      <item.icon className="h-4 w-4 mr-3" />
+                      {item.label}
+                      {item.badge && item.badge > 0 && (
+                        <span className="absolute right-2 flex h-5 w-5 items-center justify-center">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                            {item.badge > 9 ? "9+" : item.badge}
+                          </span>
+                        </span>
+                      )}
+                    </Button>
+                  ))}
+                </nav>
+              </SheetContent>
+            </Sheet>
+
             <div className="flex flex-col">
               <Image src="/logo.png" height={30} width={90} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} />
               <p className="text-xs text-muted-foreground mt-1">
@@ -122,62 +182,68 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
       </header>
 
       <div className="container mx-auto px-4 py-6">
-        <div className="grid gap-6 lg:grid-cols-4">
-          {/* Navigation Sidebar */}
-          <nav className="lg:col-span-1 space-y-4" aria-label="Dashboard navigation">
+        <div className={cn(
+          "grid gap-6",
+          isNavCollapsed ? "lg:grid-cols-[auto_1fr]" : "lg:grid-cols-4"
+        )}>
+          {/* Navigation Sidebar - Desktop */}
+          <nav 
+            className={cn(
+              "hidden lg:block space-y-4 transition-all duration-300",
+              isNavCollapsed ? "w-16" : "lg:col-span-1"
+            )} 
+            aria-label="Dashboard navigation"
+          >
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Navigation</CardTitle>
+              <CardHeader className={cn("pb-2", isNavCollapsed && "px-2")}>
+                <div className="flex items-center justify-between">
+                  {!isNavCollapsed && <CardTitle className="text-lg">Navigation</CardTitle>}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsNavCollapsed(!isNavCollapsed)}
+                    className={cn("h-8 w-8", isNavCollapsed && "mx-auto")}
+                    aria-label={isNavCollapsed ? "Expand navigation" : "Collapse navigation"}
+                  >
+                    {isNavCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  variant={activeTab === "events" ? "default" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("events")}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Events
-                </Button>
-                <Button
-                  variant={activeTab === "news" ? "default" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("news")}
-                >
-                  <Newspaper className="h-4 w-4 mr-2" />
-                  Current Affairs
-                </Button>
-                <Button
-                  variant={activeTab === "messages" ? "default" : "ghost"}
-                  className="w-full justify-start relative"
-                  onClick={() => setActiveTab("messages")}
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Messages
-                  {unreadCount > 0 && (
-                    <span className="absolute right-2 flex h-5 w-5 items-center justify-center">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
-                      <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                        {unreadCount > 9 ? "9+" : unreadCount}
+              <CardContent className={cn("space-y-2", isNavCollapsed && "px-2")}>
+                {navItems.map((item) => (
+                  <Button
+                    key={item.id}
+                    variant={activeTab === item.id ? "default" : "ghost"}
+                    className={cn(
+                      "relative transition-all duration-200",
+                      isNavCollapsed ? "w-full justify-center px-2" : "w-full justify-start"
+                    )}
+                    onClick={() => setActiveTab(item.id)}
+                    title={isNavCollapsed ? item.label : undefined}
+                  >
+                    <item.icon className={cn("h-4 w-4", !isNavCollapsed && "mr-2")} />
+                    {!isNavCollapsed && item.label}
+                    {item.badge && item.badge > 0 && (
+                      <span className={cn(
+                        "flex h-5 w-5 items-center justify-center",
+                        isNavCollapsed ? "absolute -top-1 -right-1" : "absolute right-2"
+                      )}>
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                          {item.badge > 9 ? "9+" : item.badge}
+                        </span>
                       </span>
-                    </span>
-                  )}
-                </Button>
-                <Button
-                  variant={activeTab === "profile" ? "default" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("profile")}
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  Profile
-                </Button>
+                    )}
+                  </Button>
+                ))}
               </CardContent>
             </Card>
-
-            <OfflineStatus />
           </nav>
 
           {/* Main Content */}
-          <main id="main-content" className="lg:col-span-3">
+          <main id="main-content" className={cn(
+            isNavCollapsed ? "lg:col-span-1" : "lg:col-span-3"
+          )}>
             {activeTab === "events" && <EventDiscovery user={user} />}
 
             {activeTab === "news" && <CurrentAffairs user={user} />}
