@@ -9,15 +9,12 @@ services:
     region: oregon # or your preferred region
     plan: free # Options: free, starter, standard, pro
     buildCommand: corepack enable && pnpm install && pnpm build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
-    startCommand: PORT=$PORT node .next/standalone/server.js
-    healthCheckPath: /
+    startCommand: PORT=$PORT HOSTNAME=0.0.0.0 node .next/standalone/server.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
         value: 20
-      - key: HOSTNAME
-        value: 0.0.0.0
       - key: NEXT_PUBLIC_API_URL
         sync: false # Set manually in Render dashboard
       - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID

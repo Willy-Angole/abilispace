@@ -4,7 +4,8 @@
   "description": "Backend services for Abilispace - Inclusive community platform",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-sql",
+    "copy-sql": "node -e \"const fs=require('fs');const path=require('path');['schema.sql','admin-schema.sql','seeds.sql'].forEach(f=>{const src=path.join('src/database',f);const dest=path.join('dist/database',f);if(fs.existsSync(src)){fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(src,dest);console.log('Copied:',f);}});\"",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest",
