@@ -2,7 +2,6 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
-import { Analytics } from "@vercel/analytics/next"
 import { AccessibilityProvider } from "@/components/accessibility-provider"
 import { OfflineProvider, OfflineIndicator } from "@/components/offline-manager"
 import { SkipLinks } from "@/components/skip-links"
@@ -69,7 +68,6 @@ export default function RootLayout({
             <Toaster />
           </OfflineProvider>
         </AccessibilityProvider>
-        <Analytics />
       </body>
     </html>
   )

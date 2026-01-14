@@ -78,6 +78,14 @@ class App {
         // Additional security headers
         this.app.use(securityHeaders);
 
+        // Handle preflight OPTIONS requests explicitly
+        this.app.options('*', cors({
+            origin: config.corsOrigin,
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'X-Hasura-Admin-Secret', 'X-CSRF-Token'],
+        }));
+
         // CORS configuration
         this.app.use(cors({
             origin: config.corsOrigin,
