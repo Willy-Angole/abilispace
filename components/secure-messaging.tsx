@@ -787,6 +787,8 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                                 if (response.success && response.data) {
                                   setConversations(prev => [response.data!, ...prev])
                                   setActiveConversation(response.data)
+                                  setShowNewChat(false)
+                                  setShowMobileChat(true)
                                   resetNewChatForm()
                                   toast({
                                     title: "Conversation Started",
@@ -1191,7 +1193,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
               {/* Message Input */}
               {!editingMessage && (
                 <div className="border-t p-3 sm:p-4">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-end">
                     <Textarea
                       placeholder="Type your message..."
                       value={newMessage}
@@ -1202,21 +1204,21 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                           handleSendMessage()
                         }
                       }}
-                      className="min-h-[40px] max-h-24 sm:max-h-32 resize-none text-sm"
+                      className="min-h-[44px] max-h-24 sm:max-h-32 resize-none text-sm flex-1"
                       rows={1}
                       aria-label="Type your message"
                     />
                     <Button
                       onClick={handleSendMessage}
                       disabled={!newMessage.trim() || isSending}
-                      size="sm"
-                      className="self-end"
+                      size="icon"
+                      className="h-11 w-11 sm:h-10 sm:w-10 shrink-0"
                       aria-label="Send message"
                     >
                       {isSending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-5 w-5 sm:h-4 sm:w-4 animate-spin" />
                       ) : (
-                        <Send className="h-4 w-4" />
+                        <Send className="h-5 w-5 sm:h-4 sm:w-4" />
                       )}
                     </Button>
                   </div>

@@ -153,7 +153,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                     >
                       <item.icon className="h-4 w-4 mr-3" />
                       {item.label}
-                      {item.badge && item.badge > 0 && (
+                      {item.badge !== undefined && item.badge > 0 && (
                         <span className="absolute right-2 flex h-5 w-5 items-center justify-center">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
                           <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
@@ -223,7 +223,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                   >
                     <item.icon className={cn("h-4 w-4", !isNavCollapsed && "mr-2")} />
                     {!isNavCollapsed && item.label}
-                    {item.badge && item.badge > 0 && (
+                    {item.badge !== undefined && item.badge > 0 && (
                       <span className={cn(
                         "flex h-5 w-5 items-center justify-center",
                         isNavCollapsed ? "absolute -top-1 -right-1" : "absolute right-2"
