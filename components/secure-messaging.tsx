@@ -546,6 +546,19 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     return messagingApi.formatMessageTime(timestamp)
   }
 
+  // Mask email for privacy (e.g., "willy*****@gmail.com")
+  const maskEmail = (email: string): string => {
+    const [localPart, domain] = email.split('@')
+    if (!domain) return email
+    
+    // Show first 5 characters, mask the rest of local part
+    const visibleLength = Math.min(5, Math.floor(localPart.length / 2))
+    const visible = localPart.slice(0, visibleLength)
+    const masked = '*'.repeat(Math.min(5, localPart.length - visibleLength))
+    
+    return `${visible}${masked}@${domain}`
+  }
+
   // Handle selecting a conversation (with mobile support)
   const handleSelectConversation = (conv: Conversation) => {
     setActiveConversation(conv)
@@ -558,15 +571,15 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4 md:space-y-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <h2 className="text-xl sm:text-2xl font-bold">Secure Messages</h2>
-            <Badge variant="outline" className="flex items-center gap-1 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold truncate">Messages</h2>
+            <Badge variant="outline" className="hidden sm:flex items-center gap-1 text-xs shrink-0">
               <Shield className="h-3 w-3" />
-              <span className="hidden sm:inline">End-to-End</span> Encrypted
+              Encrypted
             </Badge>
           </div>
           <Button
@@ -574,14 +587,14 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
             size="sm"
             onClick={() => setSoundEnabled(!soundEnabled)}
             aria-label={soundEnabled ? "Disable sound notifications" : "Enable sound notifications"}
-            className="hidden sm:flex"
+            className="hidden sm:flex shrink-0"
           >
             {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </Button>
         </div>
         
-        {/* Action Buttons - Clear labels on mobile */}
-        <div className="flex items-center gap-2">
+        {/* Action Buttons - Two buttons only, clear and compact */}
+        <div className="grid grid-cols-2 gap-2">
           {/* Create Group Button */}
           <Dialog open={showNewChat} onOpenChange={(open) => {
             setShowNewChat(open)
@@ -589,17 +602,17 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
             else setIsGroup(true) // Default to group creation
           }}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
-                <Users className="h-4 w-4 mr-2" />
-                <span>Create Group</span>
+              <Button variant="outline" size="sm" className="w-full">
+                <Users className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">New Group</span>
               </Button>
             </DialogTrigger>
 
           {/* New Message Button */}
           <DialogTrigger asChild>
-            <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setIsGroup(false)}>
-              <Plus className="h-4 w-4 mr-2" />
-              <span>New Chat</span>
+            <Button size="sm" className="w-full" onClick={() => setIsGroup(false)}>
+              <Plus className="h-4 w-4 mr-2 shrink-0" />
+              <span className="truncate">New Chat</span>
             </Button>
           </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -695,7 +708,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                                 {u.firstName} {u.lastName}
                               </p>
                               <p className="text-xs text-muted-foreground truncate">
-                                {u.email}
+                                {maskEmail(u.email)}
                               </p>
                             </div>
                             <Button size="sm" variant="ghost">
@@ -818,7 +831,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                                 {u.firstName} {u.lastName}
                               </p>
                               <p className="text-xs text-muted-foreground truncate">
-                                {u.email}
+                                {maskEmail(u.email)}
                               </p>
                             </div>
                             <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -917,25 +930,25 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                               <div className="flex items-center justify-between">
                                 <p className={`font-medium truncate ${hasUnread && activeConversation?.id !== conv.id ? "font-bold" : ""}`}>
                                   {getConversationName(conv)}
-                                  {conv.isGroup && hasUnread && activeConversation?.id !== conv.id && (
-                                    <span className="ml-1 text-xs text-red-500">(Group)</span>
+                                  {conv.isGroup && (
+                                    <span className="ml-1 text-xs text-muted-foreground">(Group)</span>
                                   )}
                                 </p>
+                                <span className="text-xs opacity-50 ml-2 flex-shrink-0">
+                                  {conv.lastMessage ? formatTime(conv.lastMessage.createdAt) : formatTime(conv.createdAt)}
+                                </span>
                               </div>
-                              {conv.lastMessage && (
-                                <div className="flex items-center justify-between">
-                                  <p className={`text-sm truncate ${hasUnread && activeConversation?.id !== conv.id ? "font-semibold opacity-90" : "opacity-70"}`}>
-                                    {conv.lastMessage.messageType === "system"
-                                      ? conv.lastMessage.content
-                                      : conv.lastMessage.senderId === user.id
-                                      ? `You: ${conv.lastMessage.content}`
-                                      : conv.lastMessage.content}
-                                  </p>
-                                  <span className="text-xs opacity-50 ml-2 flex-shrink-0">
-                                    {formatTime(conv.lastMessage.createdAt)}
-                                  </span>
-                                </div>
-                              )}
+                              <p className={`text-sm truncate ${hasUnread && activeConversation?.id !== conv.id ? "font-semibold opacity-90" : "opacity-70"}`}>
+                                {conv.lastMessage ? (
+                                  conv.lastMessage.messageType === "system"
+                                    ? conv.lastMessage.content
+                                    : conv.lastMessage.senderId === user.id
+                                    ? `You: ${conv.lastMessage.content}`
+                                    : conv.lastMessage.content
+                                ) : (
+                                  <span className="italic">No messages yet - say hello!</span>
+                                )}
+                              </p>
                             </div>
                           </div>
                         </div>
