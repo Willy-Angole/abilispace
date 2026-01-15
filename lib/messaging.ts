@@ -70,6 +70,7 @@ export interface Conversation {
     creatorName?: string;
     createdAt: string;
     updatedAt: string;
+    adminOnlyMessages?: boolean;
     participants: Participant[];
     lastMessage?: Message;
     unreadCount: number;
@@ -257,6 +258,35 @@ export async function makeAdmin(
     );
 }
 
+/**
+ * Revoke admin rights from a member
+ */
+export async function revokeAdmin(
+    conversationId: string,
+    memberId: string
+): Promise<ApiResponse<Conversation>> {
+    return fetchApi<Conversation>(
+        `/api/messaging/conversations/${conversationId}/admin/${memberId}`,
+        { method: 'DELETE' }
+    );
+}
+
+/**
+ * Set admin-only messaging mode for a group
+ */
+export async function setAdminOnlyMessaging(
+    conversationId: string,
+    adminOnly: boolean
+): Promise<ApiResponse<Conversation>> {
+    return fetchApi<Conversation>(
+        `/api/messaging/conversations/${conversationId}/admin-only`,
+        { 
+            method: 'PATCH',
+            body: JSON.stringify({ adminOnly })
+        }
+    );
+}
+
 // =============================================================================
 // Messages
 // =============================================================================
@@ -428,7 +458,7 @@ export async function sendTypingIndicator(
     userName: string
 ): Promise<void> {
     try {
-        await apiRequest(`/api/messaging/conversations/${conversationId}/typing`, {
+        await fetchApi(`/api/messaging/conversations/${conversationId}/typing`, {
             method: 'POST',
             body: JSON.stringify({ userName }),
         });
@@ -443,5 +473,5 @@ export async function sendTypingIndicator(
 export async function getTypingUsers(
     conversationId: string
 ): Promise<ApiResponse<TypingUser[]>> {
-    return apiRequest<TypingUser[]>(`/api/messaging/conversations/${conversationId}/typing`);
+    return fetchApi<TypingUser[]>(`/api/messaging/conversations/${conversationId}/typing`);
 }

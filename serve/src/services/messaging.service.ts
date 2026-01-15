@@ -47,6 +47,7 @@ export interface Conversation {
     creatorName?: string;
     createdAt: Date;
     updatedAt: Date;
+    adminOnlyMessages?: boolean;
     participants: ConversationParticipant[];
     lastMessage?: Message;
     unreadCount: number;
@@ -461,6 +462,100 @@ export class MessagingService {
     }
 
     /**
+     * Revoke admin rights from a member
+     */
+    async revokeAdmin(
+        conversationId: string,
+        userId: string,
+        targetUserId: string
+    ): Promise<Conversation> {
+        await this.verifyAdmin(conversationId, userId);
+
+        // Cannot revoke own admin rights (they should leave instead)
+        if (userId === targetUserId) {
+            throw Errors.badRequest('Cannot revoke your own admin rights');
+        }
+
+        // Check if target is currently an admin
+        const targetResult = await db.query<{ is_admin: boolean }>(
+            `SELECT is_admin FROM conversation_participants 
+             WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL`,
+            { values: [conversationId, targetUserId] }
+        );
+
+        if (targetResult.rowCount === 0) {
+            throw Errors.notFound('Member not found in conversation');
+        }
+
+        if (!targetResult.rows[0].is_admin) {
+            throw Errors.badRequest('This member is not an admin');
+        }
+
+        // Revoke admin rights
+        await db.query(
+            `UPDATE conversation_participants 
+             SET is_admin = false
+             WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL`,
+            { values: [conversationId, targetUserId] }
+        );
+
+        // Clear cache
+        this.participantCache.delete(conversationId);
+
+        // Get target user name for system message
+        const userResult = await db.query<{ first_name: string; last_name: string }>(
+            `SELECT first_name, last_name FROM users WHERE id = $1`,
+            { values: [targetUserId] }
+        );
+
+        if (userResult.rows[0]) {
+            await db.query(
+                `INSERT INTO messages (conversation_id, sender_id, content, message_type)
+                 VALUES ($1, $2, $3, 'system')`,
+                { values: [conversationId, userId, `${userResult.rows[0].first_name} ${userResult.rows[0].last_name} is no longer an admin`] }
+            );
+        }
+
+        logger.info('Admin rights revoked', { conversationId, targetUserId, revokedBy: userId });
+
+        return this.getConversation(conversationId, userId);
+    }
+
+    /**
+     * Set admin-only messaging mode for a conversation
+     */
+    async setAdminOnlyMessaging(
+        conversationId: string,
+        userId: string,
+        adminOnly: boolean
+    ): Promise<Conversation> {
+        await this.verifyAdmin(conversationId, userId);
+
+        // Update the conversation setting
+        await db.query(
+            `UPDATE conversations 
+             SET admin_only_messages = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            { values: [adminOnly, conversationId] }
+        );
+
+        // Add system message
+        const message = adminOnly
+            ? 'Only admins can now send messages in this group'
+            : 'All members can now send messages in this group';
+
+        await db.query(
+            `INSERT INTO messages (conversation_id, sender_id, content, message_type)
+             VALUES ($1, $2, $3, 'system')`,
+            { values: [conversationId, userId, message] }
+        );
+
+        logger.info('Admin-only messaging updated', { conversationId, adminOnly, updatedBy: userId });
+
+        return this.getConversation(conversationId, userId);
+    }
+
+    /**
      * Find existing 1:1 conversation between two users
      */
     private async findExisting1to1Conversation(
@@ -510,8 +605,10 @@ export class MessagingService {
             creator_last_name: string;
             created_at: Date;
             updated_at: Date;
+            admin_only_messages: boolean;
         }>(
             `SELECT c.id, c.name, c.is_group, c.created_by, c.created_at, c.updated_at,
+                    COALESCE(c.admin_only_messages, false) as admin_only_messages,
                     u.first_name as creator_first_name, u.last_name as creator_last_name
              FROM conversations c
              LEFT JOIN users u ON u.id = c.created_by
@@ -579,6 +676,7 @@ export class MessagingService {
                 : undefined,
             createdAt: conv.created_at,
             updatedAt: conv.updated_at,
+            adminOnlyMessages: conv.admin_only_messages,
             participants: participantsResult.rows.map(p => ({
                 userId: p.user_id,
                 firstName: p.first_name,
@@ -647,6 +745,26 @@ export class MessagingService {
         const { conversationId, content, replyToId } = input;
 
         await this.verifyParticipant(conversationId, userId);
+
+        // Check if conversation is admin-only messaging
+        const convResult = await db.query<{ is_group: boolean; admin_only_messages: boolean }>(
+            `SELECT is_group, COALESCE(admin_only_messages, false) as admin_only_messages
+             FROM conversations WHERE id = $1`,
+            { values: [conversationId] }
+        );
+
+        if (convResult.rows[0]?.admin_only_messages && convResult.rows[0]?.is_group) {
+            // Check if user is admin
+            const adminCheck = await db.query<{ is_admin: boolean }>(
+                `SELECT is_admin FROM conversation_participants
+                 WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL`,
+                { values: [conversationId, userId] }
+            );
+
+            if (!adminCheck.rows[0]?.is_admin) {
+                throw Errors.forbidden('Only admins can send messages in this group');
+            }
+        }
 
         // Validate reply_to if provided
         let replyToData: { id: string; content: string; senderName: string } | undefined;

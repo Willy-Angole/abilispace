@@ -5,6 +5,7 @@
  */
 
 import { Router, Response, IRouter } from 'express';
+import { z } from 'zod';
 import { messagingService } from '../services/messaging.service';
 import { asyncHandler } from '../middleware/error-handler';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
@@ -209,6 +210,50 @@ router.post(
             conversationId,
             req.userId!,
             memberId
+        );
+
+        res.json({
+            success: true,
+            data: conversation,
+        });
+    })
+);
+
+/**
+ * DELETE /api/messaging/conversations/:id/admin/:memberId
+ * Revoke admin rights from a member - Admin only
+ */
+router.delete(
+    '/conversations/:id/admin/:memberId',
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const conversationId = uuidSchema.parse(req.params.id);
+        const memberId = uuidSchema.parse(req.params.memberId);
+        const conversation = await messagingService.revokeAdmin(
+            conversationId,
+            req.userId!,
+            memberId
+        );
+
+        res.json({
+            success: true,
+            data: conversation,
+        });
+    })
+);
+
+/**
+ * PATCH /api/messaging/conversations/:id/admin-only
+ * Set admin-only messaging mode - Admin only
+ */
+router.patch(
+    '/conversations/:id/admin-only',
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const conversationId = uuidSchema.parse(req.params.id);
+        const { adminOnly } = z.object({ adminOnly: z.boolean() }).parse(req.body);
+        const conversation = await messagingService.setAdminOnlyMessaging(
+            conversationId,
+            req.userId!,
+            adminOnly
         );
 
         res.json({

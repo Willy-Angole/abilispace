@@ -54,7 +54,10 @@ import {
   Crown,
   Loader2,
   Inbox,
+  ShieldOff,
+  MessageCircleOff,
 } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import * as messagingApi from "@/lib/messaging"
 import { isAuthenticated, sendTypingIndicator, getTypingUsers, type TypingUser } from "@/lib/messaging"
@@ -632,6 +635,51 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
       toast({
         title: "Error",
         description: "Failed to make admin",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleRevokeAdmin = async (memberId: string) => {
+    if (!activeConversation) return
+
+    try {
+      const response = await messagingApi.revokeAdmin(activeConversation.id, memberId)
+      if (response.success && response.data) {
+        setActiveConversation(response.data)
+        toast({
+          title: "Admin Rights Revoked",
+          description: "The member is no longer an admin.",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to revoke admin rights",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleToggleAdminOnlyMessaging = async () => {
+    if (!activeConversation) return
+
+    try {
+      const newValue = !activeConversation.adminOnlyMessages
+      const response = await messagingApi.setAdminOnlyMessaging(activeConversation.id, newValue)
+      if (response.success && response.data) {
+        setActiveConversation(response.data)
+        toast({
+          title: newValue ? "Admin-Only Messaging Enabled" : "All Members Can Send Messages",
+          description: newValue 
+            ? "Only admins can now send messages in this group." 
+            : "All members can now send messages.",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update messaging settings",
         variant: "destructive",
       })
     }
@@ -1425,6 +1473,15 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                       </span>
                     </div>
                   )}
+                  {/* Show admin-only messaging indicator */}
+                  {activeConversation?.adminOnlyMessages && activeConversation.isGroup && !isAdmin && (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md text-sm text-muted-foreground">
+                      <MessageCircleOff className="h-4 w-4" />
+                      Only admins can send messages in this group
+                    </div>
+                  )}
+                  {/* Only show input if user can send messages */}
+                  {!(activeConversation?.adminOnlyMessages && activeConversation.isGroup && !isAdmin) && (
                   <div className="flex gap-2 items-end">
                     <div className="flex-1 min-w-0">
                       <Textarea
@@ -1456,6 +1513,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                       )}
                     </Button>
                   </div>
+                  )}
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                     <Shield className="h-3 w-3" />
                     <span className="hidden sm:inline">Messages are encrypted and secured</span>
@@ -1554,6 +1612,26 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
               Manage group members and admins.
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Admin-only messaging toggle - only visible to admins */}
+          {isAdmin && activeConversation?.isGroup && (
+            <div className="flex items-center justify-between py-3 px-1 border-b mb-2">
+              <div className="flex items-center gap-2">
+                <MessageCircleOff className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Admin-Only Messaging</p>
+                  <p className="text-xs text-muted-foreground">
+                    Only admins can send messages
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={activeConversation?.adminOnlyMessages ?? false}
+                onCheckedChange={handleToggleAdminOnlyMessaging}
+              />
+            </div>
+          )}
+
           <ScrollArea className="h-64">
             <div className="space-y-2 p-1">
               {activeConversation?.participants.map(p => (
@@ -1588,6 +1666,12 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                           <DropdownMenuItem onClick={() => handleMakeAdmin(p.userId)}>
                             <Crown className="h-4 w-4 mr-2" />
                             Make Admin
+                          </DropdownMenuItem>
+                        )}
+                        {p.isAdmin && (
+                          <DropdownMenuItem onClick={() => handleRevokeAdmin(p.userId)}>
+                            <ShieldOff className="h-4 w-4 mr-2" />
+                            Revoke Admin
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem
