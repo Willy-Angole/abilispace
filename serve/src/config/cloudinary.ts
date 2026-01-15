@@ -11,13 +11,24 @@ import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from 'clo
 import { config } from './environment';
 import { logger } from '../utils/logger';
 
+// Check if Cloudinary is properly configured
+const isCloudinaryConfigured = !!(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+);
+
 // Configure Cloudinary with environment variables
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true,
-});
+if (isCloudinaryConfigured) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+} else {
+  logger.warn('Cloudinary is not configured. Image uploads will be disabled. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
+}
 
 /**
  * Upload options for profile images
@@ -54,6 +65,15 @@ export async function uploadProfileImage(
   fileBuffer: Buffer,
   userId: string
 ): Promise<UploadResult> {
+  // Check if Cloudinary is configured
+  if (!isCloudinaryConfigured) {
+    logger.error('Profile image upload failed: Cloudinary is not configured');
+    return {
+      success: false,
+      error: 'Image upload service is not configured. Please contact the administrator.',
+    };
+  }
+
   try {
     // Convert buffer to base64 data URI
     const base64Image = `data:image/jpeg;base64,${fileBuffer.toString('base64')}`;
@@ -157,6 +177,15 @@ export async function uploadToCloudinary(
   fileBuffer: Buffer,
   options: CloudinaryUploadOptions = {}
 ): Promise<UploadResult> {
+  // Check if Cloudinary is configured
+  if (!isCloudinaryConfigured) {
+    logger.error('Cloudinary upload failed: Cloudinary is not configured');
+    return {
+      success: false,
+      error: 'Image upload service is not configured. Please contact the administrator.',
+    };
+  }
+
   try {
     // Convert buffer to base64 data URI
     const base64Image = `data:image/jpeg;base64,${fileBuffer.toString('base64')}`;
@@ -208,4 +237,4 @@ export async function uploadToCloudinary(
   }
 }
 
-export { cloudinary };
+export { cloudinary, isCloudinaryConfigured };
