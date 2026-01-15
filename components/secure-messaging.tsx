@@ -27,6 +27,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
   MessageSquare,
   Send,
   Search,
@@ -103,26 +108,36 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const lastMessageCountRef = useRef<number>(0)
+  const lastConversationUnreadRef = useRef<number>(0)
   const { toast } = useToast()
 
   // Load conversations on mount
   useEffect(() => {
     loadConversations()
+  }, [])
+
+  // Set up polling for new messages - restarts when activeConversation changes
+  useEffect(() => {
+    // Clear existing polling
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+    }
     
-    // Set up polling for new messages
+    // Set up faster polling (3 seconds) for real-time feel
     pollingRef.current = setInterval(() => {
       if (activeConversation) {
-        loadMessages(activeConversation.id, true)
+        loadMessagesWithNotification(activeConversation.id)
       }
-      loadConversations(true)
-    }, 5000)
+      loadConversationsWithNotification()
+    }, 3000)
 
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current)
       }
     }
-  }, [])
+  }, [activeConversation?.id, soundEnabled])
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -189,6 +204,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
           (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         )
         setMessages(sortedMessages)
+        lastMessageCountRef.current = sortedMessages.length
       }
     } catch (error) {
       if (!silent) {
@@ -234,16 +250,83 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
         oscillator.connect(gainNode)
         gainNode.connect(audioContext.destination)
 
-        oscillator.frequency.value = 800
+        // Pleasant notification tone
+        oscillator.frequency.value = 587.33 // D5 note
         oscillator.type = "sine"
-        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
+        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4)
 
         oscillator.start(audioContext.currentTime)
-        oscillator.stop(audioContext.currentTime + 0.3)
+        oscillator.stop(audioContext.currentTime + 0.4)
+        
+        // Second tone for a nicer notification
+        setTimeout(() => {
+          try {
+            const oscillator2 = audioContext.createOscillator()
+            const gainNode2 = audioContext.createGain()
+            oscillator2.connect(gainNode2)
+            gainNode2.connect(audioContext.destination)
+            oscillator2.frequency.value = 880 // A5 note
+            oscillator2.type = "sine"
+            gainNode2.gain.setValueAtTime(0.12, audioContext.currentTime)
+            gainNode2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
+            oscillator2.start(audioContext.currentTime)
+            oscillator2.stop(audioContext.currentTime + 0.3)
+          } catch (e) {}
+        }, 150)
       } catch (e) {
         // Audio not supported
       }
+    }
+  }
+
+  // Load messages with notification for new incoming messages
+  const loadMessagesWithNotification = async (conversationId: string) => {
+    try {
+      const response = await messagingApi.getMessages(conversationId)
+      if (response.success && response.data) {
+        const sortedMessages = [...response.data].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        )
+        
+        // Check if there are new messages from other users
+        if (sortedMessages.length > lastMessageCountRef.current) {
+          const newMessages = sortedMessages.slice(lastMessageCountRef.current)
+          const hasNewFromOthers = newMessages.some(msg => msg.senderId !== user.id)
+          
+          if (hasNewFromOthers) {
+            playNotificationSound()
+          }
+        }
+        
+        setMessages(sortedMessages)
+        lastMessageCountRef.current = sortedMessages.length
+      }
+    } catch (error) {
+      // Silent fail for polling
+    }
+  }
+
+  // Load conversations with notification for new unread messages
+  const loadConversationsWithNotification = async () => {
+    if (!isAuthenticated()) return
+    
+    try {
+      const response = await messagingApi.getConversations()
+      if (response.success && response.data) {
+        const totalUnread = response.data.reduce((sum, conv) => sum + conv.unreadCount, 0)
+        
+        // Play sound if unread count increased (new message in another conversation)
+        if (totalUnread > lastConversationUnreadRef.current && lastConversationUnreadRef.current > 0) {
+          playNotificationSound()
+        }
+        
+        lastConversationUnreadRef.current = totalUnread
+        setConversations(response.data)
+        onUnreadCountChange?.(totalUnread)
+      }
+    } catch (error) {
+      // Silent fail for polling
     }
   }
 
@@ -604,12 +687,31 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     <div className="space-y-3 md:space-y-4 overflow-x-hidden">
       {/* Header - Minimal */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <h2 className="text-xl sm:text-2xl font-bold">Messages</h2>
-          <Badge variant="outline" className="hidden sm:flex items-center gap-1 text-xs">
-            <Shield className="h-3 w-3" />
-            Encrypted
-          </Badge>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Badge 
+                variant="outline" 
+                className="hidden sm:flex items-center gap-1 text-xs cursor-pointer hover:bg-muted transition-colors"
+              >
+                <Shield className="h-3 w-3" />
+                Encrypted
+              </Badge>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="start">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-primary mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-medium">Privacy & Security</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your messages are encrypted and secured. We prioritize your privacy and security.
+                    All communications are protected and only visible to conversation participants.
+                  </p>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <Button
           variant="ghost"
@@ -1426,22 +1528,6 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
           </ScrollArea>
         </DialogContent>
       </Dialog>
-
-      {/* Security Notice */}
-      <Card className="bg-muted/50">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-medium">Privacy & Security</p>
-              <p className="text-sm text-muted-foreground">
-                Your messages are encrypted and secured. We prioritize your privacy and security.
-                All communications are protected and only visible to conversation participants.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
