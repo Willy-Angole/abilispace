@@ -2719,3 +2719,25 @@
 {"ip":"127.0.0.1","level":"info","message":"Incoming request","method":"GET","requestId":"fc02fc1b-62d9-4d88-b030-8e982f233733","service":"shiriki-api","timestamp":"2026-01-14 15:55:15","url":"/api/messaging/unread-counts","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"}
 {"duration":"336ms","level":"info","message":"Request completed","method":"GET","requestId":"fc02fc1b-62d9-4d88-b030-8e982f233733","service":"shiriki-api","statusCode":304,"timestamp":"2026-01-14 15:55:15","url":"/unread-counts"}
 {"activeBuckets":1,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-14 15:55:36"}
+{"level":"info","message":"Database connection established successfully","service":"shiriki-api","timestamp":"2026-01-15 07:45:52"}
+{"level":"info","message":"Server running on http://0.0.0.0:4000","service":"shiriki-api","timestamp":"2026-01-15 07:45:52"}
+{"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-15 07:45:52"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:46:40"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:47:40"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:48:40"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:49:40"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:50:40"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:51:40"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:52:40"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:53:40"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:54:40"}
+{"ip":"127.0.0.1","level":"info","message":"Incoming request","method":"POST","requestId":"15cd9d45-1f14-44f1-b318-9c025ddd2288","service":"shiriki-api","timestamp":"2026-01-15 07:55:03","url":"/api/admin/auth/login","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"}
+{"contentLength":"31","duration":"1002ms","level":"warn","message":"Request completed","method":"POST","requestId":"15cd9d45-1f14-44f1-b318-9c025ddd2288","service":"shiriki-api","statusCode":401,"timestamp":"2026-01-15 07:55:04","url":"/auth/login"}
+{"activeBuckets":1,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:55:40"}
+{"activeBuckets":1,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:56:40"}
+{"activeBuckets":1,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:57:40"}
+{"activeBuckets":1,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:58:40"}
+{"activeBuckets":1,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 07:59:40"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 08:00:40"}
+{"activeBuckets":1,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 08:00:40"}
+{"activeBuckets":1,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 08:01:40"}

@@ -2,35 +2,20 @@
 
 import type React from "react"
 
-import { useState, useCallback } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { GoogleAuthButton } from "@/components/google-auth-button"
-import { login, googleAuth, type User } from "@/lib/auth"
+import { login, type User } from "@/lib/auth"
 
 interface LoginFormProps {
   onSuccess: (user: User) => void
   onBack: () => void
   onForgotPassword: () => void
 }
-
-// Divider component for cleaner separation
-const AuthDivider = () => (
-  <div className="relative my-6">
-    <div className="absolute inset-0 flex items-center">
-      <span className="w-full border-t" />
-    </div>
-    <div className="relative flex justify-center text-xs uppercase">
-      <span className="bg-background px-2 text-muted-foreground">
-        or continue with email
-      </span>
-    </div>
-  </div>
-)
 
 export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProps) {
   const [formData, setFormData] = useState({
@@ -39,48 +24,7 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
   })
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const { toast } = useToast()
-
-  // Handle Google sign-in success
-  const handleGoogleSuccess = useCallback(async (idToken: string) => {
-    setIsGoogleLoading(true)
-    
-    try {
-      const response = await googleAuth(idToken)
-      
-      if (response.success && response.user) {
-        toast({
-          title: "Welcome!",
-          description: response.message,
-        })
-        onSuccess(response.user)
-      } else {
-        toast({
-          title: "Sign In Failed",
-          description: response.message || "Unable to sign in with Google",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Sign In Failed",
-        description: error instanceof Error ? error.message : "Unable to sign in with Google",
-        variant: "destructive",
-      })
-    } finally {
-      setIsGoogleLoading(false)
-    }
-  }, [onSuccess, toast])
-
-  // Handle Google sign-in error
-  const handleGoogleError = useCallback((error: string) => {
-    toast({
-      title: "Google Sign In Error",
-      description: error,
-      variant: "destructive",
-    })
-  }, [toast])
 
   // Handle email/password form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -118,8 +62,6 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
     }
   }
 
-  const isLoading = isSubmitting || isGoogleLoading
-
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="container mx-auto px-4 max-w-md">
@@ -128,7 +70,7 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
           onClick={onBack} 
           className="mb-6" 
           aria-label="Go back to welcome page"
-          disabled={isLoading}
+          disabled={isSubmitting}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
@@ -140,17 +82,6 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
             <CardDescription className="text-center">Welcome back to Abilispace</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Google Sign-In Button - Primary Option */}
-            <GoogleAuthButton
-              mode="signin"
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              disabled={isLoading}
-            />
-
-            <AuthDivider />
-
-            {/* Email/Password Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
@@ -161,7 +92,7 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
                   value={formData.email}
                   onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                   aria-describedby="email-help"
-                  disabled={isLoading}
+                  disabled={isSubmitting}
                   autoComplete="off"
                 />
                 <p id="email-help" className="text-xs text-muted-foreground">
@@ -178,7 +109,7 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
                     required
                     value={formData.password}
                     onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                     autoComplete="off"
                   />
                   <Button
@@ -188,7 +119,7 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
                     className="absolute right-0 top-0 h-full px-3"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
@@ -199,15 +130,15 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
                     variant="link"
                     className="p-0 h-auto text-sm text-muted-foreground hover:text-primary"
                     onClick={onForgotPassword}
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                   >
                     Forgot password?
                   </Button>
                 </div>
               </div>
 
-              <Button type="submit" className="w-full min-h-12" disabled={isLoading}>
-                {isSubmitting ? "Signing In..." : "Sign In with Email"}
+              <Button type="submit" className="w-full min-h-12" disabled={isSubmitting}>
+                {isSubmitting ? "Signing In..." : "Sign In"}
               </Button>
             </form>
           </CardContent>

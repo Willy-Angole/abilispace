@@ -14,7 +14,7 @@ async function createAdminUser() {
   console.log(`Role: ${role}`);
 
   try {
-    // Hash the password
+    // Hash the password with bcrypt (same as admin login verification)
     const passwordHash = await bcrypt.hash(password, 12);
 
     // Check if admin already exists
