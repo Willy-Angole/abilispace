@@ -567,9 +567,10 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     return name.includes(searchQuery.toLowerCase())
   })
 
-  // Count for badges
-  const chatCount = conversations.filter(c => !c.isGroup).length
-  const groupCount = conversations.filter(c => c.isGroup).length
+  // Unread count for badges - only show count for conversations with unread messages
+  const allUnreadCount = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
+  const chatUnreadCount = conversations.filter(c => !c.isGroup).reduce((sum, c) => sum + c.unreadCount, 0)
+  const groupUnreadCount = conversations.filter(c => c.isGroup).reduce((sum, c) => sum + c.unreadCount, 0)
 
   const formatTime = (timestamp: string) => {
     return messagingApi.formatMessageTime(timestamp)
@@ -631,28 +632,35 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                 <TabsList className="w-full grid grid-cols-3 h-10">
                   <TabsTrigger value="all" className="text-sm">
                     All
-                    {conversations.length > 0 && (
-                      <span className="ml-1.5 text-xs text-muted-foreground">({conversations.length})</span>
+                    {allUnreadCount > 0 && (
+                      <Badge variant="destructive" className="ml-1.5 h-5 min-w-[20px] px-1.5 text-xs">
+                        {allUnreadCount > 99 ? "99+" : allUnreadCount}
+                      </Badge>
                     )}
                   </TabsTrigger>
                   <TabsTrigger value="chats" className="text-sm">
                     <MessageSquare className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
                     Chats
-                    {chatCount > 0 && (
-                      <span className="ml-1.5 text-xs text-muted-foreground">({chatCount})</span>
+                    {chatUnreadCount > 0 && (
+                      <Badge variant="destructive" className="ml-1.5 h-5 min-w-[20px] px-1.5 text-xs">
+                        {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
+                      </Badge>
                     )}
                   </TabsTrigger>
                   <TabsTrigger value="groups" className="text-sm">
                     <Users className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
                     Groups
-                    {groupCount > 0 && (
-                      <span className="ml-1.5 text-xs text-muted-foreground">({groupCount})</span>
+                    {groupUnreadCount > 0 && (
+                      <Badge variant="destructive" className="ml-1.5 h-5 min-w-[20px] px-1.5 text-xs">
+                        {groupUnreadCount > 99 ? "99+" : groupUnreadCount}
+                      </Badge>
                     )}
                   </TabsTrigger>
                 </TabsList>
               </div>
 
-              {/* Action Button based on active tab */}
+              {/* Action Button based on active tab - only show for Chats and Groups */}
+              {activeTab !== "all" && (
               <div className="p-3 border-b">
                 {activeTab === "groups" ? (
                   <Dialog open={showNewGroup} onOpenChange={(open) => {
@@ -865,222 +873,9 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                       </div>
                     </DialogContent>
                   </Dialog>
-                ) : (
-                  /* All tab - show both options */
-                  <div className="grid grid-cols-2 gap-2">
-                    <Dialog open={showNewChat} onOpenChange={(open) => {
-                      setShowNewChat(open)
-                      if (!open) resetNewChatForm()
-                    }}>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline" className="w-full">
-                          <MessageSquare className="h-4 w-4 mr-1.5" />
-                          <span className="truncate">New Chat</span>
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2">
-                            <MessageSquare className="h-5 w-5" />
-                            Start New Chat
-                          </DialogTitle>
-                          <DialogDescription>
-                            Search for someone to start a private conversation.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <Label>Find User</Label>
-                            <div className="relative">
-                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input
-                                placeholder="Search by name or email..."
-                                value={userSearchQuery}
-                                onChange={(e) => setUserSearchQuery(e.target.value)}
-                                className="pl-10"
-                              />
-                            </div>
-                            
-                            {isSearching ? (
-                              <div className="flex justify-center py-4">
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                              </div>
-                            ) : searchResults.length > 0 ? (
-                              <ScrollArea className="h-64 border rounded-md">
-                                <div className="p-2 space-y-1">
-                                  {searchResults.map(u => (
-                                    <div
-                                      key={u.id}
-                                      className="flex items-center gap-3 p-3 rounded-md hover:bg-muted cursor-pointer"
-                                      onClick={async () => {
-                                        try {
-                                          const response = await messagingApi.createConversation({
-                                            participantIds: [u.id],
-                                            isGroup: false,
-                                          })
-                                          if (response.success && response.data) {
-                                            setConversations(prev => {
-                                              const exists = prev.find(c => c.id === response.data!.id)
-                                              if (exists) return prev
-                                              return [response.data!, ...prev]
-                                            })
-                                            setActiveConversation(response.data)
-                                            setShowNewChat(false)
-                                            setShowMobileChat(true)
-                                            resetNewChatForm()
-                                            toast({
-                                              title: "Chat Started",
-                                              description: `You can now chat with ${u.firstName}!`,
-                                            })
-                                          }
-                                        } catch (error) {
-                                          toast({
-                                            title: "Error",
-                                            description: "Failed to start conversation",
-                                            variant: "destructive",
-                                          })
-                                        }
-                                      }}
-                                    >
-                                      <Avatar className="h-10 w-10">
-                                        {u.avatarUrl && <AvatarImage src={u.avatarUrl} />}
-                                        <AvatarFallback>{messagingApi.getInitials(u.firstName, u.lastName)}</AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-medium truncate">{u.firstName} {u.lastName}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{maskEmail(u.email)}</p>
-                                      </div>
-                                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            ) : userSearchQuery.length >= 2 ? (
-                              <div className="text-center py-4 border rounded-md">
-                                <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-                                <p className="text-sm text-muted-foreground">No users found</p>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-muted-foreground text-center py-4">
-                                Type at least 2 characters to search
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                    
-                    <Dialog open={showNewGroup} onOpenChange={(open) => {
-                      setShowNewGroup(open)
-                      if (!open) resetNewChatForm()
-                    }}>
-                      <DialogTrigger asChild>
-                        <Button size="sm" className="w-full">
-                          <Users className="h-4 w-4 mr-1.5" />
-                          <span className="truncate">New Group</span>
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2">
-                            <Users className="h-5 w-5" />
-                            Create New Group
-                          </DialogTitle>
-                          <DialogDescription>
-                            Create a group and invite friends.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="groupNameAll">Group Name <span className="text-destructive">*</span></Label>
-                            <Input
-                              id="groupNameAll"
-                              placeholder="Enter group name..."
-                              value={groupName}
-                              onChange={(e) => setGroupName(e.target.value)}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Invited Members ({selectedUsers.length})</Label>
-                            {selectedUsers.length > 0 ? (
-                              <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/30">
-                                {selectedUsers.map(u => (
-                                  <Badge key={u.id} variant="secondary" className="flex items-center gap-1 py-1">
-                                    <Avatar className="h-4 w-4">
-                                      {u.avatarUrl && <AvatarImage src={u.avatarUrl} />}
-                                      <AvatarFallback className="text-[8px]">
-                                        {messagingApi.getInitials(u.firstName, u.lastName)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    {u.firstName}
-                                    <button onClick={() => removeSelectedUser(u.id)} className="ml-1 hover:text-destructive">
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-muted-foreground p-2 border rounded-md bg-muted/30">
-                                No members added yet.
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Invite Friends</Label>
-                            <div className="relative">
-                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input
-                                placeholder="Search by name or email..."
-                                value={userSearchQuery}
-                                onChange={(e) => setUserSearchQuery(e.target.value)}
-                                className="pl-10"
-                              />
-                            </div>
-                            
-                            {isSearching ? (
-                              <div className="flex justify-center py-4">
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                              </div>
-                            ) : searchResults.length > 0 ? (
-                              <ScrollArea className="h-40 border rounded-md">
-                                <div className="p-2 space-y-1">
-                                  {searchResults.map(u => (
-                                    <div
-                                      key={u.id}
-                                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                                      onClick={() => selectUser(u)}
-                                    >
-                                      <Avatar className="h-8 w-8">
-                                        {u.avatarUrl && <AvatarImage src={u.avatarUrl} />}
-                                        <AvatarFallback>{messagingApi.getInitials(u.firstName, u.lastName)}</AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-medium truncate">{u.firstName} {u.lastName}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{maskEmail(u.email)}</p>
-                                      </div>
-                                      <UserPlus className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            ) : userSearchQuery.length >= 2 ? (
-                              <p className="text-sm text-muted-foreground text-center py-3">No users found</p>
-                            ) : null}
-                          </div>
-                        </div>
-                        <DialogFooter className="gap-2">
-                          <Button variant="outline" onClick={() => setShowNewGroup(false)}>Cancel</Button>
-                          <Button onClick={startNewGroup} disabled={!groupName.trim()}>
-                            Create Group
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                )}
+                ) : null}
               </div>
+              )}
 
               {/* Search */}
               <div className="px-3 pb-3">
