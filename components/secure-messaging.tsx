@@ -1046,8 +1046,15 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                                             title: "Chat Started",
                                             description: `You can now chat with ${u.firstName}!`,
                                           })
+                                        } else {
+                                          toast({
+                                            title: "Error",
+                                            description: response.error || "Failed to start conversation",
+                                            variant: "destructive",
+                                          })
                                         }
                                       } catch (error) {
+                                        console.error("Create conversation error:", error)
                                         toast({
                                           title: "Error",
                                           description: "Failed to start conversation",

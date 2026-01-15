@@ -531,13 +531,21 @@ export class MessagingService {
     ): Promise<Conversation> {
         await this.verifyAdmin(conversationId, userId);
 
-        // Update the conversation setting
-        await db.query(
-            `UPDATE conversations 
-             SET admin_only_messages = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $2`,
-            { values: [adminOnly, conversationId] }
-        );
+        // Update the conversation setting (handle missing column)
+        try {
+            await db.query(
+                `UPDATE conversations 
+                 SET admin_only_messages = $1, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $2`,
+                { values: [adminOnly, conversationId] }
+            );
+        } catch (error: any) {
+            // If column doesn't exist, throw a user-friendly error
+            if (error.message?.includes('column') || error.message?.includes('admin_only_messages')) {
+                throw Errors.internal('Admin-only messaging feature is not available. Please run database migrations.');
+            }
+            throw error;
+        }
 
         // Add system message
         const message = adminOnly
@@ -605,16 +613,31 @@ export class MessagingService {
             creator_last_name: string;
             created_at: Date;
             updated_at: Date;
-            admin_only_messages: boolean;
+            admin_only_messages?: boolean;
         }>(
             `SELECT c.id, c.name, c.is_group, c.created_by, c.created_at, c.updated_at,
-                    COALESCE(c.admin_only_messages, false) as admin_only_messages,
                     u.first_name as creator_first_name, u.last_name as creator_last_name
              FROM conversations c
              LEFT JOIN users u ON u.id = c.created_by
              WHERE c.id = $1 AND c.deleted_at IS NULL`,
             { values: [conversationId] }
         );
+
+        // Check for admin_only_messages column separately (may not exist in older schemas)
+        let adminOnlyMessages = false;
+        try {
+            const adminOnlyResult = await db.query<{ admin_only_messages: boolean }>(
+                `SELECT COALESCE(admin_only_messages, false) as admin_only_messages 
+                 FROM conversations WHERE id = $1`,
+                { values: [conversationId] }
+            );
+            if (adminOnlyResult.rows[0]) {
+                adminOnlyMessages = adminOnlyResult.rows[0].admin_only_messages;
+            }
+        } catch {
+            // Column doesn't exist yet, default to false
+            adminOnlyMessages = false;
+        }
 
         if (convResult.rowCount === 0) {
             throw Errors.notFound('Conversation');
@@ -676,7 +699,7 @@ export class MessagingService {
                 : undefined,
             createdAt: conv.created_at,
             updatedAt: conv.updated_at,
-            adminOnlyMessages: conv.admin_only_messages,
+            adminOnlyMessages: adminOnlyMessages,
             participants: participantsResult.rows.map(p => ({
                 userId: p.user_id,
                 firstName: p.first_name,
@@ -746,23 +769,31 @@ export class MessagingService {
 
         await this.verifyParticipant(conversationId, userId);
 
-        // Check if conversation is admin-only messaging
-        const convResult = await db.query<{ is_group: boolean; admin_only_messages: boolean }>(
-            `SELECT is_group, COALESCE(admin_only_messages, false) as admin_only_messages
-             FROM conversations WHERE id = $1`,
-            { values: [conversationId] }
-        );
-
-        if (convResult.rows[0]?.admin_only_messages && convResult.rows[0]?.is_group) {
-            // Check if user is admin
-            const adminCheck = await db.query<{ is_admin: boolean }>(
-                `SELECT is_admin FROM conversation_participants
-                 WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL`,
-                { values: [conversationId, userId] }
+        // Check if conversation is admin-only messaging (handle missing column gracefully)
+        let isAdminOnlyGroup = false;
+        try {
+            const convResult = await db.query<{ is_group: boolean; admin_only_messages: boolean }>(
+                `SELECT is_group, COALESCE(admin_only_messages, false) as admin_only_messages
+                 FROM conversations WHERE id = $1`,
+                { values: [conversationId] }
             );
 
-            if (!adminCheck.rows[0]?.is_admin) {
-                throw Errors.forbidden('Only admins can send messages in this group');
+            if (convResult.rows[0]?.admin_only_messages && convResult.rows[0]?.is_group) {
+                // Check if user is admin
+                const adminCheck = await db.query<{ is_admin: boolean }>(
+                    `SELECT is_admin FROM conversation_participants
+                     WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL`,
+                    { values: [conversationId, userId] }
+                );
+
+                if (!adminCheck.rows[0]?.is_admin) {
+                    throw Errors.forbidden('Only admins can send messages in this group');
+                }
+            }
+        } catch (error: any) {
+            // If the column doesn't exist, just continue (not an admin-only group)
+            if (!error.message?.includes('column') && !error.message?.includes('admin_only_messages')) {
+                throw error; // Re-throw if it's not a column missing error
             }
         }
 
