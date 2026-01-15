@@ -641,13 +641,13 @@ export class AuthService {
 
         const user = userResult.rows[0];
 
-        // Check if user has password auth (not Google-only)
+        // Allow password reset for all users, including Google-only accounts
+        // This lets Google users add a password to their account
         if (!user.password_hash && user.google_id) {
-            // User only has Google auth, but don't reveal this
-            logger.info('Password reset requested for Google-only account', { 
+            logger.info('Password reset requested for Google-only account - allowing password creation', { 
                 userId: user.id 
             });
-            return successResponse;
+            // Continue to send reset code - this will let them set a password
         }
 
         // Invalidate any existing reset codes for this user

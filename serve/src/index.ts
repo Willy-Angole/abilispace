@@ -29,6 +29,9 @@ import articleRoutes from './routes/article.routes';
 import healthRoutes from './routes/health.routes';
 import adminRoutes from './routes/admin.routes';
 
+// Service imports
+import { emailService } from './services/email.service';
+
 /**
  * Application class using Singleton pattern
  * Ensures only one instance of the Express app exists
@@ -160,6 +163,12 @@ class App {
             // Test database connection
             await this.db.testConnection();
             logger.info('Database connection established successfully');
+
+            // Verify email service connection
+            const emailConnected = await emailService.verifyConnection();
+            if (!emailConnected) {
+                logger.warn('Email service not available - password reset emails will fail');
+            }
 
             // Start HTTP server
             this.app.listen(config.port, config.host, () => {

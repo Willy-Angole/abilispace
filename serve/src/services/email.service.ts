@@ -29,9 +29,22 @@ interface EmailTemplateData {
  */
 export class EmailService {
     private transporter: nodemailer.Transporter;
+    private isConfigured: boolean;
 
     constructor() {
-        // Create reusable transporter
+        // Check if SMTP is configured
+        this.isConfigured = !!(config.smtp.user && config.smtp.password && config.smtp.host);
+        
+        if (!this.isConfigured) {
+            logger.warn('Email service not configured. Missing SMTP credentials.', {
+                hasHost: !!config.smtp.host,
+                hasUser: !!config.smtp.user,
+                hasPassword: !!config.smtp.password,
+                hasFrom: !!config.smtp.from,
+            });
+        }
+
+        // Create reusable transporter with better Titan Email settings
         this.transporter = nodemailer.createTransport({
             host: config.smtp.host,
             port: config.smtp.port,
@@ -40,6 +53,21 @@ export class EmailService {
                 user: config.smtp.user,
                 pass: config.smtp.password,
             },
+            // Additional settings for better compatibility
+            tls: {
+                rejectUnauthorized: false, // Accept self-signed certificates
+            },
+            connectionTimeout: 10000, // 10 second timeout
+            greetingTimeout: 10000,
+            socketTimeout: 15000,
+        });
+
+        logger.info('Email transporter initialized', {
+            host: config.smtp.host,
+            port: config.smtp.port,
+            secure: config.smtp.secure,
+            user: config.smtp.user ? config.smtp.user.substring(0, 5) + '***' : 'NOT SET',
+            from: config.smtp.from,
         });
     }
 
@@ -48,12 +76,22 @@ export class EmailService {
      * Call this on startup to ensure email service is configured correctly
      */
     async verifyConnection(): Promise<boolean> {
+        if (!this.isConfigured) {
+            logger.warn('Skipping email verification - SMTP not configured');
+            return false;
+        }
+
         try {
             await this.transporter.verify();
-            logger.info('Email service connected successfully');
+            logger.info('Email service connected successfully to ' + config.smtp.host);
             return true;
-        } catch (error) {
-            logger.error('Email service connection failed', { error });
+        } catch (error: any) {
+            logger.error('Email service connection failed', { 
+                error: error.message,
+                code: error.code,
+                host: config.smtp.host,
+                port: config.smtp.port,
+            });
             return false;
         }
     }
@@ -210,8 +248,16 @@ This is an automated message from Abilispace.
             });
 
             return true;
-        } catch (error) {
-            logger.error('Failed to send password reset email', { error, to });
+        } catch (error: any) {
+            logger.error('Failed to send password reset email', { 
+                error: error.message,
+                code: error.code,
+                command: error.command,
+                responseCode: error.responseCode,
+                to: to.substring(0, 3) + '***',
+                smtpHost: config.smtp.host,
+                smtpPort: config.smtp.port,
+            });
             return false;
         }
     }
