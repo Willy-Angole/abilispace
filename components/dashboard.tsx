@@ -6,6 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Calendar, MessageSquare, Newspaper, Settings, LogOut, User, Bell, Pencil, Menu, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { EventDiscovery } from "@/components/event-discovery"
 import { SecureMessaging } from "@/components/secure-messaging"
@@ -23,7 +30,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<"events" | "news" | "messages" | "profile">("events")
+  const [activeTab, setActiveTab] = useState<"events" | "news" | "messages" | "profile">("messages")
   const [currentUser, setCurrentUser] = useState<UserType>(user)
   const [isEditing, setIsEditing] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -69,10 +76,9 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
 
   // Navigation items configuration
   const navItems = [
-    { id: "events" as const, label: "Events", icon: Calendar },
-    { id: "news" as const, label: "Current Affairs", icon: Newspaper },
     { id: "messages" as const, label: "Messages", icon: MessageSquare, badge: unreadCount },
-    { id: "profile" as const, label: "Profile", icon: User },
+    { id: "news" as const, label: "Current Affairs", icon: Newspaper },
+    { id: "events" as const, label: "Events", icon: Calendar },
   ]
 
   // Handle user profile update
@@ -174,10 +180,45 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={onLogout} className="flex-shrink-0">
-            <LogOut className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Logout</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost"
+                size="icon"
+                className="relative rounded-full h-10 w-10 p-0 hover:ring-2 hover:ring-primary/20 transition-all"
+              >
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={currentUser.avatarUrl} alt={`${currentUser.firstName} ${currentUser.lastName}`} />
+                  <AvatarFallback className="text-sm font-medium">
+                    {currentUser.firstName?.[0]}{currentUser.lastName?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="sr-only">Open user menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-3 py-2">
+                <p className="font-medium">{currentUser.firstName} {currentUser.lastName}</p>
+                <p className="text-xs text-muted-foreground truncate">{currentUser.email}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => setActiveTab("profile")}
+                className="cursor-pointer"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={onLogout}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

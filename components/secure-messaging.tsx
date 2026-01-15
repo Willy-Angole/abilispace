@@ -30,6 +30,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverClose,
 } from "@/components/ui/popover"
 import {
   MessageSquare,
@@ -700,14 +701,20 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
               </Badge>
             </PopoverTrigger>
             <PopoverContent className="w-80" align="start">
-              <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-primary mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-medium">Privacy & Security</p>
-                  <p className="text-sm text-muted-foreground">
-                    Your messages are encrypted and secured. We prioritize your privacy and security.
-                    All communications are protected and only visible to conversation participants.
-                  </p>
+              <div className="relative">
+                <PopoverClose className="absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </PopoverClose>
+                <div className="flex items-start gap-3 pr-6">
+                  <Shield className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                  <div className="space-y-1">
+                    <p className="font-medium">Privacy & Security</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your messages are encrypted and secured. We prioritize your privacy and security.
+                      All communications are protected and only visible to conversation participants.
+                    </p>
+                  </div>
                 </div>
               </div>
             </PopoverContent>
