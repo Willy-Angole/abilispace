@@ -1,10 +1,27 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import type { Router as RouterType } from 'express';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
 import { config } from '../config/environment';
 import * as adminService from '../services/admin.service';
+import { uploadToCloudinary } from '../config/cloudinary';
 
 const router: RouterType = Router();
+
+// Configure multer for event poster uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for event posters
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+});
 
 // Environment shorthand
 const env = {
@@ -382,6 +399,72 @@ router.delete('/events/:id', adminAuth, requireRole('super_admin', 'admin'), asy
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to delete event' });
   }
+});
+
+// Update event
+router.patch('/events/:id', adminAuth, requireRole('super_admin', 'admin', 'moderator'), async (req: AdminRequest, res: Response) => {
+  try {
+    const event = await adminService.updateEvent(req.admin!.sub, req.params.id, req.body);
+    res.json({
+      success: true,
+      data: event
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to update event' });
+  }
+});
+
+// Upload event poster image
+router.post('/events/:id/poster', adminAuth, requireRole('super_admin', 'admin', 'moderator'), (req: AdminRequest, res: Response) => {
+  upload.single('poster')(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        error: err.message || 'File upload error',
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No image file provided',
+      });
+    }
+
+    try {
+      // Upload to Cloudinary
+      const uploadResult = await uploadToCloudinary(req.file.buffer, {
+        folder: 'shiriki/events',
+        transformation: [
+          { width: 1200, height: 630, crop: 'fill', gravity: 'auto' },
+          { quality: 'auto', fetch_format: 'auto' }
+        ],
+      });
+
+      if (!uploadResult.success || !uploadResult.url) {
+        return res.status(500).json({
+          success: false,
+          error: uploadResult.error || 'Failed to upload image',
+        });
+      }
+
+      // Update event with new poster URL
+      const event = await adminService.updateEventPoster(
+        req.admin!.sub,
+        req.params.id,
+        uploadResult.url,
+        req.body.imageAlt || 'Event poster'
+      );
+
+      res.json({
+        success: true,
+        data: event,
+        imageUrl: uploadResult.url,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to upload event poster' });
+    }
+  });
 });
 
 // Get event categories

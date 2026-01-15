@@ -420,7 +420,7 @@ export async function uploadAvatar(file: File): Promise<AvatarUploadResponse> {
     const formData = new FormData();
     formData.append('avatar', file);
     
-    const response = await fetch(`${API_BASE_URL}/api/profile/avatar`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/profile/avatar`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${accessToken}`,

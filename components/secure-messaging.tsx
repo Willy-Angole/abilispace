@@ -57,7 +57,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import * as messagingApi from "@/lib/messaging"
-import { isAuthenticated } from "@/lib/messaging"
+import { isAuthenticated, sendTypingIndicator, getTypingUsers, type TypingUser } from "@/lib/messaging"
 import type { Conversation, Message, User } from "@/lib/messaging"
 
 interface SecureMessagingProps {
@@ -109,9 +109,14 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const typingPollingRef = useRef<NodeJS.Timeout | null>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastMessageCountRef = useRef<number>(0)
   const lastConversationUnreadRef = useRef<number>(0)
   const { toast } = useToast()
+  
+  // Typing indicator state
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
 
   // Load conversations on mount
   useEffect(() => {
@@ -124,18 +129,38 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     if (pollingRef.current) {
       clearInterval(pollingRef.current)
     }
+    if (typingPollingRef.current) {
+      clearInterval(typingPollingRef.current)
+    }
     
-    // Set up faster polling (3 seconds) for real-time feel
+    // Set up faster polling (2 seconds) for real-time feel
     pollingRef.current = setInterval(() => {
       if (activeConversation) {
         loadMessagesWithNotification(activeConversation.id)
       }
       loadConversationsWithNotification()
-    }, 3000)
+    }, 2000)
+    
+    // Set up typing indicator polling (1 second for responsiveness)
+    if (activeConversation) {
+      typingPollingRef.current = setInterval(async () => {
+        try {
+          const response = await getTypingUsers(activeConversation.id)
+          if (response.success && response.data) {
+            setTypingUsers(response.data)
+          }
+        } catch (e) {
+          // Silent fail
+        }
+      }, 1000)
+    }
 
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current)
+      }
+      if (typingPollingRef.current) {
+        clearInterval(typingPollingRef.current)
       }
     }
   }, [activeConversation?.id, soundEnabled])
@@ -362,6 +387,34 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
       })
     } finally {
       setIsSending(false)
+    }
+  }
+
+  // Handle message input change and send typing indicator
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    setNewMessage(value)
+
+    // Send typing indicator (debounced to every 2 seconds)
+    if (value.trim() && activeConversation && user) {
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+
+      // Only send typing indicator if we haven't sent one recently
+      const now = Date.now()
+      const lastSent = (typingTimeoutRef.current as unknown as number) || 0
+      
+      if (now - lastSent > 2000 || !lastSent) {
+        sendTypingIndicator(activeConversation.id, user.firstName || 'User')
+          .catch(() => {}) // Silently ignore errors
+        
+        // Store timestamp in a data attribute
+        ;(typingTimeoutRef as React.MutableRefObject<NodeJS.Timeout | null>).current = setTimeout(() => {
+          typingTimeoutRef.current = null
+        }, 2000) as NodeJS.Timeout
+      }
     }
   }
 
@@ -1354,12 +1407,30 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
               {/* Message Input */}
               {!editingMessage && (
                 <div className="border-t p-3 sm:p-4">
+                  {/* Typing Indicator */}
+                  {typingUsers.length > 0 && (
+                    <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                      <span className="flex gap-0.5">
+                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </span>
+                      <span>
+                        {typingUsers.length === 1
+                          ? `${typingUsers[0].name} is typing...`
+                          : typingUsers.length === 2
+                          ? `${typingUsers[0].name} and ${typingUsers[1].name} are typing...`
+                          : `${typingUsers[0].name} and ${typingUsers.length - 1} others are typing...`
+                        }
+                      </span>
+                    </div>
+                  )}
                   <div className="flex gap-2 items-end">
                     <div className="flex-1 min-w-0">
                       <Textarea
                         placeholder="Type your message..."
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        onChange={handleMessageChange}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault()

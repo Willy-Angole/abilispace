@@ -335,6 +335,60 @@ export async function deleteEvent(eventId: string): Promise<void> {
   await adminFetch(`/events/${eventId}`, { method: 'DELETE' });
 }
 
+// Update event data
+export interface UpdateEventData {
+  title?: string;
+  description?: string;
+  eventDate?: string;
+  eventTime?: string;
+  endDate?: string;
+  endTime?: string;
+  location?: string;
+  virtualLink?: string;
+  eventType?: 'virtual' | 'in_person' | 'hybrid';
+  category?: string;
+  capacity?: number;
+  organizerName?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  isFeatured?: boolean;
+  isPublished?: boolean;
+}
+
+export async function updateEvent(eventId: string, data: UpdateEventData): Promise<EventDetails> {
+  return adminFetch<EventDetails>(`/events/${eventId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+// Upload event poster image
+export async function uploadEventPoster(eventId: string, file: File, imageAlt?: string): Promise<{ event: EventDetails; imageUrl: string }> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('shiriki_admin_token') : null;
+  
+  const formData = new FormData();
+  formData.append('poster', file);
+  if (imageAlt) {
+    formData.append('imageAlt', imageAlt);
+  }
+  
+  const response = await fetch(`${API_BASE_URL}/api/admin/events/${eventId}/poster`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+    throw new Error(error.error || 'Failed to upload poster');
+  }
+
+  const data = await response.json();
+  return { event: data.data, imageUrl: data.imageUrl };
+}
+
 export async function getEventCategories(): Promise<string[]> {
   return adminFetch<string[]>('/events/categories');
 }

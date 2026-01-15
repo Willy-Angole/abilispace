@@ -536,9 +536,9 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Regions</SelectItem>
-                  <SelectItem value="National">National</SelectItem>
-                  <SelectItem value="International">International</SelectItem>
-                  <SelectItem value="Local">Local</SelectItem>
+                  <SelectItem value="national">National</SelectItem>
+                  <SelectItem value="international">International</SelectItem>
+                  <SelectItem value="local">Local</SelectItem>
                 </SelectContent>
               </Select>
 

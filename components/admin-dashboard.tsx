@@ -27,6 +27,9 @@ import {
   BarChart3,
   Plus,
   X,
+  Pencil,
+  Image as ImageIcon,
+  Upload,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -529,11 +532,34 @@ function EventsTab() {
   const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
   const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
   const [createLoading, setCreateLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [posterUploading, setPosterUploading] = useState(false);
   const { toast } = useToast();
 
   // Create event form state
   const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    eventDate: '',
+    eventTime: '',
+    endDate: '',
+    endTime: '',
+    location: '',
+    virtualLink: '',
+    eventType: 'in_person' as 'virtual' | 'in_person' | 'hybrid',
+    category: 'social',
+    capacity: 100,
+    organizerName: '',
+    imageUrl: '',
+    isFeatured: false,
+    isPublished: true,
+  });
+
+  // Edit event form state
+  const [editEvent, setEditEvent] = useState({
     title: '',
     description: '',
     eventDate: '',
@@ -729,6 +755,94 @@ function EventsTab() {
     URL.revokeObjectURL(url);
   };
 
+  // Open edit dialog with event data
+  const handleOpenEditDialog = (event: any) => {
+    setEditingEvent(event);
+    setEditEvent({
+      title: event.title || '',
+      description: event.description || '',
+      eventDate: event.start_date ? new Date(event.start_date).toISOString().split('T')[0] : '',
+      eventTime: event.event_time || '',
+      endDate: event.end_date ? new Date(event.end_date).toISOString().split('T')[0] : '',
+      endTime: event.end_time || '',
+      location: event.location || '',
+      virtualLink: event.virtual_link || '',
+      eventType: event.event_type || 'in_person',
+      category: event.category || 'social',
+      capacity: event.capacity || 100,
+      organizerName: event.organizer_name || '',
+      imageUrl: event.image_url || '',
+      isFeatured: event.is_featured || false,
+      isPublished: event.is_published || true,
+    });
+    setShowEditDialog(true);
+  };
+
+  // Handle event update
+  const handleUpdateEvent = async () => {
+    if (!editingEvent) return;
+
+    setEditLoading(true);
+    try {
+      await adminApi.updateEvent(editingEvent.id, {
+        title: editEvent.title,
+        description: editEvent.description,
+        eventDate: editEvent.eventDate,
+        eventTime: editEvent.eventTime,
+        endDate: editEvent.endDate || undefined,
+        endTime: editEvent.endTime || undefined,
+        location: editEvent.location || undefined,
+        virtualLink: editEvent.virtualLink || undefined,
+        eventType: editEvent.eventType,
+        category: editEvent.category,
+        capacity: editEvent.capacity,
+        organizerName: editEvent.organizerName,
+        isFeatured: editEvent.isFeatured,
+        isPublished: editEvent.isPublished,
+      });
+      toast({
+        title: 'Success',
+        description: 'Event updated successfully',
+      });
+      setShowEditDialog(false);
+      setEditingEvent(null);
+      fetchEvents();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update event',
+        variant: 'destructive',
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Handle poster upload
+  const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingEvent || !e.target.files || e.target.files.length === 0) return;
+
+    const file = e.target.files[0];
+    setPosterUploading(true);
+    try {
+      const result = await adminApi.uploadEventPoster(editingEvent.id, file, `${editEvent.title} poster`);
+      setEditEvent({ ...editEvent, imageUrl: result.imageUrl });
+      toast({
+        title: 'Success',
+        description: 'Event poster uploaded successfully',
+      });
+      fetchEvents();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to upload poster',
+        variant: 'destructive',
+      });
+    } finally {
+      setPosterUploading(false);
+    }
+  };
+
   return (
     <>
       <Card>
@@ -846,6 +960,14 @@ function EventsTab() {
                             title="View registrations"
                           >
                             <Users className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenEditDialog(event)}
+                            title="Edit event"
+                          >
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -1275,6 +1397,244 @@ function EventsTab() {
                   <Plus className="h-4 w-4 mr-2" />
                   Create Event
                 </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Event Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Event</DialogTitle>
+            <DialogDescription>
+              Update event details and upload a poster image.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            {/* Poster Upload Section */}
+            <div className="grid gap-2">
+              <Label>Event Poster</Label>
+              <div className="flex items-start gap-4">
+                {editEvent.imageUrl ? (
+                  <div className="relative w-40 h-24 rounded-lg overflow-hidden border">
+                    <img 
+                      src={editEvent.imageUrl} 
+                      alt="Event poster" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-40 h-24 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Label htmlFor="poster-upload" className="cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-md hover:bg-secondary/80 w-fit">
+                      {posterUploading ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      {posterUploading ? 'Uploading...' : 'Upload Poster'}
+                    </div>
+                  </Label>
+                  <input
+                    id="poster-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePosterUpload}
+                    className="hidden"
+                    disabled={posterUploading}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended: 1200x630px, max 10MB
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-event-title">Title *</Label>
+              <Input
+                id="edit-event-title"
+                value={editEvent.title}
+                onChange={(e) => setEditEvent({ ...editEvent, title: e.target.value })}
+                placeholder="Event title"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-event-description">Description *</Label>
+              <Textarea
+                id="edit-event-description"
+                value={editEvent.description}
+                onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })}
+                placeholder="Describe the event..."
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-event-date">Event Date *</Label>
+                <Input
+                  id="edit-event-date"
+                  type="date"
+                  value={editEvent.eventDate}
+                  onChange={(e) => setEditEvent({ ...editEvent, eventDate: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-event-time">Event Time *</Label>
+                <Input
+                  id="edit-event-time"
+                  type="time"
+                  value={editEvent.eventTime}
+                  onChange={(e) => setEditEvent({ ...editEvent, eventTime: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-end-date">End Date</Label>
+                <Input
+                  id="edit-end-date"
+                  type="date"
+                  value={editEvent.endDate}
+                  onChange={(e) => setEditEvent({ ...editEvent, endDate: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-end-time">End Time</Label>
+                <Input
+                  id="edit-end-time"
+                  type="time"
+                  value={editEvent.endTime}
+                  onChange={(e) => setEditEvent({ ...editEvent, endTime: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-event-type">Event Type *</Label>
+                <Select
+                  value={editEvent.eventType}
+                  onValueChange={(value: 'virtual' | 'in_person' | 'hybrid') => 
+                    setEditEvent({ ...editEvent, eventType: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="in_person">In Person</SelectItem>
+                    <SelectItem value="virtual">Virtual</SelectItem>
+                    <SelectItem value="hybrid">Hybrid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-event-category">Category *</Label>
+                <Select
+                  value={editEvent.category}
+                  onValueChange={(value) => setEditEvent({ ...editEvent, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eventCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-event-location">Location</Label>
+              <Input
+                id="edit-event-location"
+                value={editEvent.location}
+                onChange={(e) => setEditEvent({ ...editEvent, location: e.target.value })}
+                placeholder="Physical address or venue name"
+              />
+            </div>
+
+            {(editEvent.eventType === 'virtual' || editEvent.eventType === 'hybrid') && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit-virtual-link">Virtual Meeting Link</Label>
+                <Input
+                  id="edit-virtual-link"
+                  value={editEvent.virtualLink}
+                  onChange={(e) => setEditEvent({ ...editEvent, virtualLink: e.target.value })}
+                  placeholder="https://zoom.us/j/..."
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-organizer-name">Organizer Name *</Label>
+                <Input
+                  id="edit-organizer-name"
+                  value={editEvent.organizerName}
+                  onChange={(e) => setEditEvent({ ...editEvent, organizerName: e.target.value })}
+                  placeholder="Name of the organizer"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-event-capacity">Capacity *</Label>
+                <Input
+                  id="edit-event-capacity"
+                  type="number"
+                  min="1"
+                  value={editEvent.capacity}
+                  onChange={(e) => setEditEvent({ ...editEvent, capacity: parseInt(e.target.value) || 100 })}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-is-featured"
+                  checked={editEvent.isFeatured}
+                  onCheckedChange={(checked) => setEditEvent({ ...editEvent, isFeatured: checked })}
+                />
+                <Label htmlFor="edit-is-featured">Featured Event</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-is-published"
+                  checked={editEvent.isPublished}
+                  onCheckedChange={(checked) => setEditEvent({ ...editEvent, isPublished: checked })}
+                />
+                <Label htmlFor="edit-is-published">Published</Label>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateEvent} disabled={editLoading}>
+              {editLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
               )}
             </Button>
           </DialogFooter>

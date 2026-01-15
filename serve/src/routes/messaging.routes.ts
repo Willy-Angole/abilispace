@@ -345,4 +345,81 @@ router.get(
     })
 );
 
+// =============================================================================
+// Typing Indicators (in-memory, expires after 3 seconds)
+// =============================================================================
+
+// In-memory store for typing status: Map<conversationId, Map<userId, { name: string, expiresAt: number }>>
+const typingStatus = new Map<string, Map<string, { name: string; expiresAt: number }>>();
+
+// Clean up expired typing status every 5 seconds
+setInterval(() => {
+    const now = Date.now();
+    for (const [convId, users] of typingStatus.entries()) {
+        for (const [userId, data] of users.entries()) {
+            if (data.expiresAt < now) {
+                users.delete(userId);
+            }
+        }
+        if (users.size === 0) {
+            typingStatus.delete(convId);
+        }
+    }
+}, 5000);
+
+/**
+ * POST /api/messaging/conversations/:id/typing
+ * Set typing status for current user
+ */
+router.post(
+    '/conversations/:id/typing',
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const conversationId = uuidSchema.parse(req.params.id);
+        const userId = req.userId!;
+        const userName = req.body.userName || 'Someone';
+        
+        if (!typingStatus.has(conversationId)) {
+            typingStatus.set(conversationId, new Map());
+        }
+        
+        const convTyping = typingStatus.get(conversationId)!;
+        convTyping.set(userId, {
+            name: userName,
+            expiresAt: Date.now() + 3000, // Expires in 3 seconds
+        });
+
+        res.json({ success: true });
+    })
+);
+
+/**
+ * GET /api/messaging/conversations/:id/typing
+ * Get who is typing in a conversation
+ */
+router.get(
+    '/conversations/:id/typing',
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const conversationId = uuidSchema.parse(req.params.id);
+        const userId = req.userId!;
+        const now = Date.now();
+        
+        const convTyping = typingStatus.get(conversationId);
+        const typingUsers: { userId: string; name: string }[] = [];
+        
+        if (convTyping) {
+            for (const [uid, data] of convTyping.entries()) {
+                // Don't include current user or expired entries
+                if (uid !== userId && data.expiresAt > now) {
+                    typingUsers.push({ userId: uid, name: data.name });
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            data: typingUsers,
+        });
+    })
+);
+
 export default router;

@@ -410,3 +410,38 @@ export function isConversationAdmin(
     const participant = conversation.participants.find(p => p.userId === userId);
     return participant?.isAdmin ?? false;
 }
+
+// =============================================================================
+// Typing Indicators
+// =============================================================================
+
+export interface TypingUser {
+    userId: string;
+    name: string;
+}
+
+/**
+ * Send typing indicator
+ */
+export async function sendTypingIndicator(
+    conversationId: string,
+    userName: string
+): Promise<void> {
+    try {
+        await apiRequest(`/api/messaging/conversations/${conversationId}/typing`, {
+            method: 'POST',
+            body: JSON.stringify({ userName }),
+        });
+    } catch (error) {
+        // Silent fail for typing indicators
+    }
+}
+
+/**
+ * Get who is typing in a conversation
+ */
+export async function getTypingUsers(
+    conversationId: string
+): Promise<ApiResponse<TypingUser[]>> {
+    return apiRequest<TypingUser[]>(`/api/messaging/conversations/${conversationId}/typing`);
+}

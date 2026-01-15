@@ -241,11 +241,234 @@ export function AccessibilityProvider({ children }: AccessibilityProviderProps) 
 
 interface AccessibilityControlsProps {
   className?: string
+  embedded?: boolean // When true, shows expanded without Card wrapper (for floating button)
 }
 
-export function AccessibilityControls({ className }: AccessibilityControlsProps) {
+export function AccessibilityControls({ className, embedded = false }: AccessibilityControlsProps) {
   const { settings, updateSetting, resetSettings } = useAccessibility()
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(embedded) // Start open if embedded
+
+  // When embedded, render without Card wrapper
+  if (embedded) {
+    return (
+      <div className={`space-y-6 p-2 ${className || ''}`}>
+        {/* Visual Settings */}
+        <div className="space-y-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            Visual Settings
+          </h3>
+
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="fontSize-embedded">Font Size: {settings.fontSize}px</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateSetting("fontSize", Math.max(12, settings.fontSize - 2))}
+                  aria-label="Decrease font size"
+                >
+                  <ZoomOut className="h-3 w-3" />
+                </Button>
+                <Slider
+                  id="fontSize-embedded"
+                  min={12}
+                  max={24}
+                  step={2}
+                  value={[settings.fontSize]}
+                  onValueChange={([value]) => updateSetting("fontSize", value)}
+                  className="flex-1"
+                  aria-label="Font size slider"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateSetting("fontSize", Math.min(24, settings.fontSize + 2))}
+                  aria-label="Increase font size"
+                >
+                  <ZoomIn className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="textSpacing-embedded">Text Spacing: {settings.textSpacing}x</Label>
+              <Slider
+                id="textSpacing-embedded"
+                min={1}
+                max={2}
+                step={0.1}
+                value={[settings.textSpacing]}
+                onValueChange={([value]) => updateSetting("textSpacing", value)}
+                aria-label="Text spacing slider"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="colorTheme-embedded">Color Theme</Label>
+              <Select
+                value={settings.colorTheme}
+                onValueChange={(value: AccessibilitySettings["colorTheme"]) => updateSetting("colorTheme", value)}
+              >
+                <SelectTrigger id="colorTheme-embedded">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default</SelectItem>
+                  <SelectItem value="light">Light</SelectItem>
+                  <SelectItem value="dark">Dark</SelectItem>
+                  <SelectItem value="high-contrast">High Contrast</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="highContrast-embedded" className="flex items-center gap-2">
+                <Contrast className="h-4 w-4" />
+                High Contrast Mode
+              </Label>
+              <Switch
+                id="highContrast-embedded"
+                checked={settings.highContrast}
+                onCheckedChange={(checked) => updateSetting("highContrast", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="focusIndicators-embedded" className="flex items-center gap-2">
+                <MousePointer className="h-4 w-4" />
+                Enhanced Focus Indicators
+              </Label>
+              <Switch
+                id="focusIndicators-embedded"
+                checked={settings.focusIndicators}
+                onCheckedChange={(checked) => updateSetting("focusIndicators", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="largeClickTargets-embedded" className="flex items-center gap-2">
+                <MousePointer className="h-4 w-4" />
+                Large Click Targets
+              </Label>
+              <Switch
+                id="largeClickTargets-embedded"
+                checked={settings.largeClickTargets}
+                onCheckedChange={(checked) => updateSetting("largeClickTargets", checked)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Motion & Audio Settings */}
+        <div className="space-y-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Volume2 className="h-4 w-4" />
+            Motion & Audio
+          </h3>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="reducedMotion-embedded">Reduce Motion</Label>
+              <Switch
+                id="reducedMotion-embedded"
+                checked={settings.reducedMotion}
+                onCheckedChange={(checked) => updateSetting("reducedMotion", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="soundEnabled-embedded" className="flex items-center gap-2">
+                {settings.soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                Sound Notifications
+              </Label>
+              <Switch
+                id="soundEnabled-embedded"
+                checked={settings.soundEnabled}
+                onCheckedChange={(checked) => updateSetting("soundEnabled", checked)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Settings */}
+        <div className="space-y-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Keyboard className="h-4 w-4" />
+            Navigation
+          </h3>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="keyboardNavigation-embedded">Enhanced Keyboard Navigation</Label>
+              <Switch
+                id="keyboardNavigation-embedded"
+                checked={settings.keyboardNavigation}
+                onCheckedChange={(checked) => updateSetting("keyboardNavigation", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="screenReaderOptimized-embedded">Screen Reader Optimization</Label>
+              <Switch
+                id="screenReaderOptimized-embedded"
+                checked={settings.screenReaderOptimized}
+                onCheckedChange={(checked) => updateSetting("screenReaderOptimized", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="announcements-embedded">Voice Announcements</Label>
+              <Switch
+                id="announcements-embedded"
+                checked={settings.announcements}
+                onCheckedChange={(checked) => updateSetting("announcements", checked)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Keyboard Shortcuts Info */}
+        <div className="bg-muted/50 rounded-lg p-4">
+          <h4 className="font-medium mb-2">Keyboard Shortcuts</h4>
+          <div className="text-sm text-muted-foreground space-y-1">
+            <div>
+              <Badge variant="outline" className="mr-2">
+                Alt + M
+              </Badge>
+              Skip to main content
+            </div>
+            <div>
+              <Badge variant="outline" className="mr-2">
+                Alt + ←/→
+              </Badge>
+              Navigate between elements
+            </div>
+            <div>
+              <Badge variant="outline" className="mr-2">
+                Tab
+              </Badge>
+              Navigate forward
+            </div>
+            <div>
+              <Badge variant="outline" className="mr-2">
+                Shift + Tab
+              </Badge>
+              Navigate backward
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={resetSettings} className="flex items-center gap-2 bg-transparent">
+            <RotateCcw className="h-4 w-4" />
+            Reset to Defaults
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={className}>
@@ -491,8 +714,25 @@ export function AccessibilityFloatingButton() {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       {isOpen && (
-        <div className="mb-4 w-80">
-          <AccessibilityControls />
+        <div className="mb-4 w-80 max-h-[70vh] overflow-y-auto rounded-lg border bg-background shadow-lg">
+          <div className="sticky top-0 z-10 flex items-center justify-between p-3 border-b bg-background">
+            <div className="flex items-center gap-2">
+              <Accessibility className="h-5 w-5" />
+              <span className="font-semibold">Accessibility</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close accessibility settings"
+            >
+              <span className="text-lg">×</span>
+            </Button>
+          </div>
+          <div className="p-2">
+            <AccessibilityControls embedded />
+          </div>
         </div>
       )}
       <Button

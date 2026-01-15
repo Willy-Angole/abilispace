@@ -137,4 +137,75 @@ export function generatePlaceholderAvatar(name: string): string {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=random&color=fff&bold=true`;
 }
 
+/**
+ * Generic upload options interface
+ */
+interface CloudinaryUploadOptions {
+  folder?: string;
+  publicId?: string;
+  transformation?: Array<Record<string, unknown>>;
+}
+
+/**
+ * Upload any image to Cloudinary with custom options
+ * 
+ * @param fileBuffer - The image file buffer
+ * @param options - Upload options (folder, transformation, etc.)
+ * @returns Upload result with URL or error
+ */
+export async function uploadToCloudinary(
+  fileBuffer: Buffer,
+  options: CloudinaryUploadOptions = {}
+): Promise<UploadResult> {
+  try {
+    // Convert buffer to base64 data URI
+    const base64Image = `data:image/jpeg;base64,${fileBuffer.toString('base64')}`;
+
+    const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+      cloudinary.uploader.upload(
+        base64Image,
+        {
+          folder: options.folder || 'shiriki/uploads',
+          public_id: options.publicId || `upload_${Date.now()}`,
+          overwrite: true,
+          transformation: options.transformation || [
+            { quality: 'auto:good' },
+            { fetch_format: 'auto' },
+          ],
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+          } else if (result) {
+            resolve(result);
+          } else {
+            reject(new Error('No result from Cloudinary'));
+          }
+        }
+      );
+    });
+
+    logger.info('Image uploaded successfully to Cloudinary', {
+      folder: options.folder,
+      publicId: result.public_id,
+      url: result.secure_url,
+    });
+
+    return {
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown upload error';
+    logger.error('Failed to upload image to Cloudinary', { folder: options.folder, error: errorMessage });
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
 export { cloudinary };

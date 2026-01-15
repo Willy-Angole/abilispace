@@ -406,6 +406,14 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
     }
   }
 
+  const formatCategory = (category: string) => {
+    // Capitalize first letter of each word
+    return category
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString("en-US", {
@@ -448,6 +456,31 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
         </div>
 
         <Card>
+          {/* Event Poster Image */}
+          {selectedEvent.imageUrl && (
+            <div className="relative w-full h-48 sm:h-64 md:h-80 overflow-hidden rounded-t-lg">
+              <img
+                src={selectedEvent.imageUrl}
+                alt={selectedEvent.imageAlt || `${selectedEvent.title} poster`}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {selectedEvent.registeredCount >= selectedEvent.capacity && (
+                    <Badge variant="destructive">FULL</Badge>
+                  )}
+                  <Badge variant={selectedEvent.eventType === "virtual" ? "secondary" : "default"}>
+                    {getEventTypeLabel(selectedEvent.eventType)}
+                  </Badge>
+                  {selectedEvent.isFeatured && (
+                    <Badge variant="default" className="bg-yellow-500">Featured</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
           <CardHeader>
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="space-y-2">
@@ -456,22 +489,24 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
                   Organized by {selectedEvent.organizerName}
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                {selectedEvent.registeredCount >= selectedEvent.capacity && (
-                  <Badge variant="destructive">
-                    FULL
+              {!selectedEvent.imageUrl && (
+                <div className="flex items-center gap-2">
+                  {selectedEvent.registeredCount >= selectedEvent.capacity && (
+                    <Badge variant="destructive">
+                      FULL
+                    </Badge>
+                  )}
+                  {getEventTypeIcon(selectedEvent.eventType)}
+                  <Badge variant={selectedEvent.eventType === "virtual" ? "secondary" : "default"}>
+                    {getEventTypeLabel(selectedEvent.eventType)}
                   </Badge>
-                )}
-                {getEventTypeIcon(selectedEvent.eventType)}
-                <Badge variant={selectedEvent.eventType === "virtual" ? "secondary" : "default"}>
-                  {getEventTypeLabel(selectedEvent.eventType)}
-                </Badge>
-                {selectedEvent.isFeatured && (
-                  <Badge variant="default" className="bg-yellow-500">
-                    Featured
-                  </Badge>
-                )}
-              </div>
+                  {selectedEvent.isFeatured && (
+                    <Badge variant="default" className="bg-yellow-500">
+                      Featured
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -646,7 +681,7 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.category} value={cat.category}>
-                      {cat.category} ({cat.count})
+                      {formatCategory(cat.category)} ({cat.count})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -784,7 +819,25 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
             </Card>
           ) : (
             events.map((event) => (
-              <Card key={event.id} className="hover:shadow-md transition-shadow">
+              <Card key={event.id} className="hover:shadow-md transition-shadow overflow-hidden">
+                {/* Event Poster Thumbnail */}
+                {event.imageUrl && (
+                  <div className="relative w-full h-32 sm:h-40">
+                    <img
+                      src={event.imageUrl}
+                      alt={event.imageAlt || `${event.title} poster`}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    <div className="absolute bottom-2 right-2 flex gap-1">
+                      {event.isFeatured && (
+                        <Badge variant="default" className="bg-yellow-500 text-xs">
+                          Featured
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <CardHeader>
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div className="space-y-1">
@@ -806,7 +859,7 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
                           FULL
                         </Badge>
                       )}
-                      {event.isFeatured && (
+                      {!event.imageUrl && event.isFeatured && (
                         <Badge variant="default" className="bg-yellow-500">
                           Featured
                         </Badge>

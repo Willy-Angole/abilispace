@@ -1012,6 +1012,147 @@ export async function deleteEvent(adminId: string, eventId: string) {
   });
 }
 
+// Update event
+export interface UpdateEventData {
+  title?: string;
+  description?: string;
+  eventDate?: string;
+  eventTime?: string;
+  endDate?: string;
+  endTime?: string;
+  location?: string;
+  virtualLink?: string;
+  eventType?: 'virtual' | 'in_person' | 'hybrid';
+  category?: string;
+  capacity?: number;
+  organizerName?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  isFeatured?: boolean;
+  isPublished?: boolean;
+}
+
+export async function updateEvent(adminId: string, eventId: string, data: UpdateEventData) {
+  return db.transaction(async (client) => {
+    // Build dynamic update query
+    const updates: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (data.title !== undefined) {
+      updates.push(`title = $${paramIndex++}`);
+      values.push(data.title);
+    }
+    if (data.description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(data.description);
+    }
+    if (data.eventDate !== undefined) {
+      updates.push(`event_date = $${paramIndex++}`);
+      values.push(data.eventDate);
+    }
+    if (data.eventTime !== undefined) {
+      updates.push(`event_time = $${paramIndex++}`);
+      values.push(data.eventTime);
+    }
+    if (data.endDate !== undefined) {
+      updates.push(`end_date = $${paramIndex++}`);
+      values.push(data.endDate || null);
+    }
+    if (data.endTime !== undefined) {
+      updates.push(`end_time = $${paramIndex++}`);
+      values.push(data.endTime || null);
+    }
+    if (data.location !== undefined) {
+      updates.push(`location = $${paramIndex++}`);
+      values.push(data.location || null);
+    }
+    if (data.virtualLink !== undefined) {
+      updates.push(`virtual_link = $${paramIndex++}`);
+      values.push(data.virtualLink || null);
+    }
+    if (data.eventType !== undefined) {
+      updates.push(`event_type = $${paramIndex++}`);
+      values.push(data.eventType);
+    }
+    if (data.category !== undefined) {
+      updates.push(`category = $${paramIndex++}`);
+      values.push(data.category);
+    }
+    if (data.capacity !== undefined) {
+      updates.push(`capacity = $${paramIndex++}`);
+      values.push(data.capacity);
+    }
+    if (data.organizerName !== undefined) {
+      updates.push(`organizer_name = $${paramIndex++}`);
+      values.push(data.organizerName);
+    }
+    if (data.imageUrl !== undefined) {
+      updates.push(`image_url = $${paramIndex++}`);
+      values.push(data.imageUrl || null);
+    }
+    if (data.imageAlt !== undefined) {
+      updates.push(`image_alt = $${paramIndex++}`);
+      values.push(data.imageAlt || null);
+    }
+    if (data.isFeatured !== undefined) {
+      updates.push(`is_featured = $${paramIndex++}`);
+      values.push(data.isFeatured);
+    }
+    if (data.isPublished !== undefined) {
+      updates.push(`is_published = $${paramIndex++}`);
+      values.push(data.isPublished);
+    }
+
+    if (updates.length === 0) {
+      throw new Error('No fields to update');
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(eventId);
+
+    const result = await client.query(
+      `UPDATE events SET ${updates.join(', ')} WHERE id = $${paramIndex} AND deleted_at IS NULL RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Event not found');
+    }
+
+    await client.query(
+      `INSERT INTO admin_audit_logs (admin_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'UPDATE_EVENT', 'events', eventId, `Updated event: ${result.rows[0].title}`]
+    );
+
+    return result.rows[0];
+  });
+}
+
+// Upload event poster image
+export async function updateEventPoster(adminId: string, eventId: string, imageUrl: string, imageAlt?: string) {
+  return db.transaction(async (client) => {
+    const result = await client.query(
+      `UPDATE events SET image_url = $1, image_alt = $2, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $3 AND deleted_at IS NULL RETURNING *`,
+      [imageUrl, imageAlt || null, eventId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Event not found');
+    }
+
+    await client.query(
+      `INSERT INTO admin_audit_logs (admin_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'UPDATE_EVENT_POSTER', 'events', eventId, `Updated poster for event: ${result.rows[0].title}`]
+    );
+
+    return result.rows[0];
+  });
+}
+
 // =============================================================================
 // ARTICLE CREATION
 // =============================================================================
