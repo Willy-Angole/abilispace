@@ -66,7 +66,9 @@ export class EmailService {
             host: config.smtp.host,
             port: config.smtp.port,
             secure: config.smtp.secure,
-            user: config.smtp.user ? config.smtp.user.substring(0, 5) + '***' : 'NOT SET',
+            user: config.smtp.user || 'NOT SET',
+            passwordLength: config.smtp.password ? config.smtp.password.length : 0,
+            passwordFirstChar: config.smtp.password ? config.smtp.password[0] : 'N/A',
             from: config.smtp.from,
         });
     }

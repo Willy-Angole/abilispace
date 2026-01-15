@@ -10927,3 +10927,50 @@
 {"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:47:24"}
 {"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:48:24"}
 {"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:49:24"}
+{"from":"info@abilispace.org","host":"smtpout.secureserver.net","level":"info","message":"Email transporter initialized","port":465,"secure":true,"service":"shiriki-api","timestamp":"2026-01-15 13:50:36","user":"info@***"}
+{"level":"info","message":"Database connection established successfully","service":"shiriki-api","timestamp":"2026-01-15 13:50:48"}
+{"level":"info","message":"Email service connected successfully to smtpout.secureserver.net","service":"shiriki-api","timestamp":"2026-01-15 13:50:52"}
+{"level":"info","message":"Server running on http://0.0.0.0:4000","service":"shiriki-api","timestamp":"2026-01-15 13:50:52"}
+{"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-15 13:50:52"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:51:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:52:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:53:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:54:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:55:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:56:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:57:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:58:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 13:59:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:00:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:01:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:02:29"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:03:29"}
+{"from":"info@abilispace.org","host":"smtpout.secureserver.net","level":"info","message":"Email transporter initialized","port":465,"secure":true,"service":"shiriki-api","timestamp":"2026-01-15 14:04:06","user":"info@***"}
+{"level":"info","message":"Database connection established successfully","service":"shiriki-api","timestamp":"2026-01-15 14:04:09"}
+{"level":"info","message":"Email service connected successfully to smtpout.secureserver.net","service":"shiriki-api","timestamp":"2026-01-15 14:04:13"}
+{"level":"info","message":"Server running on http://0.0.0.0:4000","service":"shiriki-api","timestamp":"2026-01-15 14:04:13"}
+{"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-15 14:04:13"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:05:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:06:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:07:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:08:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:09:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:10:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:11:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:12:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:13:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:14:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:15:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:16:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:17:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:18:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:19:05"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:19:05"}
+{"from":"info@abilispace.org","host":"smtpout.secureserver.net","level":"info","message":"Email transporter initialized","passwordFirstChar":"H","passwordLength":13,"port":465,"secure":true,"service":"shiriki-api","timestamp":"2026-01-15 14:19:45","user":"info@abilispace.org"}
+{"level":"info","message":"Database connection established successfully","service":"shiriki-api","timestamp":"2026-01-15 14:19:50"}
+{"code":"EAUTH","error":"Invalid login: 535 Authentication Failed for info@abilispace.org","host":"smtpout.secureserver.net","level":"error","message":"Email service connection failed","port":465,"service":"shiriki-api","timestamp":"2026-01-15 14:19:54"}
+{"level":"warn","message":"Email service not available - password reset emails will fail","service":"shiriki-api","timestamp":"2026-01-15 14:19:54"}
+{"level":"info","message":"Server running on http://0.0.0.0:4000","service":"shiriki-api","timestamp":"2026-01-15 14:19:54"}
+{"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-15 14:19:54"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:20:44"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:21:44"}
