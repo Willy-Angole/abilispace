@@ -49,6 +49,7 @@ const envSchema = z.object({
     SMTP_SECURE: z.string().transform((val) => val === 'true').default('false'),
     SMTP_USER: z.string().optional(),
     SMTP_PASSWORD: z.string().optional(),
+    SMTP_PASS: z.string().optional(), // Alias for SMTP_PASSWORD
     SMTP_FROM: z.string().email().optional(),
 
     // Password Reset
@@ -150,7 +151,7 @@ export const config = {
         port: env.SMTP_PORT,
         secure: env.SMTP_SECURE,
         user: env.SMTP_USER,
-        password: env.SMTP_PASSWORD,
+        password: env.SMTP_PASSWORD || env.SMTP_PASS, // Support both names
         from: env.SMTP_FROM || 'noreply@abilispace.org',
     },
 
