@@ -11253,3 +11253,14 @@
 {"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-16 08:32:43"}
 {"from":"info@abilispace.org","host":"smtpout.secureserver.net","level":"info","message":"Email transporter initialized","passwordFirstChar":"H","passwordLength":13,"port":465,"secure":true,"service":"shiriki-api","timestamp":"2026-01-16 08:32:47","user":"info@abilispace.org"}
 {"level":"info","message":"Database connection established successfully","service":"shiriki-api","timestamp":"2026-01-16 08:32:51"}
+{"code":"EAUTH","error":"Invalid login: 535 Authentication Failed for info@abilispace.org","host":"smtpout.secureserver.net","level":"error","message":"Email service connection failed","port":465,"service":"shiriki-api","timestamp":"2026-01-16 08:32:55"}
+{"level":"warn","message":"Email service not available - password reset emails will fail","service":"shiriki-api","timestamp":"2026-01-16 08:32:55"}
+{"level":"info","message":"Server running on http://0.0.0.0:4000","service":"shiriki-api","timestamp":"2026-01-16 08:32:55"}
+{"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-16 08:32:55"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 08:33:46"}
+{"from":"info@abilispace.org","host":"smtpout.secureserver.net","level":"info","message":"Email transporter initialized","passwordFirstChar":"H","passwordLength":13,"port":465,"secure":true,"service":"shiriki-api","timestamp":"2026-01-16 08:34:41","user":"info@abilispace.org"}
+{"level":"info","message":"Database connection established successfully","service":"shiriki-api","timestamp":"2026-01-16 08:34:45"}
+{"code":"EAUTH","error":"Invalid login: 535 Authentication Failed for info@abilispace.org","host":"smtpout.secureserver.net","level":"error","message":"Email service connection failed","port":465,"service":"shiriki-api","timestamp":"2026-01-16 08:34:49"}
+{"level":"warn","message":"Email service not available - password reset emails will fail","service":"shiriki-api","timestamp":"2026-01-16 08:34:49"}
+{"level":"info","message":"Server running on http://0.0.0.0:4000","service":"shiriki-api","timestamp":"2026-01-16 08:34:49"}
+{"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-16 08:34:49"}
