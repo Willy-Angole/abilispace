@@ -761,7 +761,7 @@ function EventsTab() {
     setEditEvent({
       title: event.title || '',
       description: event.description || '',
-      eventDate: event.start_date ? new Date(event.start_date).toISOString().split('T')[0] : '',
+      eventDate: event.event_date ? new Date(event.event_date).toISOString().split('T')[0] : '',
       eventTime: event.event_time || '',
       endDate: event.end_date ? new Date(event.end_date).toISOString().split('T')[0] : '',
       endTime: event.end_time || '',
@@ -929,9 +929,17 @@ function EventsTab() {
                       </TableCell>
                       <TableCell>{event.organizer_name || event.organizerName || 'Unknown'}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {event.event_date || event.start_date 
-                          ? new Date(event.event_date || event.start_date).toLocaleDateString()
-                          : 'No date'}
+                        {(() => {
+                          const dateValue = event.event_date;
+                          if (!dateValue) return 'No date';
+                          try {
+                            const date = new Date(dateValue);
+                            if (isNaN(date.getTime())) return 'Invalid Date';
+                            return date.toLocaleDateString();
+                          } catch {
+                            return 'Invalid Date';
+                          }
+                        })()}
                       </TableCell>
                       <TableCell>
                         <span className="font-medium">
