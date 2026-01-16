@@ -820,24 +820,6 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
           ) : (
             events.map((event) => (
               <Card key={event.id} className="hover:shadow-md transition-shadow overflow-hidden">
-                {/* Event Poster Thumbnail */}
-                {event.imageUrl && (
-                  <div className="relative w-full h-32 sm:h-40">
-                    <img
-                      src={event.imageUrl}
-                      alt={event.imageAlt || `${event.title} poster`}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    <div className="absolute bottom-2 right-2 flex gap-1">
-                      {event.isFeatured && (
-                        <Badge variant="default" className="bg-yellow-500 text-xs">
-                          Featured
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                )}
                 <CardHeader>
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div className="space-y-1">
@@ -871,7 +853,27 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+
+                {/* Event Poster - Between title and description */}
+                {event.imageUrl && (
+                  <div className="relative w-full h-40 sm:h-48 mx-auto px-4">
+                    <img
+                      src={event.imageUrl}
+                      alt={event.imageAlt || `${event.title} poster`}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                    <div className="absolute inset-0 mx-4 bg-gradient-to-t from-black/20 to-transparent rounded-lg" />
+                    {event.isFeatured && (
+                      <div className="absolute bottom-2 right-6">
+                        <Badge variant="default" className="bg-yellow-500 text-xs">
+                          Featured
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <CardContent className="pt-4">
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                     {event.description}
                   </p>

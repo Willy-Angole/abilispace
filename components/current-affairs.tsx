@@ -671,7 +671,7 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
             </Card>
           ) : (
             articles.map((article) => (
-              <Card key={article.id} className="hover:shadow-md transition-shadow">
+              <Card key={article.id} className="hover:shadow-md transition-shadow overflow-hidden">
                 <CardHeader>
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div className="space-y-2 flex-1">
@@ -710,7 +710,19 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+
+                {/* Article Poster - Between title and description */}
+                {article.imageUrl && (
+                  <div className="relative w-full h-40 sm:h-48 px-4">
+                    <img
+                      src={article.imageUrl}
+                      alt={`${article.title} image`}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  </div>
+                )}
+
+                <CardContent className="pt-4">
                   <p className="text-sm text-muted-foreground mb-4 leading-relaxed line-clamp-2">
                     {article.summary}
                   </p>
