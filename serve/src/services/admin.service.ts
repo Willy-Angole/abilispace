@@ -416,16 +416,6 @@ export async function getAllEvents(
     { values: eventsParams }
   );
 
-  // Debug: log event dates
-  if (eventsResult.rows.length > 0) {
-    logger.info('Events returned:', eventsResult.rows.map((e: { id: string; title: string; event_date: unknown }) => ({
-      id: e.id,
-      title: e.title,
-      event_date: e.event_date,
-      event_date_type: typeof e.event_date
-    })));
-  }
-
   return {
     events: eventsResult.rows,
     total,
