@@ -8,6 +8,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, extractBearerToken, TokenPayload } from '../utils/jwt';
 import { logger } from '../utils/logger';
+import { updateSessionActivity } from '../services/auth.service';
 
 /**
  * Extended Request interface with user context
@@ -15,6 +16,7 @@ import { logger } from '../utils/logger';
 export interface AuthenticatedRequest extends Request {
     user?: TokenPayload;
     userId?: string;
+    accessToken?: string;
 }
 
 /**
@@ -51,6 +53,10 @@ export function authenticate(
     // Attach user info to request
     req.user = payload;
     req.userId = payload.sub;
+    req.accessToken = token;
+
+    // Update session activity asynchronously (non-blocking)
+    updateSessionActivity(payload.sub, token).catch(() => {});
 
     next();
 }

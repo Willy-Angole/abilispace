@@ -64,6 +64,68 @@ export interface AuthResponse {
 }
 
 /**
+ * Session metadata for tracking online users
+ */
+interface SessionInfo {
+    ipAddress?: string;
+    userAgent?: string;
+}
+
+/**
+ * Create or update user session for online tracking
+ */
+async function upsertUserSession(userId: string, accessToken: string, sessionInfo?: SessionInfo): Promise<void> {
+    try {
+        const tokenHash = hashToken(accessToken);
+        const deviceType = sessionInfo?.userAgent?.includes('Mobile') ? 'mobile' : 'desktop';
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        await db.query(
+            `INSERT INTO user_sessions (user_id, session_token, ip_address, user_agent, device_type, is_active, last_activity_at, expires_at)
+             VALUES ($1, $2, $3, $4, $5, TRUE, CURRENT_TIMESTAMP, $6)
+             ON CONFLICT (session_token) 
+             DO UPDATE SET last_activity_at = CURRENT_TIMESTAMP, is_active = TRUE`,
+            { values: [userId, tokenHash, sessionInfo?.ipAddress || null, sessionInfo?.userAgent || null, deviceType, expiresAt] }
+        );
+    } catch (error) {
+        // Log but don't fail the login if session tracking fails
+        logger.warn('Failed to upsert user session', { userId, error });
+    }
+}
+
+/**
+ * Update user session activity timestamp
+ */
+export async function updateSessionActivity(userId: string, accessToken: string): Promise<void> {
+    try {
+        const tokenHash = hashToken(accessToken);
+        await db.query(
+            `UPDATE user_sessions 
+             SET last_activity_at = CURRENT_TIMESTAMP 
+             WHERE user_id = $1 AND session_token = $2 AND is_active = TRUE`,
+            { values: [userId, tokenHash] }
+        );
+    } catch (error) {
+        logger.warn('Failed to update session activity', { userId, error });
+    }
+}
+
+/**
+ * Deactivate user session on logout
+ */
+export async function deactivateSession(userId: string, accessToken: string): Promise<void> {
+    try {
+        const tokenHash = hashToken(accessToken);
+        await db.query(
+            `UPDATE user_sessions SET is_active = FALSE WHERE user_id = $1 AND session_token = $2`,
+            { values: [userId, tokenHash] }
+        );
+    } catch (error) {
+        logger.warn('Failed to deactivate session', { userId, error });
+    }
+}
+
+/**
  * AuthService - Handles authentication operations
  * 
  * Design Pattern: Service Layer pattern
@@ -79,7 +141,7 @@ export class AuthService {
      * @param input - Registration data
      * @returns Authentication response with tokens
      */
-    async register(input: RegisterInput): Promise<AuthResponse> {
+    async register(input: RegisterInput, sessionInfo?: SessionInfo): Promise<AuthResponse> {
         const {
             email,
             password,
@@ -171,9 +233,10 @@ export class AuthService {
      * Authenticate user and generate tokens
      * 
      * @param input - Login credentials
+     * @param sessionInfo - Optional session metadata for tracking
      * @returns Authentication response with tokens
      */
-    async login(input: LoginInput): Promise<AuthResponse> {
+    async login(input: LoginInput, sessionInfo?: SessionInfo): Promise<AuthResponse> {
         const { email, password } = input;
 
         // Find user by email
@@ -235,6 +298,9 @@ export class AuthService {
             'UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1',
             { values: [user.id] }
         );
+
+        // Track user session for online status
+        await upsertUserSession(user.id, tokens.accessToken, sessionInfo);
 
         // Remove sensitive data
         const { password_hash, ...safeUser } = user;
@@ -463,6 +529,7 @@ export class AuthService {
      * 
      * @param idToken - Google ID token
      * @param additionalInfo - Optional profile info for new users
+     * @param sessionInfo - Optional session metadata for tracking
      * @returns Authentication response with tokens
      */
     async googleAuth(
@@ -474,7 +541,8 @@ export class AuthService {
             accessibilityNeeds?: string;
             communicationPreference?: string;
             emergencyContact?: string;
-        }
+        },
+        sessionInfo?: SessionInfo
     ): Promise<AuthResponse> {
         // Verify Google token
         const googleUser = await this.verifyGoogleToken(idToken);
@@ -524,6 +592,9 @@ export class AuthService {
             'UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1',
             { values: [user.id] }
         );
+
+        // Track user session for online status
+        await upsertUserSession(user.id, tokens.accessToken, sessionInfo);
 
         logger.info('User authenticated via Google', { userId: user.id });
 

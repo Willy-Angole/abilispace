@@ -61,7 +61,11 @@ router.post(
     strictRateLimiter,
     asyncHandler(async (req: Request, res: Response) => {
         const input = loginSchema.parse(req.body);
-        const result = await authService.login(input);
+        const sessionInfo = {
+            ipAddress: req.ip || req.socket.remoteAddress,
+            userAgent: req.get('User-Agent'),
+        };
+        const result = await authService.login(input, sessionInfo);
 
         res.json(result);
     })
@@ -196,7 +200,11 @@ router.post(
     strictRateLimiter,
     asyncHandler(async (req: Request, res: Response) => {
         const { idToken, additionalInfo } = googleAuthSchema.parse(req.body);
-        const result = await authService.googleAuth(idToken, additionalInfo);
+        const sessionInfo = {
+            ipAddress: req.ip || req.socket.remoteAddress,
+            userAgent: req.get('User-Agent'),
+        };
+        const result = await authService.googleAuth(idToken, additionalInfo, sessionInfo);
 
         res.json(result);
     })

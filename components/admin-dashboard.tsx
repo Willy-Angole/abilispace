@@ -927,9 +927,11 @@ function EventsTab() {
                           {event.location}
                         </div>
                       </TableCell>
-                      <TableCell>{event.organizer_name || 'Unknown'}</TableCell>
+                      <TableCell>{event.organizer_name || event.organizerName || 'Unknown'}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(event.start_date).toLocaleDateString()}
+                        {event.event_date || event.start_date 
+                          ? new Date(event.event_date || event.start_date).toLocaleDateString()
+                          : 'No date'}
                       </TableCell>
                       <TableCell>
                         <span className="font-medium">
@@ -1641,144 +1643,6 @@ function EventsTab() {
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-// =============================================================================
-// ANALYTICS TAB
-// =============================================================================
-
-function AnalyticsTab() {
-  const [dailyStats, setDailyStats] = useState<any[]>([]);
-  const [topEvents, setTopEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [statsResult, eventsResult] = await Promise.all([
-          adminApi.getDailyStats(30),
-          adminApi.getTopEvents(5),
-        ]);
-        setDailyStats(statsResult);
-        setTopEvents(eventsResult);
-      } catch (error: any) {
-        toast({
-          title: 'Error',
-          description: error.message || 'Failed to fetch analytics',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [toast]);
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Daily Stats Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Daily Statistics (Last 30 Days)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {dailyStats.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No statistics available yet
-            </p>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">New Users</TableHead>
-                    <TableHead className="text-right">Active Users</TableHead>
-                    <TableHead className="text-right">New Events</TableHead>
-                    <TableHead className="text-right">Registrations</TableHead>
-                    <TableHead className="text-right">Messages</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dailyStats.slice(0, 10).map((stat) => (
-                    <TableRow key={stat.stat_date}>
-                      <TableCell>
-                        {new Date(stat.stat_date).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">{stat.new_users}</TableCell>
-                      <TableCell className="text-right">{stat.active_users}</TableCell>
-                      <TableCell className="text-right">{stat.new_events}</TableCell>
-                      <TableCell className="text-right">{stat.event_registrations}</TableCell>
-                      <TableCell className="text-right">{stat.new_messages}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Top Events */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Top Events by Registrations
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {topEvents.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No events available
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {topEvents.map((event, index) => (
-                <div
-                  key={event.id}
-                  className="flex items-center justify-between p-4 rounded-lg border"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="text-2xl font-bold text-muted-foreground">
-                      #{index + 1}
-                    </div>
-                    <div>
-                      <div className="font-medium">{event.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(event.start_date).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">
-                      {event.registered_count}/{event.capacity}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {event.fill_rate || 0}% filled
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
   );
 }
 
@@ -2625,12 +2489,11 @@ export function AdminDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-6">
+          <TabsList className="grid w-full max-w-xl grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="articles">Articles</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -2653,10 +2516,6 @@ export function AdminDashboard() {
 
           <TabsContent value="articles">
             <ArticlesTab />
-          </TabsContent>
-
-          <TabsContent value="analytics">
-            <AnalyticsTab />
           </TabsContent>
 
           <TabsContent value="settings">

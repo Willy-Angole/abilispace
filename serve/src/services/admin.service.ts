@@ -407,7 +407,7 @@ export async function getAllEvents(
     `SELECT e.*, 
             (SELECT COUNT(*) FROM event_registrations er 
              WHERE er.event_id = e.id AND er.cancelled_at IS NULL)::int as registration_count,
-            u.first_name || ' ' || u.last_name as organizer_name
+            COALESCE(e.organizer_name, u.first_name || ' ' || u.last_name) as organizer_name
      FROM events e
      LEFT JOIN users u ON e.organizer_id = u.id
      WHERE ${whereClause}
@@ -544,9 +544,8 @@ export async function getAllArticles(
   // Get articles
   const articlesParams = [...params, limit, offset];
   const articlesResult = await db.query(
-    `SELECT a.*, u.first_name || ' ' || u.last_name as author_name
+    `SELECT a.*, a.author as author_name
      FROM articles a
-     LEFT JOIN users u ON a.author_id = u.id
      WHERE ${whereClause}
      ORDER BY a.created_at DESC
      LIMIT $${articlesParams.length - 1} OFFSET $${articlesParams.length}`,
