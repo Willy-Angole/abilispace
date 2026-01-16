@@ -10974,3 +10974,79 @@
 {"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-15 14:19:54"}
 {"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:20:44"}
 {"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:21:44"}
+{"from":"info@abilispace.org","host":"smtpout.secureserver.net","level":"info","message":"Email transporter initialized","passwordFirstChar":"H","passwordLength":13,"port":465,"secure":true,"service":"shiriki-api","timestamp":"2026-01-15 14:22:01","user":"info@abilispace.org"}
+{"level":"info","message":"Database connection established successfully","service":"shiriki-api","timestamp":"2026-01-15 14:22:05"}
+{"code":"EAUTH","error":"Invalid login: 535 Authentication Failed for info@abilispace.org","host":"smtpout.secureserver.net","level":"error","message":"Email service connection failed","port":465,"service":"shiriki-api","timestamp":"2026-01-15 14:22:09"}
+{"level":"warn","message":"Email service not available - password reset emails will fail","service":"shiriki-api","timestamp":"2026-01-15 14:22:09"}
+{"level":"info","message":"Server running on http://0.0.0.0:4000","service":"shiriki-api","timestamp":"2026-01-15 14:22:09"}
+{"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-15 14:22:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:22:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:23:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:24:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:25:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:26:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:27:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:28:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:29:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:30:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:31:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 14:32:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 17:33:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 17:33:59"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:08:17"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:08:17"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:09:17"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:10:17"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:11:17"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:12:17"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:13:17"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:14:17"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:15:17"}
+{"from":"info@abilispace.org","host":"smtpout.secureserver.net","level":"info","message":"Email transporter initialized","passwordFirstChar":"H","passwordLength":13,"port":465,"secure":true,"service":"shiriki-api","timestamp":"2026-01-15 22:16:18","user":"info@abilispace.org"}
+{"level":"info","message":"Database connection established successfully","service":"shiriki-api","timestamp":"2026-01-15 22:16:33"}
+{"code":"EAUTH","error":"Invalid login: 535 Authentication Failed for info@abilispace.org","host":"smtpout.secureserver.net","level":"error","message":"Email service connection failed","port":465,"service":"shiriki-api","timestamp":"2026-01-15 22:16:36"}
+{"level":"warn","message":"Email service not available - password reset emails will fail","service":"shiriki-api","timestamp":"2026-01-15 22:16:36"}
+{"level":"info","message":"Server running on http://0.0.0.0:4000","service":"shiriki-api","timestamp":"2026-01-15 22:16:36"}
+{"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-15 22:16:36"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:17:12"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:18:13"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:19:13"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:20:13"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:21:13"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:22:13"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:23:13"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:24:13"}
+{"from":"info@abilispace.org","host":"smtpout.secureserver.net","level":"info","message":"Email transporter initialized","passwordFirstChar":"H","passwordLength":13,"port":465,"secure":true,"service":"shiriki-api","timestamp":"2026-01-15 22:24:32","user":"info@abilispace.org"}
+{"level":"info","message":"Database connection established successfully","service":"shiriki-api","timestamp":"2026-01-15 22:24:36"}
+{"code":"EAUTH","error":"Invalid login: 535 Authentication Failed for info@abilispace.org","host":"smtpout.secureserver.net","level":"error","message":"Email service connection failed","port":465,"service":"shiriki-api","timestamp":"2026-01-15 22:24:41"}
+{"level":"warn","message":"Email service not available - password reset emails will fail","service":"shiriki-api","timestamp":"2026-01-15 22:24:41"}
+{"level":"info","message":"Server running on http://0.0.0.0:4000","service":"shiriki-api","timestamp":"2026-01-15 22:24:41"}
+{"level":"info","message":"Environment: production","service":"shiriki-api","timestamp":"2026-01-15 22:24:41"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:25:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:26:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:27:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:28:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:29:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:30:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:31:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:32:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:33:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:34:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-15 22:35:32"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 01:34:30"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 01:34:30"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 06:52:53"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 06:52:53"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 06:53:53"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 06:54:53"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 06:56:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 06:57:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 06:58:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 06:59:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 07:00:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 07:01:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 07:02:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 07:03:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 07:04:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 07:05:09"}
+{"activeBuckets":0,"level":"debug","message":"Rate limit store cleanup","service":"shiriki-api","timestamp":"2026-01-16 07:06:09"}

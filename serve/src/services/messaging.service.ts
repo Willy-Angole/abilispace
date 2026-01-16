@@ -626,13 +626,20 @@ export class MessagingService {
         // Check for admin_only_messages column separately (may not exist in older schemas)
         let adminOnlyMessages = false;
         try {
-            const adminOnlyResult = await db.query<{ admin_only_messages: boolean }>(
-                `SELECT COALESCE(admin_only_messages, false) as admin_only_messages 
-                 FROM conversations WHERE id = $1`,
-                { values: [conversationId] }
+            // First check if the column exists
+            const columnCheck = await db.query(
+                `SELECT column_name FROM information_schema.columns 
+                 WHERE table_name = 'conversations' AND column_name = 'admin_only_messages'`
             );
-            if (adminOnlyResult.rows[0]) {
-                adminOnlyMessages = adminOnlyResult.rows[0].admin_only_messages;
+            
+            if (columnCheck.rows.length > 0) {
+                const adminOnlyResult = await db.query<{ admin_only_messages: boolean }>(
+                    `SELECT admin_only_messages FROM conversations WHERE id = $1`,
+                    { values: [conversationId] }
+                );
+                if (adminOnlyResult.rows[0]) {
+                    adminOnlyMessages = adminOnlyResult.rows[0].admin_only_messages ?? false;
+                }
             }
         } catch {
             // Column doesn't exist yet, default to false
@@ -772,28 +779,37 @@ export class MessagingService {
         // Check if conversation is admin-only messaging (handle missing column gracefully)
         let isAdminOnlyGroup = false;
         try {
-            const convResult = await db.query<{ is_group: boolean; admin_only_messages: boolean }>(
-                `SELECT is_group, COALESCE(admin_only_messages, false) as admin_only_messages
-                 FROM conversations WHERE id = $1`,
-                { values: [conversationId] }
+            // First check if the column exists
+            const columnCheck = await db.query(
+                `SELECT column_name FROM information_schema.columns 
+                 WHERE table_name = 'conversations' AND column_name = 'admin_only_messages'`
             );
-
-            if (convResult.rows[0]?.admin_only_messages && convResult.rows[0]?.is_group) {
-                // Check if user is admin
-                const adminCheck = await db.query<{ is_admin: boolean }>(
-                    `SELECT is_admin FROM conversation_participants
-                     WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL`,
-                    { values: [conversationId, userId] }
+            
+            if (columnCheck.rows.length > 0) {
+                // Column exists, check if admin-only
+                const convResult = await db.query<{ is_group: boolean; admin_only_messages: boolean }>(
+                    `SELECT is_group, admin_only_messages FROM conversations WHERE id = $1`,
+                    { values: [conversationId] }
                 );
 
-                if (!adminCheck.rows[0]?.is_admin) {
-                    throw Errors.forbidden('Only admins can send messages in this group');
+                if (convResult.rows[0]?.admin_only_messages && convResult.rows[0]?.is_group) {
+                    // Check if user is admin
+                    const adminCheck = await db.query<{ is_admin: boolean }>(
+                        `SELECT is_admin FROM conversation_participants
+                         WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL`,
+                        { values: [conversationId, userId] }
+                    );
+
+                    if (!adminCheck.rows[0]?.is_admin) {
+                        throw Errors.forbidden('Only admins can send messages in this group');
+                    }
                 }
             }
+            // If column doesn't exist, just continue (not an admin-only group)
         } catch (error: any) {
-            // If the column doesn't exist, just continue (not an admin-only group)
+            // Only throw if it's not a column-related error
             if (!error.message?.includes('column') && !error.message?.includes('admin_only_messages')) {
-                throw error; // Re-throw if it's not a column missing error
+                throw error;
             }
         }
 
