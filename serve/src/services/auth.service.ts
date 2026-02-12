@@ -147,12 +147,15 @@ export class AuthService {
             password,
             firstName,
             lastName,
+            gender,
             phone,
             location,
+            accountType,
             disabilityType,
             accessibilityNeeds,
             communicationPreference,
             emergencyContact,
+            careRecipient,
         } = input;
 
         // Check if email already exists (case-insensitive)
@@ -173,10 +176,10 @@ export class AuthService {
             // Insert user
             const userResult = await client.query<User>(
                 `INSERT INTO users (
-                    email, password_hash, first_name, last_name, phone, location,
-                    disability_type, accessibility_needs, communication_preference,
+                    email, password_hash, first_name, last_name, gender, phone, location,
+                    account_type, disability_type, accessibility_needs, communication_preference,
                     emergency_contact
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING id, email, first_name as "firstName", last_name as "lastName",
                     phone, location, disability_type as "disabilityType",
                     communication_preference as "communicationPreference",
@@ -187,8 +190,10 @@ export class AuthService {
                     passwordHash,
                     firstName,
                     lastName,
+                    gender || null,
                     phone || null,
                     location || null,
+                    accountType || 'member',
                     disabilityType || null,
                     accessibilityNeeds || null,
                     communicationPreference || 'email',
@@ -197,6 +202,26 @@ export class AuthService {
             );
 
             const user = userResult.rows[0];
+
+            // If caregiver, insert care recipient
+            if (accountType === 'caregiver' && careRecipient) {
+                await client.query(
+                    `INSERT INTO care_recipients (
+                        caregiver_id, first_name, last_name, gender, relationship,
+                        disability_type, accessibility_needs, date_of_birth
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [
+                        user.id,
+                        careRecipient.firstName,
+                        careRecipient.lastName,
+                        careRecipient.gender || null,
+                        careRecipient.relationship || null,
+                        careRecipient.disabilityType || null,
+                        careRecipient.accessibilityNeeds || null,
+                        careRecipient.dateOfBirth || null,
+                    ]
+                );
+            }
 
             // Create default accessibility settings
             await client.query(

@@ -53,6 +53,29 @@ interface UserDetails {
   created_at: string;
   events_registered: number;
   messages_sent: number;
+  account_type?: string;
+}
+
+interface CareRecipient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  gender: string;
+  relationship: string;
+  disability_type: string;
+  accessibility_needs?: string;
+  date_of_birth?: string;
+}
+
+interface CaregiverDetails {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  is_active: boolean;
+  created_at: string;
+  care_recipients: CareRecipient[];
 }
 
 interface EventDetails {
@@ -259,6 +282,19 @@ export async function toggleUserStatus(userId: string, isActive: boolean): Promi
 
 export async function deleteUser(userId: string): Promise<void> {
   await adminFetch(`/users/${userId}`, { method: 'DELETE' });
+}
+
+export async function getCaregivers(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+} = {}): Promise<PaginatedResponse<CaregiverDetails> & { caregivers: CaregiverDetails[] }> {
+  const query = new URLSearchParams();
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+  if (params.search) query.set('search', params.search);
+  
+  return adminFetch<PaginatedResponse<CaregiverDetails> & { caregivers: CaregiverDetails[] }>(`/caregivers?${query.toString()}`);
 }
 
 // =============================================================================

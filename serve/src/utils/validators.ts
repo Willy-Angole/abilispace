@@ -32,13 +32,33 @@ export const paginationSchema = z.object({
 // Auth Schemas
 // =============================================================================
 
+export const careRecipientSchema = z.object({
+    firstName: z.string().min(1, 'Care recipient first name is required').max(100),
+    lastName: z.string().min(1, 'Care recipient last name is required').max(100),
+    gender: z.string().max(20).optional(),
+    relationship: z.string().max(50).optional(),
+    disabilityType: z.enum([
+        'visual',
+        'hearing',
+        'mobility',
+        'cognitive',
+        'multiple',
+        'other',
+        'prefer_not_to_say'
+    ]).optional(),
+    accessibilityNeeds: z.string().max(1000).optional(),
+    dateOfBirth: z.string().optional(),
+});
+
 export const registerSchema = z.object({
     email: emailSchema,
     password: passwordSchema,
     firstName: z.string().min(1, 'First name is required').max(100),
     lastName: z.string().min(1, 'Last name is required').max(100),
+    gender: z.string().max(20).optional(),
     phone: z.string().max(20).optional(),
     location: z.string().max(255).optional(),
+    accountType: z.enum(['member', 'caregiver']).default('member'),
     disabilityType: z.enum([
         'visual',
         'hearing',
@@ -57,6 +77,7 @@ export const registerSchema = z.object({
         'email'
     ]).optional(),
     emergencyContact: z.string().max(255).optional(),
+    careRecipient: careRecipientSchema.optional(),
 });
 
 export const loginSchema = z.object({

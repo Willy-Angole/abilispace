@@ -279,6 +279,27 @@ router.delete('/users/:id', adminAuth, requireRole('super_admin', 'admin'), asyn
 });
 
 // =============================================================================
+// CAREGIVER MANAGEMENT ROUTES
+// =============================================================================
+
+// Get all caregivers with their care recipients
+router.get('/caregivers', adminAuth, async (req: AdminRequest, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = req.query.search as string;
+
+    const result = await adminService.getCaregivers(page, limit, search);
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch caregivers' });
+  }
+});
+
+// =============================================================================
 // EVENT MANAGEMENT ROUTES
 // =============================================================================
 

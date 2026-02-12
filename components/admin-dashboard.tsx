@@ -516,6 +516,217 @@ function UsersTab() {
 }
 
 // =============================================================================
+// CAREGIVERS TAB
+// =============================================================================
+
+function CaregiversTab() {
+  const [caregivers, setCaregivers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [expandedCaregiver, setExpandedCaregiver] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const fetchCaregivers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await adminApi.getCaregivers({ page, limit: 20, search });
+      setCaregivers(result.caregivers || []);
+      setTotalPages(result.totalPages || 1);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to fetch caregivers',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, toast]);
+
+  useEffect(() => {
+    fetchCaregivers();
+  }, [fetchCaregivers]);
+
+  const toggleExpand = (caregiverId: string) => {
+    setExpandedCaregiver(expandedCaregiver === caregiverId ? null : caregiverId);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Caregivers & Care Recipients</CardTitle>
+        <CardDescription>View caregivers and the people they support</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {/* Search */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search caregivers..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-10"
+            />
+          </div>
+          <Button variant="outline" onClick={fetchCaregivers}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+
+        {/* Caregivers List */}
+        <div className="space-y-4">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <Skeleton className="h-6 w-48 mb-2" />
+                  <Skeleton className="h-4 w-64" />
+                </CardContent>
+              </Card>
+            ))
+          ) : caregivers.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No caregivers found</p>
+              </CardContent>
+            </Card>
+          ) : (
+            caregivers.map((caregiver) => (
+              <Card key={caregiver.id} className="overflow-hidden">
+                <div
+                  className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => toggleExpand(caregiver.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <UserCheck className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">
+                          {caregiver.first_name} {caregiver.last_name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">{caregiver.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={caregiver.is_active ? 'default' : 'secondary'}>
+                        {caregiver.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <Badge variant="outline">
+                        {caregiver.care_recipients?.length || 0} care recipient(s)
+                      </Badge>
+                      <ChevronRight
+                        className={`h-5 w-5 transition-transform ${
+                          expandedCaregiver === caregiver.id ? 'rotate-90' : ''
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expanded Care Recipients */}
+                {expandedCaregiver === caregiver.id && caregiver.care_recipients && (
+                  <div className="border-t bg-muted/30 p-4">
+                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Care Recipients
+                    </h4>
+                    {caregiver.care_recipients.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">No care recipients registered</p>
+                    ) : (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {caregiver.care_recipients.map((recipient: any) => (
+                          <Card key={recipient.id} className="bg-background">
+                            <CardContent className="p-3">
+                              <div className="flex items-start gap-3">
+                                <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                                  <span className="text-xs font-semibold">
+                                    {recipient.first_name?.[0]}{recipient.last_name?.[0]}
+                                  </span>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-sm">
+                                    {recipient.first_name} {recipient.last_name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground capitalize">
+                                    {recipient.relationship?.replace('_', ' ') || 'Relationship not specified'}
+                                  </p>
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {recipient.gender && (
+                                      <Badge variant="outline" className="text-xs capitalize">
+                                        {recipient.gender}
+                                      </Badge>
+                                    )}
+                                    {recipient.disability_type && (
+                                      <Badge variant="outline" className="text-xs capitalize">
+                                        {recipient.disability_type.replace('_', ' ')}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {recipient.accessibility_needs && (
+                                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                                      Needs: {recipient.accessibility_needs}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+                      <p>Joined: {new Date(caregiver.created_at).toLocaleDateString()}</p>
+                      {caregiver.phone && <p>Phone: {caregiver.phone}</p>}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Pagination */}
+        {!loading && caregivers.length > 0 && (
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// =============================================================================
 // EVENTS TAB
 // =============================================================================
 
@@ -2497,9 +2708,10 @@ export function AdminDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full max-w-xl grid-cols-5">
+          <TabsList className="grid w-full max-w-2xl grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="caregivers">Caregivers</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="articles">Articles</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -2516,6 +2728,10 @@ export function AdminDashboard() {
 
           <TabsContent value="users">
             <UsersTab />
+          </TabsContent>
+
+          <TabsContent value="caregivers">
+            <CaregiversTab />
           </TabsContent>
 
           <TabsContent value="events">
@@ -2535,7 +2751,7 @@ export function AdminDashboard() {
       {/* Footer */}
       <footer className="border-t py-4 mt-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Abilispace Admin Dashboard • Last refresh: {new Date().toLocaleTimeString()}</p>
+          <p>Abilispace Admin Dashboard</p>
         </div>
       </footer>
     </div>

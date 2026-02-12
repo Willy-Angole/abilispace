@@ -181,9 +181,9 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     }
   }, [activeConversation?.id])
 
-  // Auto-scroll to bottom only when appropriate
+  // Auto-scroll to bottom only on initial conversation load
   useEffect(() => {
-    if (isInitialLoadRef.current || shouldAutoScrollRef.current) {
+    if (isInitialLoadRef.current) {
       scrollToBottom()
       isInitialLoadRef.current = false
     }

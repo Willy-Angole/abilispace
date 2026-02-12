@@ -95,6 +95,12 @@ CREATE TYPE article_region AS ENUM (
     'local'
 );
 
+-- Account types
+CREATE TYPE account_type AS ENUM (
+    'member',
+    'caregiver'
+);
+
 -- =============================================================================
 -- CORE TABLES
 -- =============================================================================
@@ -108,8 +114,10 @@ CREATE TABLE users (
     avatar_url VARCHAR(500),                           -- Profile picture URL
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
+    gender VARCHAR(20),
     phone VARCHAR(20),
     location VARCHAR(255),
+    account_type account_type DEFAULT 'member',
     disability_type disability_type,
     accessibility_needs TEXT,
     communication_preference communication_preference DEFAULT 'email',
@@ -123,6 +131,24 @@ CREATE TABLE users (
     -- Ensure at least one auth method exists
     CONSTRAINT auth_method_required CHECK (password_hash IS NOT NULL OR google_id IS NOT NULL)
 );
+
+-- Care recipients table (for caregivers)
+CREATE TABLE care_recipients (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    caregiver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    gender VARCHAR(20),
+    relationship VARCHAR(50),
+    disability_type disability_type,
+    accessibility_needs TEXT,
+    date_of_birth DATE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for faster lookups
+CREATE INDEX idx_care_recipients_caregiver_id ON care_recipients(caregiver_id);
 
 -- User accessibility preferences (for UI customization)
 CREATE TABLE user_accessibility_settings (

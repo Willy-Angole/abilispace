@@ -367,6 +367,92 @@ export async function deleteUser(adminId: string, userId: string) {
   });
 }
 
+// Caregiver Management
+interface CareRecipient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  gender: string;
+  relationship: string;
+  disability_type: string;
+  accessibility_needs?: string;
+  date_of_birth?: string;
+}
+
+interface CaregiverDetails {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  is_active: boolean;
+  created_at: string;
+  care_recipients: CareRecipient[];
+}
+
+export async function getCaregivers(
+  page: number = 1,
+  limit: number = 20,
+  search?: string
+): Promise<{ caregivers: CaregiverDetails[]; total: number; page: number; totalPages: number }> {
+  const offset = (page - 1) * limit;
+  
+  let whereClause = "u.deleted_at IS NULL AND u.account_type = 'caregiver'";
+  const params: unknown[] = [];
+  
+  if (search) {
+    params.push(`%${search}%`);
+    whereClause += ` AND (u.email ILIKE $${params.length} OR u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length})`;
+  }
+
+  // Get total count
+  const countResult = await db.query(
+    `SELECT COUNT(*) as total FROM users u WHERE ${whereClause}`,
+    { values: params }
+  );
+  const total = parseInt(countResult.rows[0].total);
+
+  // Get caregivers
+  const caregiversParams = [...params, limit, offset];
+  const caregiversResult = await db.query<Omit<CaregiverDetails, 'care_recipients'>>(
+    `SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.is_active, u.created_at
+     FROM users u
+     WHERE ${whereClause}
+     ORDER BY u.created_at DESC
+     LIMIT $${caregiversParams.length - 1} OFFSET $${caregiversParams.length}`,
+    { values: caregiversParams }
+  );
+
+  // Get care recipients for each caregiver
+  const caregivers: CaregiverDetails[] = [];
+  for (const caregiver of caregiversResult.rows) {
+    const recipientsResult = await db.query<CareRecipient>(
+      `SELECT id, first_name, last_name, gender, relationship, disability_type, accessibility_needs, date_of_birth
+       FROM care_recipients
+       WHERE caregiver_id = $1`,
+      { values: [caregiver.id] }
+    );
+    
+    caregivers.push({
+      id: caregiver.id,
+      email: caregiver.email,
+      first_name: caregiver.first_name,
+      last_name: caregiver.last_name,
+      phone: caregiver.phone,
+      is_active: caregiver.is_active,
+      created_at: caregiver.created_at,
+      care_recipients: recipientsResult.rows
+    });
+  }
+
+  return {
+    caregivers,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit)
+  };
+}
+
 // Event Management
 export async function getAllEvents(
   page: number = 1,
