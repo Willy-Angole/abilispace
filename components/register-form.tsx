@@ -82,6 +82,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
       if (!formData.careRecipientFirstName) missingFields.push("Care Recipient First Name")
       if (!formData.careRecipientLastName) missingFields.push("Care Recipient Last Name")
       if (!formData.careRecipientGender) missingFields.push("Care Recipient Gender")
+      if (!formData.careRecipientDateOfBirth) missingFields.push("Care Recipient Date of Birth")
       if (!formData.careRecipientRelationship) missingFields.push("Relationship to Care Recipient")
       if (!formData.careRecipientDisabilityType) missingFields.push("Care Recipient Disability Type")
     }
@@ -322,14 +323,11 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                     <SelectContent>
                       <SelectItem value="member">Person with disability</SelectItem>
                       <SelectItem value="caregiver">Caregiver</SelectItem>
-                      <SelectItem value="organization">Organization / Service Provider</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     {formData.accountType === "caregiver" 
                       ? "Caregivers can assist and support members with disabilities in using the platform"
-                      : formData.accountType === "organization"
-                      ? "Organizations can create and manage accessible events for the community"
                       : "Members can discover events, connect with peers, and access community resources"
                     }
                   </p>
@@ -386,10 +384,11 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="careRecipientDateOfBirth">Date of Birth (Optional)</Label>
+                      <Label htmlFor="careRecipientDateOfBirth">Date of Birth *</Label>
                       <Input
                         id="careRecipientDateOfBirth"
                         type="date"
+                        required
                         value={formData.careRecipientDateOfBirth}
                         onChange={(e) => setFormData((prev) => ({ ...prev, careRecipientDateOfBirth: e.target.value }))}
                       />
