@@ -27,8 +27,10 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
     email: "",
     password: "",
     confirmPassword: "",
+    gender: "",
     phone: "",
     location: "",
+    accountType: "member",
     disabilityType: "",
     accessibilityNeeds: "",
     communicationPreference: "",
@@ -56,6 +58,23 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
       return
     }
 
+    // Validate required fields
+    const missingFields = []
+    if (!formData.gender) missingFields.push("Gender")
+    if (!formData.disabilityType) missingFields.push("Disability Type")
+    if (!formData.phone) missingFields.push("Phone Number")
+    if (!formData.emergencyContact) missingFields.push("Emergency Contact")
+    
+    if (missingFields.length > 0) {
+      toast({
+        title: "Required Fields Missing",
+        description: `Please fill in the following required fields: ${missingFields.join(", ")}.`,
+        variant: "destructive",
+      })
+      setIsSubmitting(false)
+      return
+    }
+
     if (!formData.agreeToTerms || !formData.agreeToAccessibility) {
       const missing = []
       if (!formData.agreeToTerms) missing.push("Terms of Service and Privacy Policy")
@@ -76,12 +95,14 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        phone: formData.phone || undefined,
+        gender: formData.gender,
+        phone: formData.phone,
         location: formData.location || undefined,
-        disabilityType: formData.disabilityType || undefined,
+        accountType: formData.accountType,
+        disabilityType: formData.disabilityType,
         accessibilityNeeds: formData.accessibilityNeeds || undefined,
         communicationPreference: formData.communicationPreference || undefined,
-        emergencyContact: formData.emergencyContact || undefined,
+        emergencyContact: formData.emergencyContact,
       })
 
       if (response.success && response.user) {
@@ -165,6 +186,22 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="gender">Gender *</Label>
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, gender: value }))}
+                  >
+                    <SelectTrigger id="gender">
+                      <SelectValue placeholder="Select your gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="email">Email Address *</Label>
                   <Input
                     id="email"
@@ -235,6 +272,39 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                 </div>
               </fieldset>
 
+              {/* Account Type */}
+              <fieldset className="space-y-4">
+                <legend className="text-lg font-semibold">Account Type</legend>
+                <p className="text-sm text-muted-foreground">
+                  Select the type of account you want to create
+                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="accountType">I am registering as *</Label>
+                  <Select
+                    value={formData.accountType}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, accountType: value }))}
+                  >
+                    <SelectTrigger id="accountType">
+                      <SelectValue placeholder="Select account type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Person with disability</SelectItem>
+                      <SelectItem value="caregiver">Caregiver</SelectItem>
+                      <SelectItem value="organization">Organization / Service Provider</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.accountType === "caregiver" 
+                      ? "Caregivers can assist and support members with disabilities in using the platform"
+                      : formData.accountType === "organization"
+                      ? "Organizations can create and manage accessible events for the community"
+                      : "Members can discover events, connect with peers, and access community resources"
+                    }
+                  </p>
+                </div>
+              </fieldset>
+
               {/* Accessibility Information */}
               <fieldset className="space-y-4">
                 <legend className="text-lg font-semibold">Accessibility Information</legend>
@@ -243,13 +313,13 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                 </p>
 
                 <div className="space-y-2">
-                  <Label htmlFor="disabilityType">Disability Type (Optional)</Label>
+                  <Label htmlFor="disabilityType">Disability Type *</Label>
                   <Select
                     value={formData.disabilityType}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, disabilityType: value }))}
                   >
                     <SelectTrigger id="disabilityType">
-                      <SelectValue placeholder="Select if you'd like to share" />
+                      <SelectValue placeholder="Select your disability type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="visual">Visual impairment</SelectItem>
@@ -314,20 +384,26 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+                  <Label htmlFor="phone">Phone Number *</Label>
                   <Input
                     id="phone"
                     type="tel"
+                    required
                     value={formData.phone}
                     onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                    aria-describedby="phone-help"
                   />
+                  <p id="phone-help" className="text-xs text-muted-foreground">
+                    We'll use this to contact you about events and important updates
+                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="emergencyContact">Emergency Contact (Optional)</Label>
+                  <Label htmlFor="emergencyContact">Emergency Contact *</Label>
                   <Input
                     id="emergencyContact"
                     type="text"
+                    required
                     placeholder="Name and phone number"
                     value={formData.emergencyContact}
                     onChange={(e) => setFormData((prev) => ({ ...prev, emergencyContact: e.target.value }))}

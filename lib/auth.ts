@@ -35,8 +35,10 @@ export interface User {
     email: string;
     firstName: string;
     lastName: string;
+    gender?: string;
     phone?: string;
     location?: string;
+    accountType?: string;
     disabilityType?: string;
     accessibilityNeeds?: string;
     communicationPreference?: string;
@@ -55,12 +57,14 @@ export interface RegisterInput {
     password: string;
     firstName: string;
     lastName: string;
-    phone?: string;
+    gender: string;
+    phone: string;
     location?: string;
-    disabilityType?: string;
+    accountType: string;
+    disabilityType: string;
     accessibilityNeeds?: string;
     communicationPreference?: string;
-    emergencyContact?: string;
+    emergencyContact: string;
 }
 
 /**
