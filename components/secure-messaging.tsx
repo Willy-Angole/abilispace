@@ -111,11 +111,14 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const typingPollingRef = useRef<NodeJS.Timeout | null>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastMessageCountRef = useRef<number>(0)
   const lastConversationUnreadRef = useRef<number>(0)
+  const shouldAutoScrollRef = useRef<boolean>(true)
+  const isInitialLoadRef = useRef<boolean>(true)
   const { toast } = useToast()
   
   // Typing indicator state
@@ -171,14 +174,19 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
   // Load messages when conversation changes
   useEffect(() => {
     if (activeConversation) {
+      isInitialLoadRef.current = true
+      shouldAutoScrollRef.current = true
       loadMessages(activeConversation.id)
       markAsRead(activeConversation.id)
     }
   }, [activeConversation?.id])
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom only when appropriate
   useEffect(() => {
-    scrollToBottom()
+    if (isInitialLoadRef.current || shouldAutoScrollRef.current) {
+      scrollToBottom()
+      isInitialLoadRef.current = false
+    }
   }, [messages])
 
   // Search users with debounce
@@ -266,7 +274,20 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
   }
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
+  }
+
+  // Check if user is near the bottom of the message container
+  const isNearBottom = () => {
+    const container = messagesContainerRef.current
+    if (!container) return true
+    const threshold = 150 // pixels from bottom
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold
+  }
+
+  // Handle scroll to track if user has scrolled up
+  const handleMessagesScroll = () => {
+    shouldAutoScrollRef.current = isNearBottom()
   }
 
   const playNotificationSound = () => {
@@ -363,6 +384,8 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     if (!newMessage.trim() || !activeConversation) return
 
     setIsSending(true)
+    // Force scroll to bottom when sending a message
+    shouldAutoScrollRef.current = true
     try {
       const response = await messagingApi.sendMessage({
         conversationId: activeConversation.id,
@@ -375,6 +398,8 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
         setNewMessage("")
         setReplyTo(null)
         playNotificationSound()
+        // Scroll to bottom after sending
+        setTimeout(() => scrollToBottom(), 50)
       } else {
         toast({
           title: "Error",
@@ -1293,7 +1318,11 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
               </CardHeader>
 
               {/* Messages */}
-              <CardContent className="flex-1 overflow-y-auto p-3 sm:p-4">
+              <CardContent 
+                ref={messagesContainerRef}
+                onScroll={handleMessagesScroll}
+                className="flex-1 overflow-y-auto p-3 sm:p-4"
+              >
                 {isLoadingMessages ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin" />

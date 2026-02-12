@@ -37,6 +37,14 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
     emergencyContact: "",
     agreeToTerms: false,
     agreeToAccessibility: false,
+    // Care recipient fields (for caregivers)
+    careRecipientFirstName: "",
+    careRecipientLastName: "",
+    careRecipientGender: "",
+    careRecipientRelationship: "",
+    careRecipientDisabilityType: "",
+    careRecipientAccessibilityNeeds: "",
+    careRecipientDateOfBirth: "",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -61,9 +69,22 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
     // Validate required fields
     const missingFields = []
     if (!formData.gender) missingFields.push("Gender")
-    if (!formData.disabilityType) missingFields.push("Disability Type")
     if (!formData.phone) missingFields.push("Phone Number")
     if (!formData.emergencyContact) missingFields.push("Emergency Contact")
+    
+    // For non-caregivers, disability type is required
+    if (formData.accountType !== "caregiver" && !formData.disabilityType) {
+      missingFields.push("Disability Type")
+    }
+    
+    // For caregivers, validate care recipient fields
+    if (formData.accountType === "caregiver") {
+      if (!formData.careRecipientFirstName) missingFields.push("Care Recipient First Name")
+      if (!formData.careRecipientLastName) missingFields.push("Care Recipient Last Name")
+      if (!formData.careRecipientGender) missingFields.push("Care Recipient Gender")
+      if (!formData.careRecipientRelationship) missingFields.push("Relationship to Care Recipient")
+      if (!formData.careRecipientDisabilityType) missingFields.push("Care Recipient Disability Type")
+    }
     
     if (missingFields.length > 0) {
       toast({
@@ -99,10 +120,20 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
         phone: formData.phone,
         location: formData.location || undefined,
         accountType: formData.accountType,
-        disabilityType: formData.disabilityType,
+        disabilityType: formData.disabilityType || undefined,
         accessibilityNeeds: formData.accessibilityNeeds || undefined,
         communicationPreference: formData.communicationPreference || undefined,
         emergencyContact: formData.emergencyContact,
+        // Care recipient data (for caregivers)
+        careRecipient: formData.accountType === "caregiver" ? {
+          firstName: formData.careRecipientFirstName,
+          lastName: formData.careRecipientLastName,
+          gender: formData.careRecipientGender,
+          relationship: formData.careRecipientRelationship,
+          disabilityType: formData.careRecipientDisabilityType,
+          accessibilityNeeds: formData.careRecipientAccessibilityNeeds || undefined,
+          dateOfBirth: formData.careRecipientDateOfBirth || undefined,
+        } : undefined,
       })
 
       if (response.success && response.user) {
@@ -305,7 +336,124 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                 </div>
               </fieldset>
 
+              {/* Care Recipient Information (for caregivers only) */}
+              {formData.accountType === "caregiver" && (
+                <fieldset className="space-y-4 border-l-4 border-primary pl-4 bg-muted/30 p-4 rounded-r-lg">
+                  <legend className="text-lg font-semibold">Care Recipient Information</legend>
+                  <p className="text-sm text-muted-foreground">
+                    Please provide information about the person you are caring for
+                  </p>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="careRecipientFirstName">First Name *</Label>
+                      <Input
+                        id="careRecipientFirstName"
+                        type="text"
+                        required
+                        value={formData.careRecipientFirstName}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, careRecipientFirstName: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="careRecipientLastName">Last Name *</Label>
+                      <Input
+                        id="careRecipientLastName"
+                        type="text"
+                        required
+                        value={formData.careRecipientLastName}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, careRecipientLastName: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="careRecipientGender">Gender *</Label>
+                      <Select
+                        value={formData.careRecipientGender}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, careRecipientGender: value }))}
+                      >
+                        <SelectTrigger id="careRecipientGender">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="careRecipientDateOfBirth">Date of Birth (Optional)</Label>
+                      <Input
+                        id="careRecipientDateOfBirth"
+                        type="date"
+                        value={formData.careRecipientDateOfBirth}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, careRecipientDateOfBirth: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="careRecipientRelationship">Your Relationship to Them *</Label>
+                    <Select
+                      value={formData.careRecipientRelationship}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, careRecipientRelationship: value }))}
+                    >
+                      <SelectTrigger id="careRecipientRelationship">
+                        <SelectValue placeholder="Select your relationship" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="parent">Parent</SelectItem>
+                        <SelectItem value="child">Child</SelectItem>
+                        <SelectItem value="spouse">Spouse/Partner</SelectItem>
+                        <SelectItem value="sibling">Sibling</SelectItem>
+                        <SelectItem value="grandparent">Grandparent</SelectItem>
+                        <SelectItem value="relative">Other Relative</SelectItem>
+                        <SelectItem value="friend">Friend</SelectItem>
+                        <SelectItem value="professional">Professional Caregiver</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="careRecipientDisabilityType">Their Disability Type *</Label>
+                    <Select
+                      value={formData.careRecipientDisabilityType}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, careRecipientDisabilityType: value }))}
+                    >
+                      <SelectTrigger id="careRecipientDisabilityType">
+                        <SelectValue placeholder="Select disability type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="visual">Visual impairment</SelectItem>
+                        <SelectItem value="hearing">Hearing impairment</SelectItem>
+                        <SelectItem value="mobility">Mobility impairment</SelectItem>
+                        <SelectItem value="cognitive">Cognitive disability</SelectItem>
+                        <SelectItem value="multiple">Multiple disabilities</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="careRecipientAccessibilityNeeds">Their Accessibility Needs (Optional)</Label>
+                    <Textarea
+                      id="careRecipientAccessibilityNeeds"
+                      placeholder="e.g., Sign language interpretation, wheelchair access, large print materials..."
+                      value={formData.careRecipientAccessibilityNeeds}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, careRecipientAccessibilityNeeds: e.target.value }))}
+                      rows={3}
+                    />
+                  </div>
+                </fieldset>
+              )}
+
               {/* Accessibility Information */}
+              {formData.accountType !== "caregiver" && (
               <fieldset className="space-y-4">
                 <legend className="text-lg font-semibold">Accessibility Information</legend>
                 <p className="text-sm text-muted-foreground">
@@ -363,6 +511,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                   </Select>
                 </div>
               </fieldset>
+              )}
 
               {/* Contact Information */}
               <fieldset className="space-y-4">

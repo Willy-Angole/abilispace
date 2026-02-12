@@ -50,6 +50,19 @@ export interface User {
 }
 
 /**
+ * Care recipient information (for caregiver accounts)
+ */
+export interface CareRecipientInput {
+    firstName: string;
+    lastName: string;
+    gender: string;
+    relationship: string;
+    disabilityType: string;
+    accessibilityNeeds?: string;
+    dateOfBirth?: string;
+}
+
+/**
  * Registration input
  */
 export interface RegisterInput {
@@ -61,10 +74,11 @@ export interface RegisterInput {
     phone: string;
     location?: string;
     accountType: string;
-    disabilityType: string;
+    disabilityType?: string;
     accessibilityNeeds?: string;
     communicationPreference?: string;
     emergencyContact: string;
+    careRecipient?: CareRecipientInput;
 }
 
 /**
