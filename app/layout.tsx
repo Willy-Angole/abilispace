@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { AccessibilityProvider } from "@/components/accessibility-provider"
 import { OfflineProvider, OfflineIndicator } from "@/components/offline-manager"
+import { DataSaverProvider } from "@/components/data-saver-mode"
 import { SkipLinks } from "@/components/skip-links"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
@@ -56,17 +57,19 @@ export default function RootLayout({
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <AccessibilityProvider>
-          <OfflineProvider>
-            <SkipLinks
-              links={[
-                { id: "main-content", label: "Skip to main content" },
-                { id: "navigation", label: "Skip to navigation" },
-              ]}
-            />
-            <OfflineIndicator />
-            {children}
-            <Toaster />
-          </OfflineProvider>
+          <DataSaverProvider>
+            <OfflineProvider>
+              <SkipLinks
+                links={[
+                  { id: "main-content", label: "Skip to main content" },
+                  { id: "navigation", label: "Skip to navigation" },
+                ]}
+              />
+              <OfflineIndicator />
+              {children}
+              <Toaster />
+            </OfflineProvider>
+          </DataSaverProvider>
         </AccessibilityProvider>
       </body>
     </html>

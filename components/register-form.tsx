@@ -456,7 +456,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
               <fieldset className="space-y-4">
                 <legend className="text-lg font-semibold">Accessibility Information</legend>
                 <p className="text-sm text-muted-foreground">
-                  This information helps us provide better support and connect you with relevant events
+                  This information helps us provide better support an    d connect you with relevant events
                 </p>
 
                 <div className="space-y-2">

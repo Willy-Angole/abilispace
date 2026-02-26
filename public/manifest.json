@@ -12,13 +12,13 @@
   "categories": ["social", "lifestyle", "news"],
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "/new-logo.jpeg",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/logo.png",
+      "src": "/new-logo.jpeg",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -47,7 +47,7 @@
       "icons": [{ "src": "/icon-events.png", "sizes": "96x96" }]
     },
     {
-      "name": "News",
+      "src": "/new-logo.jpeg",
       "short_name": "News",
       "description": "Read current affairs",
       "url": "/?tab=news",

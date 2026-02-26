@@ -185,7 +185,7 @@ export class EmailService {
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">✨ Abilispace</div>
+            <div class="logo"><img src="https://yourdomain.com/new-logo.jpeg" alt="Abilispace" height="40" style="height:40px;max-width:180px;display:inline-block;vertical-align:middle;" /></div>
             <p>Inclusive Community Platform</p>
         </div>
         
@@ -336,7 +336,7 @@ This is an automated message from Abilispace.
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">✨ Abilispace</div>
+            <div class="logo"><img src="https://yourdomain.com/new-logo.jpeg" alt="Abilispace" height="40" style="height:40px;max-width:180px;display:inline-block;vertical-align:middle;" /></div>
             <p>Inclusive Community Platform</p>
         </div>
         

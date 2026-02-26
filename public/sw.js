@@ -259,8 +259,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "Abilispace", {
       body: data.body || "New notification",
-      icon: "/logo.png",
-      badge: "/logo.png",
+      icon: "/new-logo.jpeg",
+      badge: "/new-logo.jpeg",
       tag: data.tag || "default",
       data: data.data,
     })

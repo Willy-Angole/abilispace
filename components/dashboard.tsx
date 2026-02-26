@@ -13,11 +13,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Calendar, MessageSquare, Newspaper, Settings, LogOut, User, Bell, Pencil, Menu, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { Calendar, MessageSquare, Newspaper, Settings, LogOut, User, Bell, Pencil, Menu, ChevronLeft, ChevronRight, X, Wifi } from "lucide-react"
 import { EventDiscovery } from "@/components/event-discovery"
 import { SecureMessaging } from "@/components/secure-messaging"
 import { CurrentAffairs } from "@/components/current-affairs"
 import { ProfileEdit } from "@/components/profile-edit"
+import { DataSaverSettings, ConnectionIndicator } from "@/components/data-saver-mode"
 import { type User as UserType } from "@/lib/auth"
 import { getUnreadCounts } from "@/lib/messaging"
 import Image from "next/image"
@@ -146,7 +147,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
               <SheetContent side="left" className="w-72 p-0">
                 <SheetHeader className="p-4 border-b">
                   <SheetTitle className="flex items-center gap-2">
-                    <Image src="/logo.png" height={24} width={72} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} />
+                    <Image src="/new-logo.jpeg" height={24} width={72} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} />
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="p-4 space-y-2" aria-label="Mobile navigation">
@@ -174,7 +175,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
             </Sheet>
 
             <div className="flex flex-col">
-              <Image src="/logo.png" height={30} width={90} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} />
+              <Image src="/new-logo.jpeg" height={30} width={90} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} />
               <p className="text-xs text-muted-foreground mt-1">
                 Welcome, {currentUser.firstName}
               </p>
@@ -420,6 +421,9 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                         )}
                       </CardContent>
                     </Card>
+
+                    {/* Data Saver & Offline Settings */}
+                    <DataSaverSettings />
                   </>
                 )}
               </div>
