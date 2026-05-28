@@ -14,7 +14,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 20
+        value: 22
       - key: NEXT_PUBLIC_API_URL
         sync: false # Set manually in Render dashboard
       - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
@@ -36,7 +36,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 20
+        value: 22
       - key: PORT
         value: 4000
       - key: HOST
