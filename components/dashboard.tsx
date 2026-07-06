@@ -13,12 +13,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Calendar, MessageSquare, Newspaper, Settings, LogOut, User, Bell, Pencil, Menu, ChevronLeft, ChevronRight, X, Wifi } from "lucide-react"
+import { Calendar, MessageSquare, Newspaper, LogOut, User, Pencil, Menu, ChevronLeft, ChevronRight, X, BookOpen } from "lucide-react"
 import { EventDiscovery } from "@/components/event-discovery"
 import { SecureMessaging } from "@/components/secure-messaging"
 import { CurrentAffairs } from "@/components/current-affairs"
 import { ProfileEdit } from "@/components/profile-edit"
-import { DataSaverSettings, ConnectionIndicator } from "@/components/data-saver-mode"
+import { Resources } from "@/components/resources"
+import { DataSaverSettings } from "@/components/data-saver-mode"
+import { LanguageSwitcher, useLanguage } from "@/components/language-provider"
+import { Chatbot } from "@/components/chatbot"
+import { SiteFooter } from "@/components/site-footer"
 import { type User as UserType } from "@/lib/auth"
 import { getUnreadCounts } from "@/lib/messaging"
 import Image from "next/image"
@@ -31,12 +35,13 @@ interface DashboardProps {
 }
 
 export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<"events" | "news" | "messages" | "profile">("messages")
+  const [activeTab, setActiveTab] = useState<"events" | "news" | "messages" | "profile" | "resources">("messages")
   const [currentUser, setCurrentUser] = useState<UserType>(user)
   const [isEditing, setIsEditing] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isNavCollapsed, setIsNavCollapsed] = useState(false)
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
+  const { t } = useLanguage()
 
   // Fetch unread message count
   useEffect(() => {
@@ -70,16 +75,17 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
   }
 
   // Handle tab selection (closes mobile nav)
-  const handleTabSelect = (tab: "events" | "news" | "messages" | "profile") => {
+  const handleTabSelect = (tab: "events" | "news" | "messages" | "profile" | "resources") => {
     setActiveTab(tab)
     setIsMobileNavOpen(false)
   }
 
   // Navigation items configuration
   const navItems = [
-    { id: "messages" as const, label: "Messages", icon: MessageSquare, badge: unreadCount },
-    { id: "news" as const, label: "Current Affairs", icon: Newspaper },
-    { id: "events" as const, label: "Events", icon: Calendar },
+    { id: "messages" as const, label: t("messages"), icon: MessageSquare, badge: unreadCount },
+    { id: "news" as const, label: t("news"), icon: Newspaper },
+    { id: "events" as const, label: t("events"), icon: Calendar },
+    { id: "resources" as const, label: t("resources"), icon: BookOpen },
   ]
 
   // Handle user profile update
@@ -141,13 +147,13 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
-                  <span className="sr-only">Open navigation menu</span>
+                  <span className="sr-only">{t("openMenu")}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-0">
                 <SheetHeader className="p-4 border-b">
                   <SheetTitle className="flex items-center gap-2">
-                    <Image src="/new-logo.png" height={24} width={72} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} />
+                    <Image src="/new-logo.png" height={24} width={72} alt="Abilispace" style={{ width: "auto", height: "auto" }} />
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="p-4 space-y-2" aria-label="Mobile navigation">
@@ -174,16 +180,38 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
               </SheetContent>
             </Sheet>
 
-            <div className="flex flex-col">
-              <Image src="/new-logo.png" height={30} width={90} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} />
-              <p className="text-xs text-muted-foreground mt-1">
-                Welcome, {currentUser.firstName}
-              </p>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Image src="/new-logo.png" height={30} width={90} alt="Abilispace" style={{ width: "auto", height: "auto" }} />
+              {/* Divider */}
+              <div className="h-7 w-px bg-border shrink-0" aria-hidden="true" />
+              {/* GDA logo */}
+              <a
+                href="https://grassrootsdisability.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 group shrink-0"
+                aria-label="Grassroots Disability Agenda website"
+              >
+                <Image
+                  src="/gda-logo.svg"
+                  height={24}
+                  width={44}
+                  alt="GDA"
+                  aria-hidden="true"
+                  className="object-contain opacity-90 group-hover:opacity-100 transition-opacity"
+                  style={{ height: 24, width: "auto" }}
+                />
+                <span className="text-[11px] font-medium text-muted-foreground group-hover:text-primary transition-colors hidden md:block truncate">
+                  Grassroots Disability Agenda
+                </span>
+              </a>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+          <LanguageSwitcher className="hidden sm:flex" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
+              <Button
                 variant="ghost"
                 size="icon"
                 className="relative rounded-full h-10 w-10 p-0 hover:ring-2 hover:ring-primary/20 transition-all"
@@ -203,23 +231,24 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 <p className="text-xs text-muted-foreground truncate">{currentUser.email}</p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => setActiveTab("profile")}
                 className="cursor-pointer"
               >
                 <User className="h-4 w-4 mr-2" />
-                Profile
+                {t("profile")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={onLogout}
                 className="cursor-pointer text-destructive focus:text-destructive"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+                {t("signOut")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
       </header>
 
@@ -239,7 +268,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
             <Card>
               <CardHeader className={cn("pb-2", isNavCollapsed && "px-2")}>
                 <div className="flex items-center justify-between">
-                  {!isNavCollapsed && <CardTitle className="text-lg">Navigation</CardTitle>}
+                  {!isNavCollapsed && <CardTitle className="text-lg">{t("navigation")}</CardTitle>}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -290,9 +319,11 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
 
             {activeTab === "news" && <CurrentAffairs user={user} />}
 
+            {activeTab === "resources" && <Resources />}
+
             {activeTab === "messages" && (
-              <SecureMessaging 
-                user={user} 
+              <SecureMessaging
+                user={user}
                 onUnreadCountChange={setUnreadCount}
               />
             )}
@@ -431,6 +462,11 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
           </main>
         </div>
       </div>
+
+      <SiteFooter />
+
+      {/* Floating chatbot — sits above the accessibility button */}
+      <Chatbot />
     </div>
   )
 }

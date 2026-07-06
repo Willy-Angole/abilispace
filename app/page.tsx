@@ -1,254 +1,198 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Calendar, MessageSquare, Newspaper, Accessibility } from "lucide-react"
-import { RegisterForm } from "@/components/register-form"
-import { LoginForm } from "@/components/login-form"
-import { ForgotPasswordForm } from "@/components/forgot-password-form"
-import { VerifyCodeForm } from "@/components/verify-code-form"
-import { ResetPasswordForm } from "@/components/reset-password-form"
-import { Dashboard } from "@/components/dashboard"
 import { AccessibilityFloatingButton } from "@/components/accessibility-provider"
+import { LanguageSwitcher, useLanguage } from "@/components/language-provider"
+import { SiteFooter } from "@/components/site-footer"
 import Image from "next/image"
 
-type ViewState = "welcome" | "register" | "login" | "forgot-password" | "verify-code" | "reset-password" | "dashboard"
-
 export default function HomePage() {
-  const [currentView, setCurrentView] = useState<ViewState>("welcome")
-  const [user, setUser] = useState<any>(null)
-  const [resetEmail, setResetEmail] = useState<string>("")
-  const [resetCode, setResetCode] = useState<string>("")
+  const router = useRouter()
+  const { t } = useLanguage()
 
-  // Check for existing session on mount
+  // Redirect to dashboard if already logged in
   useEffect(() => {
-    // Check if user is already logged in
     const storedUser = localStorage.getItem("shiriki_user")
     const token = localStorage.getItem("shiriki_access_token")
     if (storedUser && token) {
-      try {
-        const userData = JSON.parse(storedUser)
-        setUser(userData)
-        setCurrentView("dashboard")
-      } catch (e) {
-        // Invalid stored data, clear it
-        localStorage.removeItem("shiriki_user")
-        localStorage.removeItem("shiriki_access_token")
-        localStorage.removeItem("shiriki_refresh_token")
-      }
+      router.replace("/dashboard")
     }
-  }, [])
-
-  const handleLogin = (userData: any) => {
-    setUser(userData)
-    // Only store for current session, will be cleared on page reload
-    setCurrentView("dashboard")
-  }
-
-  const handleLogout = () => {
-    setUser(null)
-    // Clear auth tokens
-    localStorage.removeItem("shiriki_access_token")
-    localStorage.removeItem("shiriki_refresh_token")
-    localStorage.removeItem("shiriki_user")
-    setCurrentView("welcome")
-  }
-
-  const handleUserUpdate = (updatedUser: any) => {
-    setUser(updatedUser)
-    // Don't persist to localStorage - session only
-  }
-
-  const handleForgotPasswordSuccess = (email: string) => {
-    setResetEmail(email)
-    setCurrentView("verify-code")
-  }
-
-  const handleVerifyCodeSuccess = (code: string) => {
-    setResetCode(code)
-    setCurrentView("reset-password")
-  }
-
-  const handlePasswordResetSuccess = () => {
-    setResetEmail("")
-    setResetCode("")
-    setCurrentView("login")
-  }
-
-  const handleRegistrationSuccess = () => {
-    setCurrentView("login")
-  }
+  }, [router])
 
   return (
     <>
       <AccessibilityFloatingButton />
+      <main className="bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
 
-      {currentView === "dashboard" && user ? (
-        <Dashboard user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
-      ) : currentView === "register" ? (
-        <RegisterForm 
-          onSuccess={handleRegistrationSuccess} 
-          onBack={() => setCurrentView("welcome")} 
-          onSignIn={() => setCurrentView("login")}
-        />
-      ) : currentView === "login" ? (
-        <LoginForm 
-          onSuccess={handleLogin} 
-          onBack={() => setCurrentView("welcome")} 
-          onForgotPassword={() => setCurrentView("forgot-password")}
-        />
-      ) : currentView === "forgot-password" ? (
-        <ForgotPasswordForm 
-          onSuccess={handleForgotPasswordSuccess} 
-          onBack={() => setCurrentView("login")} 
-        />
-      ) : currentView === "verify-code" ? (
-        <VerifyCodeForm 
-          email={resetEmail}
-          onSuccess={handleVerifyCodeSuccess} 
-          onBack={() => setCurrentView("forgot-password")} 
-        />
-      ) : currentView === "reset-password" ? (
-        <ResetPasswordForm 
-          email={resetEmail}
-          code={resetCode}
-          onSuccess={handlePasswordResetSuccess} 
-          onBack={() => setCurrentView("verify-code")} 
-        />
-      ) : (
-        <main className="min-h-screen bg-background">
-          <div className="container mx-auto px-4 py-8 max-w-4xl">
-            <header className="text-center mb-12">
-              <div className="flex items-center justify-center gap-3 my-18">
-                <div className="text-2xl font-bold"><Image src="/new-logo.png" height={60} width={180} alt="Abilispace" style={{ width: 'auto', height: 'auto' }} /></div>
-              </div>
-              <p className="text-xl text-muted-foreground text-balance max-w-2xl mx-auto">
-                An inclusive platform connecting people with disabilities to live events, current affairs, and
-                meaningful conversations
-              </p>
-            </header>
+          {/* Top bar: language switcher */}
+          <div className="flex justify-end mb-4">
+            <LanguageSwitcher />
+          </div>
 
-            <div id="main-content" className="space-y-8">
-              {/* Feature Cards */}
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="text-center">
-                  <CardHeader>
-                    <Calendar className="h-8 w-8 mx-auto text-primary mb-2" aria-hidden="true" />
-                    <CardTitle className="text-lg">Live Events</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription>Discover and join accessible events tailored for your needs</CardDescription>
-                  </CardContent>
-                </Card>
+          <header className="text-center mb-12">
+            {/* Co-branding: GDA × AbiliSpace */}
+            <div className="flex items-center justify-center gap-5 mb-6">
+              <a
+                href="https://grassrootsdisability.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1.5 group"
+                aria-label="Visit Grassroots Disability Agenda website"
+              >
+                <Image
+                  src="/gda-logo.svg"
+                  height={56}
+                  width={102}
+                  alt="Grassroots Disability Agenda"
+                  className="object-contain"
+                  style={{ height: 56, width: "auto" }}
+                />
+                <span className="text-[11px] font-medium text-muted-foreground group-hover:text-primary transition-colors uppercase tracking-wide">
+                  Grassroots Disability Agenda
+                </span>
+              </a>
 
-                <Card className="text-center">
-                  <CardHeader>
-                    <Newspaper className="h-8 w-8 mx-auto text-primary mb-2" aria-hidden="true" />
-                    <CardTitle className="text-lg">Current Affairs</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription>Stay informed with accessible news and discussions</CardDescription>
-                  </CardContent>
-                </Card>
-
-                <Card className="text-center">
-                  <CardHeader>
-                    <MessageSquare className="h-8 w-8 mx-auto text-primary mb-2" aria-hidden="true" />
-                    <CardTitle className="text-lg">Secure Chat</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription>Connect privately with peers in a safe environment</CardDescription>
-                  </CardContent>
-                </Card>
-
-                <Card className="text-center">
-                  <CardHeader>
-                    <Users className="h-8 w-8 mx-auto text-primary mb-2" aria-hidden="true" />
-                    <CardTitle className="text-lg">Community</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription>Build meaningful connections with others who understand</CardDescription>
-                  </CardContent>
-                </Card>
+              <div className="flex flex-col items-center gap-1">
+                <div className="h-14 w-px bg-border" aria-hidden="true" />
+                <span className="text-[10px] text-muted-foreground/60 uppercase tracking-widest">
+                  {t("productOf")}
+                </span>
               </div>
 
-              {/* Accessibility Features */}
-              <Card className="bg-muted/50">
+              <div className="flex flex-col items-center gap-1.5">
+                <Image
+                  src="/new-logo.png"
+                  height={56}
+                  width={168}
+                  alt="Abilispace"
+                  style={{ height: 56, width: "auto" }}
+                />
+                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                  Inclusive Community Platform
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xl text-muted-foreground text-balance max-w-2xl mx-auto">
+              {t("landingSubtitle")}
+            </p>
+          </header>
+
+          <div id="main-content" className="space-y-8">
+            {/* Feature Cards */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="text-center">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Accessibility className="h-6 w-6" aria-hidden="true" />
-                    Built for Everyone
-                  </CardTitle>
+                  <Calendar className="h-8 w-8 mx-auto text-primary mb-2" aria-hidden="true" />
+                  <CardTitle className="text-lg">{t("liveEvents")}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <h3 className="font-semibold mb-2">Visual Accessibility</h3>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        <li>• High contrast mode support</li>
-                        <li>• Screen reader optimized</li>
-                        <li>• Scalable text and UI elements</li>
-                        <li>• Alternative text for all images</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-2">Motor & Cognitive</h3>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        <li>• Full keyboard navigation</li>
-                        <li>• Voice command support</li>
-                        <li>• Simplified interface options</li>
-                        <li>• Customizable interaction timing</li>
-                      </ul>
-                    </div>
-                  </div>
+                  <CardDescription>{t("liveEventsDesc")}</CardDescription>
                 </CardContent>
               </Card>
 
-              {/* Call to Action */}
-              <div className="text-center space-y-4">
-                <h2 className="text-2xl font-semibold text-balance">Ready to Connect?</h2>
-                <p className="text-muted-foreground text-balance mx-auto">
-                  Join our inclusive community and start engaging with events and conversations that matter to you.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button
-                    onClick={() => setCurrentView("register")}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                    aria-describedby="register-description"
-                  >
-                    Create Account
-                  </button>
-                  <span id="register-description" className="sr-only">
-                    Create a new account to access all platform features
-                  </span>
-                  <button
-                    onClick={() => setCurrentView("login")}
-                    className="border border-input bg-background hover:bg-accent hover:text-accent-foreground px-6 py-3 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                    aria-describedby="login-description"
-                  >
-                    Sign In
-                  </button>
-                  <span id="login-description" className="sr-only">
-                    Sign in to your existing account
-                  </span>
-                </div>
-              </div>
+              <Card className="text-center">
+                <CardHeader>
+                  <Newspaper className="h-8 w-8 mx-auto text-primary mb-2" aria-hidden="true" />
+                  <CardTitle className="text-lg">{t("currentAffairs")}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{t("currentAffairsDesc")}</CardDescription>
+                </CardContent>
+              </Card>
 
-              {/* Offline Support Notice */}
-              <Card className="border-dashed mt-10">
-                <CardContent className="">
-                  <div className="text-center">
-                    <h3 className="font-semibold mb-2">Works Offline</h3>
-                    <p className="text-sm text-muted-foreground text-balance mx-auto">
-                      Designed for areas with limited connectivity. Your data syncs when you're back online.
-                    </p>
-                  </div>
+              <Card className="text-center">
+                <CardHeader>
+                  <MessageSquare className="h-8 w-8 mx-auto text-primary mb-2" aria-hidden="true" />
+                  <CardTitle className="text-lg">{t("secureChat")}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{t("secureChatDesc")}</CardDescription>
+                </CardContent>
+              </Card>
+
+              <Card className="text-center">
+                <CardHeader>
+                  <Users className="h-8 w-8 mx-auto text-primary mb-2" aria-hidden="true" />
+                  <CardTitle className="text-lg">{t("community")}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{t("communityDesc")}</CardDescription>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Accessibility Features */}
+            <Card className="bg-muted/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Accessibility className="h-6 w-6" aria-hidden="true" />
+                  {t("builtForEveryone")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <h3 className="font-semibold mb-2">{t("visualAccessibility")}</h3>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• High contrast mode support</li>
+                      <li>• Screen reader optimized</li>
+                      <li>• Scalable text and UI elements</li>
+                      <li>• Alternative text for all images</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">{t("motorCognitive")}</h3>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Full keyboard navigation</li>
+                      <li>• Voice command support</li>
+                      <li>• Simplified interface options</li>
+                      <li>• Customizable interaction timing</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Call to Action */}
+            <div className="text-center space-y-4">
+              <h2 className="text-2xl font-semibold text-balance">{t("readyToConnect")}</h2>
+              <p className="text-muted-foreground text-balance mx-auto">{t("readyToConnectDesc")}</p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={() => router.push("/register")}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                >
+                  {t("createAccount")}
+                </button>
+                <button
+                  onClick={() => router.push("/login")}
+                  className="border border-input bg-background hover:bg-accent hover:text-accent-foreground px-6 py-3 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                >
+                  {t("signIn")}
+                </button>
+              </div>
+            </div>
+
+            {/* Offline Support Notice */}
+            <Card className="border-dashed mt-10">
+              <CardContent>
+                <div className="text-center">
+                  <h3 className="font-semibold mb-2">{t("worksOffline")}</h3>
+                  <p className="text-sm text-muted-foreground text-balance mx-auto">
+                    {t("worksOfflineDesc")}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </main>
-      )}
+        </div>
+      </main>
+      <SiteFooter />
     </>
   )
 }

@@ -2,11 +2,7 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
-import { AccessibilityProvider } from "@/components/accessibility-provider"
-import { OfflineProvider, OfflineIndicator } from "@/components/offline-manager"
-import { DataSaverProvider } from "@/components/data-saver-mode"
-import { SkipLinks } from "@/components/skip-links"
-import { Toaster } from "@/components/ui/toaster"
+import { Providers } from "@/components/providers"
 import "./globals.css"
 
 export const viewport: Viewport = {
@@ -56,21 +52,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
-        <AccessibilityProvider>
-          <DataSaverProvider>
-            <OfflineProvider>
-              <SkipLinks
-                links={[
-                  { id: "main-content", label: "Skip to main content" },
-                  { id: "navigation", label: "Skip to navigation" },
-                ]}
-              />
-              <OfflineIndicator />
-              {children}
-              <Toaster />
-            </OfflineProvider>
-          </DataSaverProvider>
-        </AccessibilityProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )
