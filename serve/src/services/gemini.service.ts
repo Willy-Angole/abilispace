@@ -111,20 +111,28 @@ export async function askGemini(
             },
         ];
 
-        const response = await client.models.generateContent({
-            model: 'gemini-2.0-flash',
-            contents,
-            config: {
-                systemInstruction: SYSTEM_PROMPT,
-            },
-        });
+        // Try models in order — fallback to smaller if rate limited
+        const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+        let lastError: unknown;
 
-        const reply = response.text?.trim() ?? '';
-        if (!reply) throw new Error('Empty response from Gemini');
+        for (const model of models) {
+            try {
+                const response = await client.models.generateContent({
+                    model,
+                    contents,
+                    config: { systemInstruction: SYSTEM_PROMPT },
+                });
+                const reply = response.text?.trim() ?? '';
+                if (reply) return { reply, usedAI: true };
+            } catch (err: any) {
+                lastError = err;
+                // Only retry on rate limit; hard-fail on auth / bad request
+                if (err?.status !== 429) break;
+                logger.warn(`Gemini ${model} rate limited, trying next model`);
+            }
+        }
 
-        return { reply, usedAI: true };
-    } catch (error) {
-        logger.error('Gemini API error', { error });
+        logger.error('Gemini API error', { error: lastError });
         return { reply: '', usedAI: false };
     }
 }
