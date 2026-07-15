@@ -134,5 +134,8 @@ export async function askGemini(
 
         logger.error('Gemini API error', { error: lastError });
         return { reply: '', usedAI: false };
+    } catch (error) {
+        logger.error('Gemini unexpected error', { error });
+        return { reply: '', usedAI: false };
     }
 }
