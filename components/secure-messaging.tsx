@@ -857,10 +857,10 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
         </Button>
       </div>
 
-      <div className="flex flex-col md:grid md:gap-4 lg:gap-6 md:grid-cols-3 h-[calc(100vh-180px)] md:h-auto">
-        {/* Conversations List - hidden on mobile when chat is open */}
-        <div className={`md:col-span-1 ${showMobileChat ? 'hidden md:block' : 'block'}`}>
-          <Card className="h-full md:h-auto">
+      <div className="flex flex-col md:grid md:gap-4 lg:gap-6 md:grid-cols-3 h-[calc(100vh-180px)]">
+        {/* Conversations List - full width when no chat selected, 1/3 when chat open */}
+        <div className={`${activeConversation ? 'md:col-span-1' : 'md:col-span-3'} ${showMobileChat ? 'hidden md:block' : 'block'} h-full`}>
+          <Card className="h-full flex flex-col">
             {/* Tabs for All, Chats, Groups */}
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "chats" | "groups")} className="w-full">
               <div className="border-b px-3 pt-3">
@@ -1222,9 +1222,9 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
         </div>
 
         {/* Chat Area - full screen on mobile when active */}
-        <div className={`md:col-span-2 ${showMobileChat ? 'block' : 'hidden md:block'} ${showMobileChat ? 'fixed inset-0 z-50 bg-background md:relative md:inset-auto md:z-auto' : ''}`}>
+        <div className={`md:col-span-2 ${showMobileChat ? 'block' : 'hidden md:block'} ${showMobileChat ? 'fixed inset-0 z-50 bg-background md:relative md:inset-auto md:z-auto' : ''} h-full`}>
           {activeConversation ? (
-            <Card className="h-full md:h-[600px] flex flex-col rounded-none md:rounded-lg">
+            <Card className="h-full flex flex-col rounded-none md:rounded-lg">
               {/* Chat Header */}
               <CardHeader className="border-b py-3 px-3 sm:px-6">
                 <div className="flex items-center justify-between">
