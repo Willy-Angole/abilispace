@@ -39,7 +39,8 @@ export interface Message {
     senderName: string;
     senderAvatarUrl?: string;
     content: string;
-    messageType: 'text' | 'system' | 'notification';
+    messageType: 'text' | 'system' | 'notification' | 'image' | 'voice' | 'file';
+    fileUrl?: string;
     replyToId?: string;
     replyTo?: {
         id: string;
@@ -298,6 +299,8 @@ export async function sendMessage(data: {
     conversationId: string;
     content: string;
     replyToId?: string;
+    fileUrl?: string;
+    messageType?: string;
 }): Promise<ApiResponse<Message>> {
     return fetchApi<Message>('/api/messaging/messages', {
         method: 'POST',
