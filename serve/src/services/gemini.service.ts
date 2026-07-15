@@ -2,14 +2,13 @@
  * Gemini AI Service
  *
  * Provides personalised, context-aware responses about GDA, Abilispace,
- * and disability topics using Google Gemini.
+ * and disability topics using Google Gemini (via @google/genai SDK v1.x).
  */
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { logger } from '../utils/logger';
 
-// System prompt — sets Gemini's persona and knowledge base
-const SYSTEM_PROMPT = `You are Abili, a friendly and empathetic AI assistant for Abilispace — the official community platform of GDA (Grassroots Disability Agenda), a leading disability rights organisation based in Kenya.
+const SYSTEM_PROMPT = `You are Abilibot, a friendly and empathetic AI assistant for Abilispace — the official community platform of GDA (Grassroots Disability Agenda), a leading disability rights organisation based in Kenya.
 
 YOUR ROLE:
 - Help persons with disabilities (PWDs) find information, services, and support
@@ -66,24 +65,23 @@ RESPONSE GUIDELINES:
 - For any mental health crisis mention Befrienders Kenya (+254 722 178 177) immediately
 - Never provide medical diagnoses or formal legal advice — refer to qualified professionals
 - Use person-first language ("person with a disability") unless the user indicates otherwise
-- If you are uncertain about a specific fact, say so honestly and direct the user to GDA or NCPWD
-- Do not make up statistics, legislation numbers, or phone numbers you are not sure about`;
+- If you are uncertain about a specific fact, say so honestly and direct the user to GDA or NCPWD`;
 
 export interface ChatMessage {
     role: 'user' | 'model';
     content: string;
 }
 
-const MAX_HISTORY = 10; // Keep last 10 turns for context
+const MAX_HISTORY = 10;
 
-let genAI: GoogleGenerativeAI | null = null;
+let ai: GoogleGenAI | null = null;
 
-function getClient(): GoogleGenerativeAI | null {
+function getClient(): GoogleGenAI | null {
     if (!process.env.GEMINI_API_KEY) return null;
-    if (!genAI) {
-        genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    if (!ai) {
+        ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     }
-    return genAI;
+    return ai;
 }
 
 export async function askGemini(
@@ -99,30 +97,30 @@ export async function askGemini(
     }
 
     try {
-        const model = client.getGenerativeModel({
-            model: 'gemini-1.5-flash',
-            systemInstruction: SYSTEM_PROMPT,
-            safetySettings: [
-                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-            ],
-        });
-
-        // Build conversation history in Gemini format
         const trimmedHistory = history.slice(-MAX_HISTORY);
-        const chat = model.startChat({
-            history: trimmedHistory.map(m => ({
+
+        // Build contents array: system instruction + history + current message
+        const contents = [
+            ...trimmedHistory.map(m => ({
                 role: m.role,
                 parts: [{ text: m.content }],
             })),
+            {
+                role: 'user' as const,
+                parts: [{ text: message + (language === 'sw' ? '\n[Jibu kwa Kiswahili tafadhali.]' : '') }],
+            },
+        ];
+
+        const response = await client.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents,
+            config: {
+                systemInstruction: SYSTEM_PROMPT,
+            },
         });
 
-        const languageHint = language === 'sw'
-            ? '\n[User prefers Kiswahili — please respond in Kiswahili.]'
-            : '';
-
-        const result = await chat.sendMessage(message + languageHint);
-        const reply = result.response.text().trim();
+        const reply = response.text?.trim() ?? '';
+        if (!reply) throw new Error('Empty response from Gemini');
 
         return { reply, usedAI: true };
     } catch (error) {

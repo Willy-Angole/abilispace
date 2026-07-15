@@ -29,7 +29,7 @@
     "@types/pg": "^8.10.9",
     "@types/uuid": "^9.0.7",
     "@types/ws": "^8.5.10",
-    "@google/generative-ai": "^0.21.0",
+    "@google/genai": "^1.0.0",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
