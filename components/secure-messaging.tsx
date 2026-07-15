@@ -1474,26 +1474,58 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                                     {message.senderName}
                                   </p>
                                 )}
-                                {(message as any).messageType === "image" && (message as any).fileUrl ? (
-                                  <div className="mb-1">
-                                    <img src={(message as any).fileUrl} alt="Image" className="max-w-[200px] rounded-lg cursor-pointer" onClick={() => window.open((message as any).fileUrl, "_blank")} />
-                                    {message.content && !["📷 Image"].includes(message.content) && (
-                                      <p className="text-sm leading-relaxed whitespace-pre-wrap mt-1">{message.content}</p>
-                                    )}
-                                  </div>
-                                ) : (message as any).messageType === "voice" && (message as any).fileUrl ? (
-                                  <div className="mb-1">
-                                    <audio controls src={(message as any).fileUrl} className="max-w-[200px] h-8" />
-                                  </div>
-                                ) : (message as any).messageType === "file" && (message as any).fileUrl ? (
-                                  <a href={(message as any).fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm underline mb-1">
-                                    <FileText className="h-4 w-4" />{message.content}
-                                  </a>
-                                ) : (
-                                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                    {message.content}
-                                  </p>
-                                )}
+                                {(() => {
+                                  const fileUrl = (message as any).fileUrl as string | undefined
+                                  const msgType = (message as any).messageType as string
+                                  if (!fileUrl) {
+                                    return <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                                  }
+                                  const rawName = fileUrl.split('/').pop()?.split('?')[0] || 'file'
+                                  const fileName = decodeURIComponent(rawName)
+                                  const ext = fileName.split('.').pop()?.toLowerCase() || ''
+                                  const isImage = msgType === 'image' || /^(jpg|jpeg|png|gif|webp|svg)$/.test(ext)
+                                  const isVoice = msgType === 'voice' || /^(webm|mp3|ogg|wav|m4a|aac)$/.test(ext)
+                                  const isPDF = ext === 'pdf'
+                                  const fileLabel = isPDF ? 'PDF' : ext.toUpperCase() || 'FILE'
+                                  const caption = message.content && !message.content.startsWith('📎') && !message.content.startsWith('📷') && !message.content.startsWith('🎤') ? message.content : null
+
+                                  if (isImage) {
+                                    return (
+                                      <div className="mb-1">
+                                        <img src={fileUrl} alt="Image" className="max-w-[200px] rounded-lg cursor-pointer" onClick={() => window.open(fileUrl, '_blank')} />
+                                        {caption && <p className="text-sm leading-relaxed whitespace-pre-wrap mt-1">{caption}</p>}
+                                      </div>
+                                    )
+                                  }
+                                  if (isVoice) {
+                                    return (
+                                      <div className="mb-1">
+                                        <audio controls src={fileUrl} className="w-full max-w-[240px] h-9" />
+                                        {caption && <p className="text-sm leading-relaxed whitespace-pre-wrap mt-1">{caption}</p>}
+                                      </div>
+                                    )
+                                  }
+                                  // File card (PDF / doc / etc.)
+                                  return (
+                                    <div className="mb-1">
+                                      <a
+                                        href={fileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`flex items-center gap-3 p-3 rounded-xl min-w-[180px] max-w-[260px] transition-colors ${isOwn ? 'bg-white/15 hover:bg-white/25' : 'bg-black/8 hover:bg-black/14'}`}
+                                      >
+                                        <div className={`flex-shrink-0 w-10 h-12 rounded-md flex items-center justify-center ${isPDF ? 'bg-red-500' : 'bg-blue-500'}`}>
+                                          <span className="text-white text-[9px] font-bold leading-tight text-center px-0.5">{fileLabel}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium truncate leading-snug">{fileName}</p>
+                                          <p className="text-xs opacity-60 mt-0.5">Tap to open</p>
+                                        </div>
+                                      </a>
+                                      {caption && <p className="text-sm leading-relaxed whitespace-pre-wrap mt-1">{caption}</p>}
+                                    </div>
+                                  )
+                                })()}
                                 <div className="flex items-center justify-end gap-1 mt-1">
                                   {message.isEdited && (
                                     <span className="text-xs opacity-50">(edited)</span>

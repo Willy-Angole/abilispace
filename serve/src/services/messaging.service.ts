@@ -835,14 +835,17 @@ export class MessagingService {
             };
         }
 
+        const validMessageTypes = ['text', 'image', 'voice', 'file'] as const;
+        const resolvedType = validMessageTypes.includes(messageType as any) ? messageType : 'text';
+
         const result = await db.query<Message & { avatar_url: string | null }>(
-            `INSERT INTO messages (conversation_id, sender_id, content, reply_to_id, file_url)
-             VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO messages (conversation_id, sender_id, content, reply_to_id, file_url, message_type)
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id, conversation_id as "conversationId", sender_id as "senderId",
                        content, message_type as "messageType", reply_to_id as "replyToId",
                        file_url as "fileUrl", is_edited as "isEdited",
                        created_at as "createdAt", updated_at as "updatedAt"`,
-            { values: [conversationId, userId, content, replyToId || null, fileUrl || null] }
+            { values: [conversationId, userId, content, replyToId || null, fileUrl || null, resolvedType] }
         );
 
         const message = result.rows[0];
