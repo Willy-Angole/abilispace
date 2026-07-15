@@ -55,13 +55,13 @@ export const translations = {
     visitWebsite: "Visit Website",
     callNow: "Call Now",
     // Chatbot
-    chatbotButtonLabel: "Chat with Shiriki assistant",
-    chatbotTitle: "Shiriki Assistant",
+    chatbotButtonLabel: "Chat with Abilibot",
+    chatbotTitle: "Abilibot",
     chatbotOnline: "Online",
     chatbotPlaceholder: "Type your question...",
     chatbotSend: "Send message",
     chatbotGreeting:
-      "Hello! I'm your Shiriki assistant. I can help with information about disabilities, platform features, GDA services, and more. What would you like to know?",
+      "Hello! I'm Abilibot, your AI assistant for Abilispace. I can help with disability rights, GDA services, platform features, and more. What would you like to know?",
     chatbotClose: "Close chat",
     // Language
     switchTo: "Kiswahili",
@@ -120,13 +120,13 @@ export const translations = {
     visitWebsite: "Tembelea Tovuti",
     callNow: "Piga Simu Sasa",
     // Chatbot
-    chatbotButtonLabel: "Zungumza na msaidizi wa Shiriki",
-    chatbotTitle: "Msaidizi wa Shiriki",
+    chatbotButtonLabel: "Zungumza na Abilibot",
+    chatbotTitle: "Abilibot",
     chatbotOnline: "Mtandaoni",
     chatbotPlaceholder: "Andika swali lako...",
     chatbotSend: "Tuma ujumbe",
     chatbotGreeting:
-      "Habari! Mimi ni msaidizi wako wa Shiriki. Naweza kusaidia na taarifa kuhusu ulemavu, vipengele vya jukwaa, huduma za GDA, na zaidi. Ungependa kujua nini?",
+      "Habari! Mimi ni Abilibot, msaidizi wako wa AI kwa Abilispace. Naweza kusaidia na haki za ulemavu, huduma za GDA, vipengele vya jukwaa, na zaidi. Ungependa kujua nini?",
     chatbotClose: "Funga mazungumzo",
     // Language
     switchTo: "English",
