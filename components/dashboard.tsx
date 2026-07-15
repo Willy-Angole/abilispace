@@ -313,7 +313,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
 
           {/* Main Content */}
           <main id="main-content" className={cn(
-            isNavCollapsed ? "lg:col-span-1" : "lg:col-span-3"
+            isNavCollapsed ? "lg:col-span-1" : "lg:col-span-3",
+            activeTab === "messages" ? "overflow-hidden" : ""
           )}>
             {activeTab === "events" && <EventDiscovery user={user} />}
 
@@ -463,10 +464,10 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         </div>
       </div>
 
-      <SiteFooter />
+      {activeTab !== "messages" && <SiteFooter />}
 
-      {/* Floating chatbot — sits above the accessibility button */}
-      <Chatbot />
+      {/* Floating chatbot — hidden on messages tab */}
+      {activeTab !== "messages" && <Chatbot />}
     </div>
   )
 }

@@ -129,6 +129,18 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     loadConversations()
   }, [])
 
+  // Escape key closes active conversation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && activeConversation) {
+        setActiveConversation(null)
+        setShowMobileChat(false)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [activeConversation])
+
   // Set up polling for new messages - restarts when activeConversation changes
   useEffect(() => {
     // Clear existing polling
@@ -857,7 +869,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
         </Button>
       </div>
 
-      <div className="flex flex-col md:grid md:gap-4 lg:gap-6 md:grid-cols-3 h-[calc(100vh-180px)]">
+      <div className="flex flex-col md:grid md:gap-4 lg:gap-6 md:grid-cols-3" style={{ height: 'calc(100vh - 160px)' }}>
         {/* Conversations List - full width when no chat selected, 1/3 when chat open */}
         <div className={`${activeConversation ? 'md:col-span-1' : 'md:col-span-3'} ${showMobileChat ? 'hidden md:block' : 'block'} h-full`}>
           <Card className="h-full flex flex-col">
