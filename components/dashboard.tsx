@@ -41,6 +41,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isNavCollapsed, setIsNavCollapsed] = useState(false)
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
+  const [hasActiveConversation, setHasActiveConversation] = useState(false)
   const { t } = useLanguage()
 
   // Fetch unread message count
@@ -255,14 +256,17 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
       <div className="container mx-auto px-4 py-6">
         <div className={cn(
           "grid gap-6",
-          isNavCollapsed ? "lg:grid-cols-[auto_1fr]" : "lg:grid-cols-4"
+          activeTab === "messages" && hasActiveConversation
+            ? "lg:grid-cols-1"
+            : isNavCollapsed ? "lg:grid-cols-[auto_1fr]" : "lg:grid-cols-4"
         )}>
-          {/* Navigation Sidebar - Desktop */}
-          <nav 
+          {/* Navigation Sidebar - Desktop, hidden when a conversation is open */}
+          <nav
             className={cn(
               "hidden lg:block space-y-4 transition-all duration-300",
-              isNavCollapsed ? "w-16" : "lg:col-span-1"
-            )} 
+              isNavCollapsed ? "w-16" : "lg:col-span-1",
+              activeTab === "messages" && hasActiveConversation ? "lg:hidden" : ""
+            )}
             aria-label="Dashboard navigation"
           >
             <Card>
@@ -326,6 +330,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
               <SecureMessaging
                 user={user}
                 onUnreadCountChange={setUnreadCount}
+                onConversationChange={setHasActiveConversation}
               />
             )}
 

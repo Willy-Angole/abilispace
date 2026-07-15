@@ -56,6 +56,12 @@ import {
   Inbox,
   ShieldOff,
   MessageCircleOff,
+  Paperclip,
+  Mic,
+  MicOff,
+  Image as ImageIcon,
+  FileText,
+  StopCircle,
 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
@@ -72,9 +78,10 @@ interface SecureMessagingProps {
     avatarUrl?: string
   }
   onUnreadCountChange?: (count: number) => void
+  onConversationChange?: (hasActive: boolean) => void
 }
 
-export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingProps) {
+export function SecureMessaging({ user, onUnreadCountChange, onConversationChange }: SecureMessagingProps) {
   // State
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Message[]>([])
@@ -109,6 +116,18 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
   const [showAddMembers, setShowAddMembers] = useState(false)
   const [showGroupSettings, setShowGroupSettings] = useState(false)
   
+  // Attachment state
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Voice note state
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
+
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -140,6 +159,11 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [activeConversation])
+
+  // Notify parent when active conversation changes
+  useEffect(() => {
+    onConversationChange?.(!!activeConversation)
+  }, [activeConversation, onConversationChange])
 
   // Set up polling for new messages - restarts when activeConversation changes
   useEffect(() => {
@@ -392,39 +416,106 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
     }
   }
 
+  // File attachment handler
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAttachmentFile(file)
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader()
+      reader.onload = (ev) => setAttachmentPreview(ev.target?.result as string)
+      reader.readAsDataURL(file)
+    } else {
+      setAttachmentPreview(null)
+    }
+  }
+
+  const clearAttachment = () => {
+    setAttachmentFile(null)
+    setAttachmentPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  // Voice note handlers
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      audioChunksRef.current = []
+      recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data)
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" })
+        const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" })
+        setAttachmentFile(file)
+        setAttachmentPreview("voice")
+      }
+      recorder.start()
+      mediaRecorderRef.current = recorder
+      setIsRecording(true)
+      setRecordingSeconds(0)
+      recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000)
+    } catch {
+      toast({ title: "Microphone access denied", variant: "destructive" })
+    }
+  }
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop()
+    setIsRecording(false)
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+  }
+
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !activeConversation) return
+    if (!activeConversation) return
+    if (!newMessage.trim() && !attachmentFile) return
 
     setIsSending(true)
-    // Force scroll to bottom when sending a message
     shouldAutoScrollRef.current = true
     try {
+      let messageContent = newMessage.trim()
+      let messageType: "text" | "file" | "image" | "voice" = "text"
+      let fileUrl: string | undefined
+
+      if (attachmentFile) {
+        const formData = new FormData()
+        formData.append("file", attachmentFile)
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json()
+          fileUrl = uploadData.url
+          if (attachmentPreview === "voice") {
+            messageType = "voice"
+            messageContent = messageContent || "🎤 Voice note"
+          } else if (attachmentFile.type.startsWith("image/")) {
+            messageType = "image"
+            messageContent = messageContent || "📷 Image"
+          } else {
+            messageType = "file"
+            messageContent = messageContent || `📎 ${attachmentFile.name}`
+          }
+        }
+      }
+
       const response = await messagingApi.sendMessage({
         conversationId: activeConversation.id,
-        content: newMessage.trim(),
+        content: messageContent || (fileUrl ? "📎 Attachment" : ""),
         replyToId: replyTo?.id,
+        ...(fileUrl && { fileUrl, messageType }),
       })
 
       if (response.success && response.data) {
         setMessages(prev => [...prev, response.data!])
         setNewMessage("")
         setReplyTo(null)
+        clearAttachment()
         playNotificationSound()
-        // Scroll to bottom after sending
         setTimeout(() => scrollToBottom(), 50)
       } else {
-        toast({
-          title: "Error",
-          description: response.error || "Failed to send message",
-          variant: "destructive",
-        })
+        toast({ title: "Error", description: response.error || "Failed to send message", variant: "destructive" })
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "Failed to send message", variant: "destructive" })
     } finally {
       setIsSending(false)
     }
@@ -1378,9 +1469,26 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                                     {message.senderName}
                                   </p>
                                 )}
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                  {message.content}
-                                </p>
+                                {(message as any).messageType === "image" && (message as any).fileUrl ? (
+                                  <div className="mb-1">
+                                    <img src={(message as any).fileUrl} alt="Image" className="max-w-[200px] rounded-lg cursor-pointer" onClick={() => window.open((message as any).fileUrl, "_blank")} />
+                                    {message.content && !["📷 Image"].includes(message.content) && (
+                                      <p className="text-sm leading-relaxed whitespace-pre-wrap mt-1">{message.content}</p>
+                                    )}
+                                  </div>
+                                ) : (message as any).messageType === "voice" && (message as any).fileUrl ? (
+                                  <div className="mb-1">
+                                    <audio controls src={(message as any).fileUrl} className="max-w-[200px] h-8" />
+                                  </div>
+                                ) : (message as any).messageType === "file" && (message as any).fileUrl ? (
+                                  <a href={(message as any).fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm underline mb-1">
+                                    <FileText className="h-4 w-4" />{message.content}
+                                  </a>
+                                ) : (
+                                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                    {message.content}
+                                  </p>
+                                )}
                                 <div className="flex items-center justify-end gap-1 mt-1">
                                   {message.isEdited && (
                                     <span className="text-xs opacity-50">(edited)</span>
@@ -1512,36 +1620,69 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                   )}
                   {/* Only show input if user can send messages */}
                   {!(activeConversation?.adminOnlyMessages && activeConversation.isGroup && !isAdmin) && (
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1 min-w-0">
-                      <Textarea
-                        placeholder="Type your message..."
-                        value={newMessage}
-                        onChange={handleMessageChange}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault()
-                            handleSendMessage()
-                          }
-                        }}
-                        className="min-h-[44px] max-h-24 sm:max-h-32 resize-none text-sm w-full"
-                        rows={1}
-                        aria-label="Type your message"
-                      />
-                    </div>
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={!newMessage.trim() || isSending}
-                      size="icon"
-                      className="h-11 w-11 min-w-[44px] shrink-0"
-                      aria-label="Send message"
-                    >
-                      {isSending ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
+                  <div className="flex flex-col gap-2">
+                    {/* Attachment preview */}
+                    {attachmentFile && (
+                      <div className="flex items-center gap-2 p-2 bg-muted rounded-lg text-sm">
+                        {attachmentPreview === "voice" ? (
+                          <><Mic className="h-4 w-4 text-red-500" /><span>Voice note ({recordingSeconds}s)</span></>
+                        ) : attachmentPreview ? (
+                          <><ImageIcon className="h-4 w-4 text-blue-500" /><span className="truncate">{attachmentFile.name}</span></>
+                        ) : (
+                          <><FileText className="h-4 w-4 text-green-500" /><span className="truncate">{attachmentFile.name}</span></>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-5 w-5 ml-auto" onClick={clearAttachment}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    <div className="flex gap-2 items-end">
+                      {/* Hidden file input */}
+                      <input ref={fileInputRef} type="file" className="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.txt" onChange={handleFileSelect} />
+                      {/* Attachment button */}
+                      <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
+                        <Paperclip className="h-5 w-5" />
+                      </Button>
+                      <div className="flex-1 min-w-0">
+                        <Textarea
+                          placeholder={isRecording ? `Recording… ${recordingSeconds}s` : "Type your message..."}
+                          value={newMessage}
+                          onChange={handleMessageChange}
+                          disabled={isRecording}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault()
+                              handleSendMessage()
+                            }
+                          }}
+                          className="min-h-[44px] max-h-24 sm:max-h-32 resize-none text-sm w-full"
+                          rows={1}
+                          aria-label="Type your message"
+                        />
+                      </div>
+                      {/* Voice note button */}
+                      {!newMessage.trim() && !attachmentFile ? (
+                        <Button
+                          variant={isRecording ? "destructive" : "ghost"}
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={isRecording ? stopRecording : startRecording}
+                          aria-label={isRecording ? "Stop recording" : "Record voice note"}
+                        >
+                          {isRecording ? <StopCircle className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                        </Button>
                       ) : (
-                        <Send className="h-5 w-5" />
+                        <Button
+                          onClick={handleSendMessage}
+                          disabled={(!newMessage.trim() && !attachmentFile) || isSending}
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          aria-label="Send message"
+                        >
+                          {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                        </Button>
                       )}
-                    </Button>
+                    </div>
                   </div>
                   )}
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
