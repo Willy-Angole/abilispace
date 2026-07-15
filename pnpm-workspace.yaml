@@ -1,2 +1,5 @@
+packages:
+  - '.'
+  - 'serve'
 allowBuilds:
   sharp: true
