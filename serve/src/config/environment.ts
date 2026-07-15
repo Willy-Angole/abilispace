@@ -56,7 +56,7 @@ const envSchema = z.object({
     PASSWORD_RESET_CODE_EXPIRY_MINUTES: z.string().transform(Number).default('15'),
 
     // Redis (optional for caching)
-    REDIS_URL: z.string().url().optional(),
+    REDIS_URL: z.preprocess(val => val === '' ? undefined : val, z.string().url().optional()),
 
     // Security
     BCRYPT_ROUNDS: z.string().transform(Number).default('12'),
