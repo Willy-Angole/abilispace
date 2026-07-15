@@ -61,6 +61,9 @@ import {
   MicOff,
   Image as ImageIcon,
   FileText,
+  FileVideo,
+  Music,
+  File,
   StopCircle,
 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
@@ -420,6 +423,11 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > 25 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum attachment size is 25 MB", variant: "destructive" })
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      return
+    }
     setAttachmentFile(file)
     if (file.type.startsWith("image/")) {
       const reader = new FileReader()
@@ -489,7 +497,7 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
           fileUrl = uploadData.url
-          if (attachmentPreview === "voice") {
+          if (attachmentPreview === "voice" || attachmentFile.type.startsWith("audio/")) {
             messageType = "voice"
             messageContent = messageContent || "🎤 Voice note"
           } else if (attachmentFile.type.startsWith("image/")) {
@@ -1483,16 +1491,23 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                                   const rawName = fileUrl.split('/').pop()?.split('?')[0] || 'file'
                                   const fileName = decodeURIComponent(rawName)
                                   const ext = fileName.split('.').pop()?.toLowerCase() || ''
-                                  const isImage = msgType === 'image' || /^(jpg|jpeg|png|gif|webp|svg)$/.test(ext)
-                                  const isVoice = msgType === 'voice' || /^(webm|mp3|ogg|wav|m4a|aac)$/.test(ext)
+                                  const isImage = msgType === 'image' || /^(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/.test(ext)
+                                  const isVoice = msgType === 'voice' || /^(mp3|ogg|wav|m4a|aac|flac|opus)$/.test(ext) || (ext === 'webm' && fileUrl.includes('/video/upload/') && msgType === 'voice')
+                                  const isVideo = !isVoice && /^(mp4|mov|avi|mkv|webm|m4v|wmv|flv|3gp)$/.test(ext)
                                   const isPDF = ext === 'pdf'
-                                  const fileLabel = isPDF ? 'PDF' : ext.toUpperCase() || 'FILE'
+                                  const isDoc = /^(doc|docx|odt)$/.test(ext)
+                                  const isSheet = /^(xls|xlsx|csv|ods)$/.test(ext)
+                                  const isSlide = /^(ppt|pptx|odp)$/.test(ext)
+                                  const isZip = /^(zip|rar|7z|tar|gz)$/.test(ext)
                                   const caption = message.content && !message.content.startsWith('📎') && !message.content.startsWith('📷') && !message.content.startsWith('🎤') ? message.content : null
+
+                                  const fileLabel = isPDF ? 'PDF' : isDoc ? 'DOC' : isSheet ? 'XLS' : isSlide ? 'PPT' : isZip ? 'ZIP' : ext.toUpperCase().slice(0, 4) || 'FILE'
+                                  const cardBg = isPDF ? 'bg-red-500' : isDoc ? 'bg-blue-600' : isSheet ? 'bg-green-600' : isSlide ? 'bg-orange-500' : isZip ? 'bg-yellow-600' : 'bg-slate-500'
 
                                   if (isImage) {
                                     return (
                                       <div className="mb-1">
-                                        <img src={fileUrl} alt="Image" className="max-w-[200px] rounded-lg cursor-pointer" onClick={() => window.open(fileUrl, '_blank')} />
+                                        <img src={fileUrl} alt="Image" className="max-w-[220px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(fileUrl, '_blank')} />
                                         {caption && <p className="text-sm leading-relaxed whitespace-pre-wrap mt-1">{caption}</p>}
                                       </div>
                                     )
@@ -1500,21 +1515,29 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                                   if (isVoice) {
                                     return (
                                       <div className="mb-1">
-                                        <audio controls src={fileUrl} className="w-full max-w-[240px] h-9" />
+                                        <audio controls src={fileUrl} className="w-full max-w-[260px] h-9" />
                                         {caption && <p className="text-sm leading-relaxed whitespace-pre-wrap mt-1">{caption}</p>}
                                       </div>
                                     )
                                   }
-                                  // File card (PDF / doc / etc.)
+                                  if (isVideo) {
+                                    return (
+                                      <div className="mb-1">
+                                        <video controls src={fileUrl} className="max-w-[260px] rounded-lg" style={{ maxHeight: 180 }} />
+                                        {caption && <p className="text-sm leading-relaxed whitespace-pre-wrap mt-1">{caption}</p>}
+                                      </div>
+                                    )
+                                  }
+                                  // File card (PDF / doc / zip / etc.)
                                   return (
                                     <div className="mb-1">
                                       <a
                                         href={fileUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`flex items-center gap-3 p-3 rounded-xl min-w-[180px] max-w-[260px] transition-colors ${isOwn ? 'bg-white/15 hover:bg-white/25' : 'bg-black/8 hover:bg-black/14'}`}
+                                        className={`flex items-center gap-3 p-3 rounded-xl min-w-[180px] max-w-[260px] transition-colors ${isOwn ? 'bg-white/15 hover:bg-white/25' : 'bg-black/5 hover:bg-black/10'}`}
                                       >
-                                        <div className={`flex-shrink-0 w-10 h-12 rounded-md flex items-center justify-center ${isPDF ? 'bg-red-500' : 'bg-blue-500'}`}>
+                                        <div className={`flex-shrink-0 w-10 h-12 rounded-md flex items-center justify-center ${cardBg}`}>
                                           <span className="text-white text-[9px] font-bold leading-tight text-center px-0.5">{fileLabel}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -1662,20 +1685,34 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                     {attachmentFile && (
                       <div className="flex items-center gap-2 p-2 bg-muted rounded-lg text-sm">
                         {attachmentPreview === "voice" ? (
-                          <><Mic className="h-4 w-4 text-red-500" /><span>Voice note ({recordingSeconds}s)</span></>
-                        ) : attachmentPreview ? (
-                          <><ImageIcon className="h-4 w-4 text-blue-500" /><span className="truncate">{attachmentFile.name}</span></>
+                          <Mic className="h-4 w-4 text-red-500 flex-shrink-0" />
+                        ) : attachmentFile.type.startsWith("image/") ? (
+                          <ImageIcon className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                        ) : attachmentFile.type.startsWith("video/") ? (
+                          <FileVideo className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                        ) : attachmentFile.type.startsWith("audio/") ? (
+                          <Music className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        ) : attachmentFile.name.toLowerCase().endsWith(".pdf") ? (
+                          <FileText className="h-4 w-4 text-red-500 flex-shrink-0" />
                         ) : (
-                          <><FileText className="h-4 w-4 text-green-500" /><span className="truncate">{attachmentFile.name}</span></>
+                          <File className="h-4 w-4 text-orange-500 flex-shrink-0" />
                         )}
-                        <Button variant="ghost" size="icon" className="h-5 w-5 ml-auto" onClick={clearAttachment}>
+                        <span className="truncate flex-1 min-w-0">
+                          {attachmentPreview === "voice" ? `Voice note (${recordingSeconds}s)` : attachmentFile.name}
+                        </span>
+                        <span className="text-xs opacity-50 flex-shrink-0">
+                          {attachmentFile.size < 1024 * 1024
+                            ? `${Math.round(attachmentFile.size / 1024)} KB`
+                            : `${(attachmentFile.size / (1024 * 1024)).toFixed(1)} MB`}
+                        </span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0" onClick={clearAttachment}>
                           <X className="h-3 w-3" />
                         </Button>
                       </div>
                     )}
                     <div className="flex gap-2 items-end">
                       {/* Hidden file input */}
-                      <input ref={fileInputRef} type="file" className="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.txt" onChange={handleFileSelect} />
+                      <input ref={fileInputRef} type="file" className="hidden" accept="*/*" onChange={handleFileSelect} />
                       {/* Attachment button */}
                       <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
                         <Paperclip className="h-5 w-5" />
