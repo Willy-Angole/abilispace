@@ -865,30 +865,30 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "chats" | "groups")} className="w-full">
               <div className="border-b px-3 pt-3">
                 <TabsList className="w-full grid grid-cols-3 h-10">
-                  <TabsTrigger value="all" className="text-sm">
+                  <TabsTrigger value="all" className="text-sm relative">
                     All
                     {allUnreadCount > 0 && (
-                      <Badge variant="destructive" className="ml-1.5 h-5 min-w-[20px] px-1.5 text-xs">
+                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-0.5 min-w-[18px]">
                         {allUnreadCount > 99 ? "99+" : allUnreadCount}
-                      </Badge>
+                      </span>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="chats" className="text-sm">
+                  <TabsTrigger value="chats" className="text-sm relative">
                     <MessageSquare className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
                     Chats
                     {chatUnreadCount > 0 && (
-                      <Badge variant="destructive" className="ml-1.5 h-5 min-w-[20px] px-1.5 text-xs">
+                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-0.5 min-w-[18px]">
                         {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
-                      </Badge>
+                      </span>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="groups" className="text-sm">
+                  <TabsTrigger value="groups" className="text-sm relative">
                     <Users className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
                     Groups
                     {groupUnreadCount > 0 && (
-                      <Badge variant="destructive" className="ml-1.5 h-5 min-w-[20px] px-1.5 text-xs">
+                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-0.5 min-w-[18px]">
                         {groupUnreadCount > 99 ? "99+" : groupUnreadCount}
-                      </Badge>
+                      </span>
                     )}
                   </TabsTrigger>
                 </TabsList>
@@ -1186,46 +1186,43 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                             }
                           }}
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="relative">
-                              <Avatar className="h-10 w-10">
-                                {avatar.url && <AvatarImage src={avatar.url} />}
-                                <AvatarFallback>
-                                  {conv.isGroup ? <Users className="h-4 w-4" /> : avatar.initials}
-                                </AvatarFallback>
-                              </Avatar>
-                              {hasUnread && activeConversation?.id !== conv.id && (
-                                <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 items-center justify-center text-[9px] font-bold text-white">
-                                    {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
-                                  </span>
-                                </span>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10 flex-shrink-0">
+                              {avatar.url && <AvatarImage src={avatar.url} />}
+                              <AvatarFallback>
+                                {conv.isGroup ? <Users className="h-4 w-4" /> : avatar.initials}
+                              </AvatarFallback>
+                            </Avatar>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
-                                <p className={`font-medium truncate ${hasUnread && activeConversation?.id !== conv.id ? "font-bold" : ""}`}>
+                                <p className={`truncate ${hasUnread && activeConversation?.id !== conv.id ? "font-bold" : "font-medium"}`}>
                                   {getConversationName(conv)}
                                   {conv.isGroup && (
                                     <span className="ml-1 text-xs text-muted-foreground">(Group)</span>
                                   )}
                                 </p>
-                                <span className="text-xs opacity-50 ml-2 flex-shrink-0">
+                                <span className={`text-xs ml-2 flex-shrink-0 ${hasUnread && activeConversation?.id !== conv.id ? "text-red-500 font-medium" : "opacity-50"}`}>
                                   {conv.lastMessage ? formatTime(conv.lastMessage.createdAt) : formatTime(conv.createdAt)}
                                 </span>
                               </div>
-                              <p className={`text-sm truncate ${hasUnread && activeConversation?.id !== conv.id ? "font-semibold opacity-90" : "opacity-70"}`}>
-                                {conv.lastMessage ? (
-                                  conv.lastMessage.messageType === "system"
-                                    ? conv.lastMessage.content
-                                    : conv.lastMessage.senderId === user.id
-                                    ? `You: ${conv.lastMessage.content}`
-                                    : conv.lastMessage.content
-                                ) : (
-                                  <span className="italic">No messages yet - say hello!</span>
+                              <div className="flex items-center justify-between mt-0.5">
+                                <p className={`text-sm truncate ${hasUnread && activeConversation?.id !== conv.id ? "font-semibold opacity-90" : "opacity-70"}`}>
+                                  {conv.lastMessage ? (
+                                    conv.lastMessage.messageType === "system"
+                                      ? conv.lastMessage.content
+                                      : conv.lastMessage.senderId === user.id
+                                      ? `You: ${conv.lastMessage.content}`
+                                      : conv.lastMessage.content
+                                  ) : (
+                                    <span className="italic">No messages yet - say hello!</span>
+                                  )}
+                                </p>
+                                {hasUnread && activeConversation?.id !== conv.id && (
+                                  <span className="ml-2 flex-shrink-0 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-0.5 min-w-[18px]">
+                                    {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                                  </span>
                                 )}
-                              </p>
+                              </div>
                             </div>
                           </div>
                         </div>
