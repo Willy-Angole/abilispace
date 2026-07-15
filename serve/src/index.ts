@@ -29,6 +29,7 @@ import articleRoutes from './routes/article.routes';
 import healthRoutes from './routes/health.routes';
 import adminRoutes from './routes/admin.routes';
 import uploadRoutes from './routes/upload.routes';
+import chatRoutes from './routes/chat.routes';
 
 // Service imports
 import { emailService } from './services/email.service';
@@ -134,6 +135,7 @@ class App {
         apiRouter.use('/articles', articleRoutes);
         apiRouter.use('/admin', adminRoutes);
         apiRouter.use('/upload', uploadRoutes);
+        apiRouter.use('/chat', chatRoutes);
 
         this.app.use('/api', apiRouter);
 
