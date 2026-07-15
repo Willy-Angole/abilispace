@@ -1540,17 +1540,7 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
                 </div>
               )}
             </Card>
-          ) : (
-            <Card className="h-[400px] md:h-[600px] hidden md:flex items-center justify-center">
-              <div className="text-center p-4">
-                <MessageSquare className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-base sm:text-lg font-medium mb-2">Select a Conversation</h3>
-                <p className="text-sm text-muted-foreground">
-                  Choose a conversation from the list or start a new chat
-                </p>
-              </div>
-            </Card>
-          )}
+          ) : null}
         </div>
       </div>
 
