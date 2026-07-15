@@ -864,17 +864,17 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
             {/* Tabs for All, Chats, Groups */}
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "chats" | "groups")} className="w-full">
               <div className="border-b px-3 pt-3">
-                <TabsList className="w-full grid grid-cols-3 h-10">
-                  <TabsTrigger value="all" className="text-sm font-medium">
-                    All
+                <TabsList className="flex w-full h-10 gap-1">
+                  <TabsTrigger value="all" className="text-sm font-medium flex-1">
+                    All{allUnreadCount > 0 ? ` ${allUnreadCount > 99 ? "99+" : allUnreadCount}` : ""}
                   </TabsTrigger>
-                  <TabsTrigger value="chats" className="text-sm font-medium">
+                  <TabsTrigger value="chats" className="text-sm font-medium flex-1">
                     <MessageSquare className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-                    Chats
+                    Chats{chatUnreadCount > 0 ? ` ${chatUnreadCount > 99 ? "99+" : chatUnreadCount}` : ""}
                   </TabsTrigger>
-                  <TabsTrigger value="groups" className="text-sm font-medium">
+                  <TabsTrigger value="groups" className="text-sm font-medium flex-1">
                     <Users className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-                    Groups
+                    Groups{groupUnreadCount > 0 ? ` ${groupUnreadCount > 99 ? "99+" : groupUnreadCount}` : ""}
                   </TabsTrigger>
                 </TabsList>
               </div>
