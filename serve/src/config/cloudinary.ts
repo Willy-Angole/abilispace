@@ -237,4 +237,48 @@ export async function uploadToCloudinary(
   }
 }
 
+/**
+ * Upload any file (image, audio, video, pdf) to Cloudinary
+ */
+export async function uploadFileToCloudinary(
+  fileBuffer: Buffer,
+  originalName: string,
+  mimeType: string
+): Promise<UploadResult> {
+  if (!isCloudinaryConfigured) {
+    return { success: false, error: 'Upload service not configured' };
+  }
+
+  try {
+    let resourceType: 'image' | 'video' | 'raw' | 'auto' = 'auto';
+    if (mimeType.startsWith('image/')) resourceType = 'image';
+    else if (mimeType.startsWith('audio/') || mimeType.startsWith('video/')) resourceType = 'video';
+    else resourceType = 'raw';
+
+    const dataUri = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+
+    const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+      cloudinary.uploader.upload(
+        dataUri,
+        {
+          folder: 'shiriki/messages',
+          public_id: `msg_${Date.now()}_${originalName.replace(/[^a-z0-9]/gi, '_')}`,
+          resource_type: resourceType,
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else if (result) resolve(result);
+          else reject(new Error('No result from Cloudinary'));
+        }
+      );
+    });
+
+    return { success: true, url: result.secure_url, publicId: result.public_id };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('File upload to Cloudinary failed', { error: msg });
+    return { success: false, error: msg };
+  }
+}
+
 export { cloudinary, isCloudinaryConfigured };

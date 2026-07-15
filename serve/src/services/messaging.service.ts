@@ -771,8 +771,8 @@ export class MessagingService {
     /**
      * Send a message in a conversation
      */
-    async sendMessage(userId: string, input: SendMessageInput): Promise<Message> {
-        const { conversationId, content, replyToId } = input;
+    async sendMessage(userId: string, input: SendMessageInput & { fileUrl?: string; messageType?: string }): Promise<Message> {
+        const { conversationId, content, replyToId, fileUrl, messageType } = input;
 
         await this.verifyParticipant(conversationId, userId);
 
@@ -836,12 +836,13 @@ export class MessagingService {
         }
 
         const result = await db.query<Message & { avatar_url: string | null }>(
-            `INSERT INTO messages (conversation_id, sender_id, content, reply_to_id)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO messages (conversation_id, sender_id, content, reply_to_id, file_url)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING id, conversation_id as "conversationId", sender_id as "senderId",
                        content, message_type as "messageType", reply_to_id as "replyToId",
-                       is_edited as "isEdited", created_at as "createdAt", updated_at as "updatedAt"`,
-            { values: [conversationId, userId, content, replyToId || null] }
+                       file_url as "fileUrl", is_edited as "isEdited",
+                       created_at as "createdAt", updated_at as "updatedAt"`,
+            { values: [conversationId, userId, content, replyToId || null, fileUrl || null] }
         );
 
         const message = result.rows[0];
@@ -963,6 +964,7 @@ export class MessagingService {
                    u.first_name || ' ' || u.last_name as "senderName",
                    u.avatar_url as "senderAvatarUrl",
                    m.content, m.message_type as "messageType", m.reply_to_id as "replyToId",
+                   m.file_url as "fileUrl",
                    m.is_edited as "isEdited", m.created_at as "createdAt", m.updated_at as "updatedAt",
                    rm.content as reply_content,
                    ru.first_name || ' ' || ru.last_name as reply_sender_name

@@ -480,7 +480,12 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
       if (attachmentFile) {
         const formData = new FormData()
         formData.append("file", attachmentFile)
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
+        const token = localStorage.getItem("shiriki_access_token")
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        })
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
           fileUrl = uploadData.url

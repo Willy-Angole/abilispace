@@ -191,6 +191,8 @@ export const sendMessageSchema = z.object({
     conversationId: uuidSchema,
     content: z.string().min(1, 'Message content is required').max(10000),
     replyToId: uuidSchema.optional(),
+    fileUrl: z.string().url().optional(),
+    messageType: z.enum(['text', 'image', 'voice', 'file']).optional(),
 });
 
 export const editMessageSchema = z.object({

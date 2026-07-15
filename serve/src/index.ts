@@ -28,6 +28,7 @@ import eventRoutes from './routes/event.routes';
 import articleRoutes from './routes/article.routes';
 import healthRoutes from './routes/health.routes';
 import adminRoutes from './routes/admin.routes';
+import uploadRoutes from './routes/upload.routes';
 
 // Service imports
 import { emailService } from './services/email.service';
@@ -132,6 +133,7 @@ class App {
         apiRouter.use('/events', eventRoutes);
         apiRouter.use('/articles', articleRoutes);
         apiRouter.use('/admin', adminRoutes);
+        apiRouter.use('/upload', uploadRoutes);
 
         this.app.use('/api', apiRouter);
 
