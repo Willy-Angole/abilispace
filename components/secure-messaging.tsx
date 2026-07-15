@@ -865,31 +865,16 @@ export function SecureMessaging({ user, onUnreadCountChange }: SecureMessagingPr
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "chats" | "groups")} className="w-full">
               <div className="border-b px-3 pt-3">
                 <TabsList className="w-full grid grid-cols-3 h-10">
-                  <TabsTrigger value="all" className="text-sm relative">
+                  <TabsTrigger value="all" className="text-sm font-medium">
                     All
-                    {allUnreadCount > 0 && (
-                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-0.5 min-w-[18px]">
-                        {allUnreadCount > 99 ? "99+" : allUnreadCount}
-                      </span>
-                    )}
                   </TabsTrigger>
-                  <TabsTrigger value="chats" className="text-sm relative">
+                  <TabsTrigger value="chats" className="text-sm font-medium">
                     <MessageSquare className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
                     Chats
-                    {chatUnreadCount > 0 && (
-                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-0.5 min-w-[18px]">
-                        {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
-                      </span>
-                    )}
                   </TabsTrigger>
-                  <TabsTrigger value="groups" className="text-sm relative">
+                  <TabsTrigger value="groups" className="text-sm font-medium">
                     <Users className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
                     Groups
-                    {groupUnreadCount > 0 && (
-                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-0.5 min-w-[18px]">
-                        {groupUnreadCount > 99 ? "99+" : groupUnreadCount}
-                      </span>
-                    )}
                   </TabsTrigger>
                 </TabsList>
               </div>
