@@ -24,10 +24,16 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; -- For fuzzy text search
 
 -- User disability types
 CREATE TYPE disability_type AS ENUM (
+    'physical',
+    'intellectual',
+    'psychosocial',
+    'albinism',
+    'hearing',
     'visual',
-    'hearing', 
-    'mobility',
-    'cognitive',
+    'speech',
+    'autism_spectrum',
+    'maxillofacial',
+    'progressive_chronic',
     'multiple',
     'other',
     'prefer_not_to_say'

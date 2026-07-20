@@ -428,10 +428,16 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                         <SelectValue placeholder="Select disability type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="visual">Visual impairment</SelectItem>
-                        <SelectItem value="hearing">Hearing impairment</SelectItem>
-                        <SelectItem value="mobility">Mobility impairment</SelectItem>
-                        <SelectItem value="cognitive">Cognitive disability</SelectItem>
+                        <SelectItem value="physical">Physical</SelectItem>
+                        <SelectItem value="intellectual">Intellectual</SelectItem>
+                        <SelectItem value="psychosocial">Psychosocial</SelectItem>
+                        <SelectItem value="albinism">Albinism</SelectItem>
+                        <SelectItem value="hearing">Hearing Impairment</SelectItem>
+                        <SelectItem value="visual">Visual Impairment</SelectItem>
+                        <SelectItem value="speech">Speech</SelectItem>
+                        <SelectItem value="autism_spectrum">Autism Spectrum Disorders</SelectItem>
+                        <SelectItem value="maxillofacial">Maxillofacial</SelectItem>
+                        <SelectItem value="progressive_chronic">Progressive Chronic Conditions</SelectItem>
                         <SelectItem value="multiple">Multiple disabilities</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
@@ -469,13 +475,19 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                       <SelectValue placeholder="Select your disability type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="visual">Visual impairment</SelectItem>
-                      <SelectItem value="hearing">Hearing impairment</SelectItem>
-                      <SelectItem value="mobility">Mobility impairment</SelectItem>
-                      <SelectItem value="cognitive">Cognitive disability</SelectItem>
+                      <SelectItem value="physical">Physical</SelectItem>
+                      <SelectItem value="intellectual">Intellectual</SelectItem>
+                      <SelectItem value="psychosocial">Psychosocial</SelectItem>
+                      <SelectItem value="albinism">Albinism</SelectItem>
+                      <SelectItem value="hearing">Hearing Impairment</SelectItem>
+                      <SelectItem value="visual">Visual Impairment</SelectItem>
+                      <SelectItem value="speech">Speech</SelectItem>
+                      <SelectItem value="autism_spectrum">Autism Spectrum Disorders</SelectItem>
+                      <SelectItem value="maxillofacial">Maxillofacial</SelectItem>
+                      <SelectItem value="progressive_chronic">Progressive Chronic Conditions</SelectItem>
                       <SelectItem value="multiple">Multiple disabilities</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
-                      <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                      <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
