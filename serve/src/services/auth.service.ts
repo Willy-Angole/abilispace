@@ -151,12 +151,13 @@ export class AuthService {
             phone,
             location,
             accountType,
+            sectorRole,
             disabilityType,
             accessibilityNeeds,
             communicationPreference,
             emergencyContact,
             careRecipient,
-        } = input;
+        } = input as typeof input & { sectorRole?: string };
 
         // Check if email already exists (case-insensitive)
         const existingUser = await db.query(
@@ -177,9 +178,9 @@ export class AuthService {
             const userResult = await client.query<User>(
                 `INSERT INTO users (
                     email, password_hash, first_name, last_name, gender, phone, location,
-                    account_type, disability_type, accessibility_needs, communication_preference,
-                    emergency_contact
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    account_type, sector_role, disability_type, accessibility_needs,
+                    communication_preference, emergency_contact
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 RETURNING id, email, first_name as "firstName", last_name as "lastName",
                     phone, location, disability_type as "disabilityType",
                     communication_preference as "communicationPreference",
@@ -194,6 +195,7 @@ export class AuthService {
                     phone || null,
                     location || null,
                     accountType || 'member',
+                    sectorRole || null,
                     disabilityType || null,
                     accessibilityNeeds || null,
                     communicationPreference || 'email',

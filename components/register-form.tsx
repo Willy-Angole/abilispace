@@ -31,6 +31,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
     phone: "",
     location: "",
     accountType: "member",
+    sectorRole: "",
     disabilityType: "",
     accessibilityNeeds: "",
     communicationPreference: "",
@@ -72,11 +73,16 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
     if (!formData.phone) missingFields.push("Phone Number")
     if (!formData.emergencyContact) missingFields.push("Emergency Contact")
     
-    // For non-caregivers, disability type is required
-    if (formData.accountType !== "caregiver" && !formData.disabilityType) {
+    // Members must specify disability type
+    if (formData.accountType === "member" && !formData.disabilityType) {
       missingFields.push("Disability Type")
     }
-    
+
+    // Other account types must pick a sector role
+    if (formData.accountType === "other" && !formData.sectorRole) {
+      missingFields.push("Role")
+    }
+
     // For caregivers, validate care recipient fields
     if (formData.accountType === "caregiver") {
       if (!formData.careRecipientFirstName) missingFields.push("Care Recipient First Name")
@@ -121,6 +127,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
         phone: formData.phone,
         location: formData.location || undefined,
         accountType: formData.accountType,
+        sectorRole: formData.sectorRole || undefined,
         disabilityType: formData.disabilityType || undefined,
         accessibilityNeeds: formData.accessibilityNeeds || undefined,
         communicationPreference: formData.communicationPreference || undefined,
@@ -323,15 +330,38 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                     <SelectContent>
                       <SelectItem value="member">Person with disability</SelectItem>
                       <SelectItem value="caregiver">Caregiver</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    {formData.accountType === "caregiver" 
-                      ? "Caregivers can assist and support members with disabilities in using the platform"
+                    {formData.accountType === "caregiver"
+                      ? "Caregivers assist and support persons with disabilities in using the platform"
+                      : formData.accountType === "other"
+                      ? "For sector workers, advocates, and others supporting the disability community"
                       : "Members can discover events, connect with peers, and access community resources"
                     }
                   </p>
                 </div>
+
+                {/* Sector role — shown only for 'other' account type */}
+                {formData.accountType === "other" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="sectorRole">Your Role *</Label>
+                    <Select
+                      value={formData.sectorRole}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, sectorRole: value }))}
+                    >
+                      <SelectTrigger id="sectorRole">
+                        <SelectValue placeholder="Select your role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sector_worker">Sector Worker</SelectItem>
+                        <SelectItem value="advocate">Advocate</SelectItem>
+                        <SelectItem value="general">General</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </fieldset>
 
               {/* Care Recipient Information (for caregivers only) */}
@@ -445,7 +475,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="careRecipientAccessibilityNeeds">Their Accessibility Needs (Optional)</Label>
+                    <Label htmlFor="careRecipientAccessibilityNeeds">Their Reasonable Accommodation Requirements (Optional)</Label>
                     <Textarea
                       id="careRecipientAccessibilityNeeds"
                       placeholder="e.g., Sign language interpretation, wheelchair access, large print materials..."
@@ -462,11 +492,13 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
               <fieldset className="space-y-4">
                 <legend className="text-lg font-semibold">Accessibility Information</legend>
                 <p className="text-sm text-muted-foreground">
-                  This information helps us provide better support an    d connect you with relevant events
+                  This information helps us provide better support and connect you with relevant events
                 </p>
 
                 <div className="space-y-2">
-                  <Label htmlFor="disabilityType">Disability Type *</Label>
+                  <Label htmlFor="disabilityType">
+                    Disability Type {formData.accountType === "member" ? "*" : "(Optional)"}
+                  </Label>
                   <Select
                     value={formData.disabilityType}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, disabilityType: value }))}
@@ -493,7 +525,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="accessibilityNeeds">Specific Accessibility Needs (Optional)</Label>
+                  <Label htmlFor="accessibilityNeeds">Reasonable Accommodation Requirements (Optional)</Label>
                   <Textarea
                     id="accessibilityNeeds"
                     placeholder="e.g., Sign language interpretation, wheelchair access, large print materials..."

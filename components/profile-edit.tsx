@@ -372,7 +372,7 @@ export function ProfileEdit({ user, onUpdate, onClose }: ProfileEditProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="accessibilityNeeds">Specific Accessibility Needs</Label>
+              <Label htmlFor="accessibilityNeeds">Reasonable Accommodation Requirements</Label>
               <Textarea
                 id="accessibilityNeeds"
                 placeholder="e.g., Sign language interpretation, wheelchair access, large print materials..."

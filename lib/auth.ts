@@ -74,6 +74,7 @@ export interface RegisterInput {
     phone: string;
     location?: string;
     accountType: string;
+    sectorRole?: string;
     disabilityType?: string;
     accessibilityNeeds?: string;
     communicationPreference?: string;

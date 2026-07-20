@@ -64,7 +64,8 @@ export const registerSchema = z.object({
     gender: z.string().max(20).optional(),
     phone: z.string().max(20).optional(),
     location: z.string().max(255).optional(),
-    accountType: z.enum(['member', 'caregiver']).default('member'),
+    accountType: z.enum(['member', 'caregiver', 'other']).default('member'),
+    sectorRole: z.enum(['sector_worker', 'advocate', 'general']).optional(),
     disabilityType: z.enum([
         'physical',
         'intellectual',

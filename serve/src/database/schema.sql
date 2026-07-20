@@ -104,7 +104,8 @@ CREATE TYPE article_region AS ENUM (
 -- Account types
 CREATE TYPE account_type AS ENUM (
     'member',
-    'caregiver'
+    'caregiver',
+    'other'
 );
 
 -- =============================================================================
