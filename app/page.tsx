@@ -15,10 +15,19 @@ export default function HomePage() {
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
-    const storedUser = localStorage.getItem("shiriki_user")
-    const token = localStorage.getItem("shiriki_access_token")
-    if (storedUser && token) {
-      router.replace("/dashboard")
+    let cancelled = false
+    async function check() {
+      const { getStoredUser, restoreSession, isAuthenticated } = await import("@/lib/auth")
+      if (isAuthenticated() || getStoredUser()) {
+        const ok = await restoreSession()
+        if (!cancelled && (ok || getStoredUser())) {
+          router.replace("/dashboard")
+        }
+      }
+    }
+    void check()
+    return () => {
+      cancelled = true
     }
   }, [router])
 
@@ -82,7 +91,7 @@ export default function HomePage() {
             </p>
           </header>
 
-          <div id="main-content" className="space-y-8">
+          <div id="main-content" tabIndex={-1} className="space-y-8 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
             {/* Feature Cards */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <Card className="text-center">

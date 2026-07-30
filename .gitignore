@@ -39,3 +39,13 @@ next-env.d.ts
 # Log files
 **/logs/*.log
 *.log
+
+# Legacy / rewrite artifacts
+.git-rewrite/
+
+# Alternate lockfiles (pnpm is the package manager of record)
+yarn.lock
+package-lock.json
+
+# OS
+.DS_Store

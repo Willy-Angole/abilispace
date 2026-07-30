@@ -1,8 +1,9 @@
 /**
  * Authentication Library
- * 
- * Handles all authentication operations including credential-based
- * and Google OAuth authentication.
+ *
+ * Tokens: access token kept in memory only (XSS-resistant vs localStorage).
+ * Server also sets httpOnly cookies for same-origin / proxy deploys.
+ * User profile may be cached in localStorage for UI (non-secret).
  */
 
 // Resolve API base URL at call time (import-time window is undefined in SSR)
@@ -16,9 +17,6 @@ function getApiBaseUrl(): string {
     return 'http://localhost:4000';
 }
 
-/**
- * Auth response from backend
- */
 export interface AuthResponse {
     success: boolean;
     message: string;
@@ -27,9 +25,6 @@ export interface AuthResponse {
     user?: User;
 }
 
-/**
- * User type from backend
- */
 export interface User {
     id: string;
     email: string;
@@ -49,9 +44,6 @@ export interface User {
     createdAt: string;
 }
 
-/**
- * Care recipient information (for caregiver accounts)
- */
 export interface CareRecipientInput {
     firstName: string;
     lastName: string;
@@ -62,9 +54,6 @@ export interface CareRecipientInput {
     dateOfBirth?: string;
 }
 
-/**
- * Registration input
- */
 export interface RegisterInput {
     email: string;
     password: string;
@@ -82,17 +71,11 @@ export interface RegisterInput {
     careRecipient?: CareRecipientInput;
 }
 
-/**
- * Login input
- */
 export interface LoginInput {
     email: string;
     password: string;
 }
 
-/**
- * Google auth additional info
- */
 export interface GoogleAuthAdditionalInfo {
     phone?: string;
     location?: string;
@@ -102,53 +85,46 @@ export interface GoogleAuthAdditionalInfo {
     emergencyContact?: string;
 }
 
-// Token storage keys
-const ACCESS_TOKEN_KEY = 'shiriki_access_token';
-const REFRESH_TOKEN_KEY = 'shiriki_refresh_token';
 const USER_KEY = 'shiriki_user';
+const AUTH_FLAG_KEY = 'shiriki_session';
+
+/** In-memory access token — never written to localStorage */
+let memoryAccessToken: string | null = null;
+/** In-memory refresh token for cross-origin dev (cookie may not be shared) */
+let memoryRefreshToken: string | null = null;
+
+let csrfToken: string | null = null;
 
 /**
- * Store auth tokens securely
+ * Store auth tokens in memory only (not localStorage).
+ * Server also sets httpOnly cookies when SameSite allows.
  */
 export function storeTokens(accessToken: string, refreshToken: string): void {
+    memoryAccessToken = accessToken;
+    memoryRefreshToken = refreshToken;
     if (typeof window !== 'undefined') {
-        localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        // Non-secret flag for soft session restore UX
+        sessionStorage.setItem(AUTH_FLAG_KEY, '1');
+        // Clear any legacy localStorage tokens
+        localStorage.removeItem('shiriki_access_token');
+        localStorage.removeItem('shiriki_refresh_token');
     }
 }
 
-/**
- * Store user data
- */
 export function storeUser(user: User): void {
     if (typeof window !== 'undefined') {
         localStorage.setItem(USER_KEY, JSON.stringify(user));
     }
 }
 
-/**
- * Get stored access token
- */
 export function getAccessToken(): string | null {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem(ACCESS_TOKEN_KEY);
-    }
-    return null;
+    return memoryAccessToken;
 }
 
-/**
- * Get stored refresh token
- */
 export function getRefreshToken(): string | null {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem(REFRESH_TOKEN_KEY);
-    }
-    return null;
+    return memoryRefreshToken;
 }
 
-/**
- * Get stored user
- */
 export function getStoredUser(): User | null {
     if (typeof window !== 'undefined') {
         const userData = localStorage.getItem(USER_KEY);
@@ -157,172 +133,217 @@ export function getStoredUser(): User | null {
     return null;
 }
 
-/**
- * Clear all auth data
- */
 export function clearAuth(): void {
+    memoryAccessToken = null;
+    memoryRefreshToken = null;
+    csrfToken = null;
     if (typeof window !== 'undefined') {
-        localStorage.removeItem(ACCESS_TOKEN_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
+        localStorage.removeItem('shiriki_access_token');
+        localStorage.removeItem('shiriki_refresh_token');
+        sessionStorage.removeItem(AUTH_FLAG_KEY);
+    }
+}
+
+export function isAuthenticated(): boolean {
+    if (memoryAccessToken) return true;
+    if (typeof window !== 'undefined') {
+        return sessionStorage.getItem(AUTH_FLAG_KEY) === '1' || !!getStoredUser();
+    }
+    return false;
+}
+
+async function ensureCsrfToken(): Promise<string | null> {
+    if (csrfToken) return csrfToken;
+    try {
+        const response = await fetch(`${getApiBaseUrl()}/api/csrf-token`, {
+            credentials: 'include',
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        csrfToken = data.csrfToken || null;
+        return csrfToken;
+    } catch {
+        return null;
     }
 }
 
 /**
- * Check if user is authenticated
+ * Shared fetch options: always send cookies + Bearer when available.
  */
-export function isAuthenticated(): boolean {
-    return !!getAccessToken();
-}
-
-/**
- * API request helper with auth headers
- */
-async function apiRequest<T>(
+export async function apiRequest<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
     const accessToken = getAccessToken();
-    
-    const headers: HeadersInit = {
+    const method = (options.method || 'GET').toUpperCase();
+
+    const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(options.headers as Record<string, string> | undefined),
     };
-    
+
     if (accessToken) {
-        (headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
+        headers['Authorization'] = `Bearer ${accessToken}`;
     }
-    
+
+    // CSRF for cookie-session mutating requests when no bearer yet
+    if (!accessToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        const csrf = await ensureCsrfToken();
+        if (csrf) headers['X-CSRF-Token'] = csrf;
+    }
+
     const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include',
     });
-    
-    const data = await response.json();
-    
-    if (!response.ok) {
-        // Handle validation errors (422) with detailed messages
-        if (response.status === 422 && data.errors) {
-            const errorMessages: string[] = [];
-            for (const field in data.errors) {
-                const fieldErrors = data.errors[field];
-                if (Array.isArray(fieldErrors)) {
-                    errorMessages.push(...fieldErrors);
-                }
+
+    // Auto-refresh once on 401
+    if (response.status === 401 && !endpoint.includes('/auth/refresh') && !endpoint.includes('/auth/login')) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+            const retryHeaders = { ...headers };
+            const newToken = getAccessToken();
+            if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
+            const retry = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+                ...options,
+                headers: retryHeaders,
+                credentials: 'include',
+            });
+            const retryData = await retry.json();
+            if (!retry.ok) {
+                throwApiError(retry, retryData);
             }
-            throw new Error(errorMessages.join('. ') || data.message || 'Validation failed');
+            return retryData;
         }
-        throw new Error(data.message || 'Request failed');
     }
-    
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throwApiError(response, data);
+    }
+
     return data;
 }
 
-/**
- * Register new user with credentials
- */
+function throwApiError(response: Response, data: {
+    message?: string;
+    errors?: Record<string, string[]>;
+}): never {
+    if (response.status === 422 && data.errors) {
+        const errorMessages: string[] = [];
+        for (const field in data.errors) {
+            const fieldErrors = data.errors[field];
+            if (Array.isArray(fieldErrors)) {
+                errorMessages.push(...fieldErrors);
+            }
+        }
+        throw new Error(errorMessages.join('. ') || data.message || 'Validation failed');
+    }
+    throw new Error(data.message || 'Request failed');
+}
+
 export async function register(input: RegisterInput): Promise<AuthResponse> {
     const response = await apiRequest<AuthResponse>('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify(input),
     });
-    
+
     if (response.success && response.accessToken && response.refreshToken && response.user) {
         storeTokens(response.accessToken, response.refreshToken);
         storeUser(response.user);
     }
-    
+
     return response;
 }
 
-/**
- * Login with credentials
- */
 export async function login(input: LoginInput): Promise<AuthResponse> {
     const response = await apiRequest<AuthResponse>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify(input),
     });
-    
+
     if (response.success && response.accessToken && response.refreshToken && response.user) {
         storeTokens(response.accessToken, response.refreshToken);
         storeUser(response.user);
     }
-    
+
     return response;
 }
 
-/**
- * Authenticate with Google
- * Tries backend first, falls back to client-side JWT decode for demo
- */
 export async function googleAuth(
     idToken: string,
     additionalInfo?: GoogleAuthAdditionalInfo
 ): Promise<AuthResponse> {
-    try {
-        // Try backend API first
-        const response = await apiRequest<AuthResponse>('/api/auth/google', {
-            method: 'POST',
-            body: JSON.stringify({ idToken, additionalInfo }),
-        });
-        
-        if (response.success && response.accessToken && response.refreshToken && response.user) {
-            storeTokens(response.accessToken, response.refreshToken);
-            storeUser(response.user);
-        }
-        
-        return response;
-    } catch (error) {
-        // Re-throw the error - no fallback mode
-        throw error;
+    const response = await apiRequest<AuthResponse>('/api/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ idToken, additionalInfo }),
+    });
+
+    if (response.success && response.accessToken && response.refreshToken && response.user) {
+        storeTokens(response.accessToken, response.refreshToken);
+        storeUser(response.user);
     }
+
+    return response;
 }
 
-/**
- * Refresh access token
- */
 export async function refreshAccessToken(): Promise<boolean> {
     const refreshToken = getRefreshToken();
-    
-    if (!refreshToken) {
-        return false;
-    }
-    
+
     try {
-        const response = await apiRequest<{
-            success: boolean;
-            accessToken: string;
-            refreshToken: string;
-        }>('/api/auth/refresh', {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+        const body = refreshToken ? JSON.stringify({ refreshToken }) : JSON.stringify({});
+
+        const response = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
             method: 'POST',
-            body: JSON.stringify({ refreshToken }),
+            headers,
+            body,
+            credentials: 'include',
         });
-        
-        if (response.success) {
-            storeTokens(response.accessToken, response.refreshToken);
+
+        if (!response.ok) {
+            clearAuth();
+            return false;
+        }
+
+        const data = await response.json();
+        if (data.success && data.accessToken) {
+            storeTokens(data.accessToken, data.refreshToken || refreshToken || '');
             return true;
         }
     } catch {
         clearAuth();
     }
-    
+
     return false;
 }
 
 /**
- * Logout user
+ * Attempt to restore session after full page reload (memory token lost).
+ * Uses httpOnly refresh cookie when available, else fails soft.
  */
+export async function restoreSession(): Promise<boolean> {
+    if (memoryAccessToken) return true;
+    if (typeof window === 'undefined') return false;
+    if (sessionStorage.getItem(AUTH_FLAG_KEY) !== '1' && !getStoredUser()) {
+        return false;
+    }
+    return refreshAccessToken();
+}
+
 export async function logout(): Promise<void> {
     const refreshToken = getRefreshToken();
-    
+
     try {
-        if (refreshToken) {
-            await apiRequest('/api/auth/logout', {
-                method: 'POST',
-                body: JSON.stringify({ refreshToken }),
-            });
-        }
+        await apiRequest('/api/auth/logout', {
+            method: 'POST',
+            body: JSON.stringify({ refreshToken }),
+        });
     } catch {
         // Ignore errors during logout
     } finally {
@@ -330,9 +351,6 @@ export async function logout(): Promise<void> {
     }
 }
 
-/**
- * Request password reset code
- */
 export async function requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
     return apiRequest<{ success: boolean; message: string }>('/api/auth/request-reset', {
         method: 'POST',
@@ -340,9 +358,6 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
     });
 }
 
-/**
- * Verify reset code (without resetting password)
- */
 export async function verifyResetCode(
     email: string,
     code: string
@@ -353,9 +368,6 @@ export async function verifyResetCode(
     });
 }
 
-/**
- * Reset password with verification code
- */
 export async function resetPassword(
     email: string,
     code: string,
@@ -367,9 +379,6 @@ export async function resetPassword(
     });
 }
 
-/**
- * Profile update input
- */
 export interface ProfileUpdateInput {
     firstName?: string;
     lastName?: string;
@@ -381,79 +390,67 @@ export interface ProfileUpdateInput {
     emergencyContact?: string;
 }
 
-/**
- * Profile response
- */
 export interface ProfileResponse {
     success: boolean;
     message?: string;
     profile?: User;
 }
 
-/**
- * Get current user's profile
- */
 export async function getProfile(): Promise<ProfileResponse> {
     const response = await apiRequest<ProfileResponse>('/api/profile', {
         method: 'GET',
     });
-    
+
     if (response.success && response.profile) {
         storeUser(response.profile);
     }
-    
+
     return response;
 }
 
-/**
- * Update user profile
- */
 export async function updateProfile(input: ProfileUpdateInput): Promise<ProfileResponse> {
     const response = await apiRequest<ProfileResponse>('/api/profile', {
         method: 'PUT',
         body: JSON.stringify(input),
     });
-    
+
     if (response.success && response.profile) {
         storeUser(response.profile);
     }
-    
+
     return response;
 }
 
-/**
- * Upload avatar response
- */
 export interface AvatarUploadResponse {
     success: boolean;
     message?: string;
     avatarUrl?: string;
 }
 
-/**
- * Upload user avatar
- */
 export async function uploadAvatar(file: File): Promise<AvatarUploadResponse> {
     const accessToken = getAccessToken();
-    
+
     const formData = new FormData();
     formData.append('avatar', file);
-    
+
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const response = await fetch(`${getApiBaseUrl()}/api/profile/avatar`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-        },
+        headers,
         body: formData,
+        credentials: 'include',
     });
-    
+
     const data = await response.json();
-    
+
     if (!response.ok) {
         throw new Error(data.message || 'Failed to upload avatar');
     }
-    
-    // Update stored user with new avatar URL
+
     if (data.success && data.avatarUrl) {
         const user = getStoredUser();
         if (user) {
@@ -461,18 +458,15 @@ export async function uploadAvatar(file: File): Promise<AvatarUploadResponse> {
             storeUser(user);
         }
     }
-    
+
     return data;
 }
 
-/**
- * Delete user avatar
- */
 export async function deleteAvatar(): Promise<{ success: boolean; message?: string }> {
     const response = await apiRequest<{ success: boolean; message?: string }>('/api/profile/avatar', {
         method: 'DELETE',
     });
-    
+
     if (response.success) {
         const user = getStoredUser();
         if (user) {
@@ -480,6 +474,6 @@ export async function deleteAvatar(): Promise<{ success: boolean; message?: stri
             storeUser(user);
         }
     }
-    
+
     return response;
 }

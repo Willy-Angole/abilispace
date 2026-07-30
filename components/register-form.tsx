@@ -10,15 +10,26 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { FieldError } from "@/components/ui/field-error"
 import { ArrowLeft, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { register, type User } from "@/lib/auth"
+import { register } from "@/lib/auth"
 
 interface RegisterFormProps {
   onSuccess: () => void
   onBack: () => void
   onSignIn: () => void
 }
+
+type FieldKey = string
+type FieldErrors = Record<string, string>
+
+const strongPassword = (p: string) =>
+  p.length >= 8 &&
+  /[A-Z]/.test(p) &&
+  /[a-z]/.test(p) &&
+  /[0-9]/.test(p) &&
+  /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p)
 
 export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps) {
   const [formData, setFormData] = useState({
@@ -47,75 +58,82 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
     careRecipientAccessibilityNeeds: "",
     careRecipientDateOfBirth: "",
   })
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
+  const setField = (key: FieldKey, value: string | boolean) => {
+    setFormData((prev) => ({ ...prev, [key]: value }))
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
+  const validate = (): FieldErrors => {
+    const errors: FieldErrors = {}
+    if (!formData.firstName.trim()) errors.firstName = "First name is required"
+    if (!formData.lastName.trim()) errors.lastName = "Last name is required"
+    if (!formData.gender) errors.gender = "Gender is required"
+    if (!formData.email.trim()) {
+      errors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = "Enter a valid email address"
+    }
+    if (!formData.password) {
+      errors.password = "Password is required"
+    } else if (!strongPassword(formData.password)) {
+      errors.password = "Password must meet complexity requirements"
+    }
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = "Please confirm your password"
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match"
+    }
+    if (!formData.phone.trim()) errors.phone = "Phone number is required"
+    if (!formData.emergencyContact.trim()) errors.emergencyContact = "Emergency contact is required"
+
+    if (formData.accountType === "member" && !formData.disabilityType) {
+      errors.disabilityType = "Disability type is required"
+    }
+    if (formData.accountType === "other" && !formData.sectorRole) {
+      errors.sectorRole = "Role is required"
+    }
+    if (formData.accountType === "caregiver") {
+      if (!formData.careRecipientFirstName.trim()) errors.careRecipientFirstName = "First name is required"
+      if (!formData.careRecipientLastName.trim()) errors.careRecipientLastName = "Last name is required"
+      if (!formData.careRecipientGender) errors.careRecipientGender = "Gender is required"
+      if (!formData.careRecipientDateOfBirth) errors.careRecipientDateOfBirth = "Date of birth is required"
+      if (!formData.careRecipientRelationship) errors.careRecipientRelationship = "Relationship is required"
+      if (!formData.careRecipientDisabilityType) errors.careRecipientDisabilityType = "Disability type is required"
+    }
+    if (!formData.agreeToTerms) errors.agreeToTerms = "You must agree to the Terms of Service"
+    if (!formData.agreeToAccessibility) errors.agreeToAccessibility = "You must agree to the community commitment"
+    return errors
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const errors = validate()
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      const firstKey = Object.keys(errors)[0]
+      const el = document.getElementById(firstKey)
+      el?.focus()
+      el?.scrollIntoView({ behavior: "smooth", block: "center" })
+      toast({
+        title: "Please fix the highlighted fields",
+        description: "Some required information is missing or invalid.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
-
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Password Mismatch",
-        description: "Passwords do not match. Please check and try again.",
-        variant: "destructive",
-      })
-      setIsSubmitting(false)
-      return
-    }
-
-    // Validate required fields
-    const missingFields = []
-    if (!formData.gender) missingFields.push("Gender")
-    if (!formData.phone) missingFields.push("Phone Number")
-    if (!formData.emergencyContact) missingFields.push("Emergency Contact")
-    
-    // Members must specify disability type
-    if (formData.accountType === "member" && !formData.disabilityType) {
-      missingFields.push("Disability Type")
-    }
-
-    // Other account types must pick a sector role
-    if (formData.accountType === "other" && !formData.sectorRole) {
-      missingFields.push("Role")
-    }
-
-    // For caregivers, validate care recipient fields
-    if (formData.accountType === "caregiver") {
-      if (!formData.careRecipientFirstName) missingFields.push("Care Recipient First Name")
-      if (!formData.careRecipientLastName) missingFields.push("Care Recipient Last Name")
-      if (!formData.careRecipientGender) missingFields.push("Care Recipient Gender")
-      if (!formData.careRecipientDateOfBirth) missingFields.push("Care Recipient Date of Birth")
-      if (!formData.careRecipientRelationship) missingFields.push("Relationship to Care Recipient")
-      if (!formData.careRecipientDisabilityType) missingFields.push("Care Recipient Disability Type")
-    }
-    
-    if (missingFields.length > 0) {
-      toast({
-        title: "Required Fields Missing",
-        description: `Please fill in the following required fields: ${missingFields.join(", ")}.`,
-        variant: "destructive",
-      })
-      setIsSubmitting(false)
-      return
-    }
-
-    if (!formData.agreeToTerms || !formData.agreeToAccessibility) {
-      const missing = []
-      if (!formData.agreeToTerms) missing.push("Terms of Service and Privacy Policy")
-      if (!formData.agreeToAccessibility) missing.push("Accessibility Commitment")
-      
-      toast({
-        title: "Please Agree to Continue",
-        description: `You must agree to the following: ${missing.join(" and ")}.`,
-        variant: "destructive",
-      })
-      setIsSubmitting(false)
-      return
-    }
 
     try {
       const response = await register({
@@ -191,46 +209,54 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               {/* Personal Information */}
               <fieldset className="space-y-4">
                 <legend className="text-lg font-semibold">Personal Information</legend>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name *</Label>
+                    <Label htmlFor="firstName" className={fieldErrors.firstName ? "text-destructive" : undefined}>
+                      First Name *
+                    </Label>
                     <Input
                       id="firstName"
                       type="text"
-                      required
                       value={formData.firstName}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, firstName: e.target.value }))}
-                      aria-describedby="firstName-help"
+                      onChange={(e) => setField("firstName", e.target.value)}
+                      aria-invalid={!!fieldErrors.firstName}
+                      aria-describedby={fieldErrors.firstName ? "firstName-error" : "firstName-help"}
                     />
-                    <p id="firstName-help" className="text-xs text-muted-foreground">
-                      Your first name as you'd like others to see it
-                    </p>
+                    <FieldError id="firstName-error" message={fieldErrors.firstName} />
+                    {!fieldErrors.firstName && (
+                      <p id="firstName-help" className="text-xs text-muted-foreground">
+                        Your first name as you&apos;d like others to see it
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Label htmlFor="lastName" className={fieldErrors.lastName ? "text-destructive" : undefined}>
+                      Last Name *
+                    </Label>
                     <Input
                       id="lastName"
                       type="text"
-                      required
                       value={formData.lastName}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, lastName: e.target.value }))}
+                      onChange={(e) => setField("lastName", e.target.value)}
+                      aria-invalid={!!fieldErrors.lastName}
+                      aria-describedby={fieldErrors.lastName ? "lastName-error" : undefined}
                     />
+                    <FieldError id="lastName-error" message={fieldErrors.lastName} />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gender">Gender *</Label>
-                  <Select
-                    value={formData.gender}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, gender: value }))}
-                  >
-                    <SelectTrigger id="gender">
+                  <Label htmlFor="gender" className={fieldErrors.gender ? "text-destructive" : undefined}>
+                    Gender *
+                  </Label>
+                  <Select value={formData.gender} onValueChange={(value) => setField("gender", value)}>
+                    <SelectTrigger id="gender" className="w-full" aria-invalid={!!fieldErrors.gender}>
                       <SelectValue placeholder="Select your gender" />
                     </SelectTrigger>
                     <SelectContent>
@@ -238,35 +264,43 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                       <SelectItem value="female">Female</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FieldError id="gender-error" message={fieldErrors.gender} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
+                  <Label htmlFor="email" className={fieldErrors.email ? "text-destructive" : undefined}>
+                    Email Address *
+                  </Label>
                   <Input
                     id="email"
                     type="email"
-                    required
                     value={formData.email}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                    aria-describedby="email-help"
-                    autoComplete="off"
+                    onChange={(e) => setField("email", e.target.value)}
+                    aria-invalid={!!fieldErrors.email}
+                    aria-describedby={fieldErrors.email ? "email-error" : "email-help"}
+                    autoComplete="email"
                   />
-                  <p id="email-help" className="text-xs text-muted-foreground">
-                    We'll use this to send you important updates and notifications
-                  </p>
+                  <FieldError id="email-error" message={fieldErrors.email} />
+                  {!fieldErrors.email && (
+                    <p id="email-help" className="text-xs text-muted-foreground">
+                      We&apos;ll use this to send you important updates and notifications
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
+                    <Label htmlFor="password" className={fieldErrors.password ? "text-destructive" : undefined}>
+                      Password *
+                    </Label>
                     <div className="relative">
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
-                        required
                         value={formData.password}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-                        aria-describedby="password-help"
+                        onChange={(e) => setField("password", e.target.value)}
+                        aria-invalid={!!fieldErrors.password}
+                        aria-describedby={fieldErrors.password ? "password-error" : "password-help"}
                         autoComplete="new-password"
                       />
                       <Button
@@ -280,20 +314,31 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
-                    <p id="password-help" className="text-xs text-muted-foreground">
-                      Min 8 chars with uppercase, lowercase, number & special character (e.g., Password1!)
-                    </p>
+                    <FieldError id="password-error" message={fieldErrors.password} />
+                    {!fieldErrors.password && (
+                      <p id="password-help" className="text-xs text-muted-foreground">
+                        Min 8 chars with uppercase, lowercase, number & special character (e.g., Password1!)
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                    <Label
+                      htmlFor="confirmPassword"
+                      className={fieldErrors.confirmPassword ? "text-destructive" : undefined}
+                    >
+                      Confirm Password *
+                    </Label>
                     <div className="relative">
                       <Input
                         id="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
-                        required
                         value={formData.confirmPassword}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                        onChange={(e) => setField("confirmPassword", e.target.value)}
+                        aria-invalid={!!fieldErrors.confirmPassword}
+                        aria-describedby={
+                          fieldErrors.confirmPassword ? "confirmPassword-error" : undefined
+                        }
                         autoComplete="new-password"
                       />
                       <Button
@@ -302,11 +347,14 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                         size="sm"
                         className="absolute right-0 top-0 h-full px-3"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                        aria-label={
+                          showConfirmPassword ? "Hide confirm password" : "Show confirm password"
+                        }
                       >
                         {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
+                    <FieldError id="confirmPassword-error" message={fieldErrors.confirmPassword} />
                   </div>
                 </div>
               </fieldset>
@@ -322,9 +370,9 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                   <Label htmlFor="accountType">I am registering as *</Label>
                   <Select
                     value={formData.accountType}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, accountType: value }))}
+                    onValueChange={(value) => setField("accountType", value)}
                   >
-                    <SelectTrigger id="accountType">
+                    <SelectTrigger id="accountType" className="w-full">
                       <SelectValue placeholder="Select account type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -346,12 +394,21 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                 {/* Sector role — shown only for 'other' account type */}
                 {formData.accountType === "other" && (
                   <div className="space-y-2">
-                    <Label htmlFor="sectorRole">Your Role *</Label>
+                    <Label
+                      htmlFor="sectorRole"
+                      className={fieldErrors.sectorRole ? "text-destructive" : undefined}
+                    >
+                      Your Role *
+                    </Label>
                     <Select
                       value={formData.sectorRole}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, sectorRole: value }))}
+                      onValueChange={(value) => setField("sectorRole", value)}
                     >
-                      <SelectTrigger id="sectorRole">
+                      <SelectTrigger
+                        id="sectorRole"
+                        className="w-full"
+                        aria-invalid={!!fieldErrors.sectorRole}
+                      >
                         <SelectValue placeholder="Select your role" />
                       </SelectTrigger>
                       <SelectContent>
@@ -360,6 +417,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                         <SelectItem value="general">General</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FieldError id="sectorRole-error" message={fieldErrors.sectorRole} />
                   </div>
                 )}
               </fieldset>
@@ -374,36 +432,57 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="careRecipientFirstName">First Name *</Label>
+                      <Label
+                        htmlFor="careRecipientFirstName"
+                        className={fieldErrors.careRecipientFirstName ? "text-destructive" : undefined}
+                      >
+                        First Name *
+                      </Label>
                       <Input
                         id="careRecipientFirstName"
                         type="text"
-                        required
                         value={formData.careRecipientFirstName}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, careRecipientFirstName: e.target.value }))}
+                        onChange={(e) => setField("careRecipientFirstName", e.target.value)}
+                        aria-invalid={!!fieldErrors.careRecipientFirstName}
                       />
+                      <FieldError message={fieldErrors.careRecipientFirstName} />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="careRecipientLastName">Last Name *</Label>
+                      <Label
+                        htmlFor="careRecipientLastName"
+                        className={fieldErrors.careRecipientLastName ? "text-destructive" : undefined}
+                      >
+                        Last Name *
+                      </Label>
                       <Input
                         id="careRecipientLastName"
                         type="text"
-                        required
                         value={formData.careRecipientLastName}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, careRecipientLastName: e.target.value }))}
+                        onChange={(e) => setField("careRecipientLastName", e.target.value)}
+                        aria-invalid={!!fieldErrors.careRecipientLastName}
                       />
+                      <FieldError message={fieldErrors.careRecipientLastName} />
                     </div>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="careRecipientGender">Gender *</Label>
+                      <Label
+                        htmlFor="careRecipientGender"
+                        className={fieldErrors.careRecipientGender ? "text-destructive" : undefined}
+                      >
+                        Gender *
+                      </Label>
                       <Select
                         value={formData.careRecipientGender}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, careRecipientGender: value }))}
+                        onValueChange={(value) => setField("careRecipientGender", value)}
                       >
-                        <SelectTrigger id="careRecipientGender">
+                        <SelectTrigger
+                          id="careRecipientGender"
+                          className="w-full"
+                          aria-invalid={!!fieldErrors.careRecipientGender}
+                        >
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
@@ -411,27 +490,43 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                           <SelectItem value="female">Female</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FieldError message={fieldErrors.careRecipientGender} />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="careRecipientDateOfBirth">Date of Birth *</Label>
+                      <Label
+                        htmlFor="careRecipientDateOfBirth"
+                        className={fieldErrors.careRecipientDateOfBirth ? "text-destructive" : undefined}
+                      >
+                        Date of Birth *
+                      </Label>
                       <Input
                         id="careRecipientDateOfBirth"
                         type="date"
-                        required
                         value={formData.careRecipientDateOfBirth}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, careRecipientDateOfBirth: e.target.value }))}
+                        onChange={(e) => setField("careRecipientDateOfBirth", e.target.value)}
+                        aria-invalid={!!fieldErrors.careRecipientDateOfBirth}
                       />
+                      <FieldError message={fieldErrors.careRecipientDateOfBirth} />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="careRecipientRelationship">Your Relationship to Them *</Label>
+                    <Label
+                      htmlFor="careRecipientRelationship"
+                      className={fieldErrors.careRecipientRelationship ? "text-destructive" : undefined}
+                    >
+                      Your Relationship to Them *
+                    </Label>
                     <Select
                       value={formData.careRecipientRelationship}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, careRecipientRelationship: value }))}
+                      onValueChange={(value) => setField("careRecipientRelationship", value)}
                     >
-                      <SelectTrigger id="careRecipientRelationship">
+                      <SelectTrigger
+                        id="careRecipientRelationship"
+                        className="w-full"
+                        aria-invalid={!!fieldErrors.careRecipientRelationship}
+                      >
                         <SelectValue placeholder="Select your relationship" />
                       </SelectTrigger>
                       <SelectContent>
@@ -446,15 +541,25 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FieldError message={fieldErrors.careRecipientRelationship} />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="careRecipientDisabilityType">Their Disability Type *</Label>
+                    <Label
+                      htmlFor="careRecipientDisabilityType"
+                      className={fieldErrors.careRecipientDisabilityType ? "text-destructive" : undefined}
+                    >
+                      Their Disability Type *
+                    </Label>
                     <Select
                       value={formData.careRecipientDisabilityType}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, careRecipientDisabilityType: value }))}
+                      onValueChange={(value) => setField("careRecipientDisabilityType", value)}
                     >
-                      <SelectTrigger id="careRecipientDisabilityType">
+                      <SelectTrigger
+                        id="careRecipientDisabilityType"
+                        className="w-full"
+                        aria-invalid={!!fieldErrors.careRecipientDisabilityType}
+                      >
                         <SelectValue placeholder="Select disability type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -472,15 +577,18 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FieldError message={fieldErrors.careRecipientDisabilityType} />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="careRecipientAccessibilityNeeds">Their Reasonable Accommodation Requirements (Optional)</Label>
+                    <Label htmlFor="careRecipientAccessibilityNeeds">
+                      Their Reasonable Accommodation Requirements (Optional)
+                    </Label>
                     <Textarea
                       id="careRecipientAccessibilityNeeds"
                       placeholder="e.g., Sign language interpretation, wheelchair access, large print materials..."
                       value={formData.careRecipientAccessibilityNeeds}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, careRecipientAccessibilityNeeds: e.target.value }))}
+                      onChange={(e) => setField("careRecipientAccessibilityNeeds", e.target.value)}
                       rows={3}
                     />
                   </div>
@@ -496,14 +604,21 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                 </p>
 
                 <div className="space-y-2">
-                  <Label htmlFor="disabilityType">
+                  <Label
+                    htmlFor="disabilityType"
+                    className={fieldErrors.disabilityType ? "text-destructive" : undefined}
+                  >
                     Disability Type {formData.accountType === "member" ? "*" : "(Optional)"}
                   </Label>
                   <Select
                     value={formData.disabilityType}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, disabilityType: value }))}
+                    onValueChange={(value) => setField("disabilityType", value)}
                   >
-                    <SelectTrigger id="disabilityType">
+                    <SelectTrigger
+                      id="disabilityType"
+                      className="w-full"
+                      aria-invalid={!!fieldErrors.disabilityType}
+                    >
                       <SelectValue placeholder="Select your disability type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -522,6 +637,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                       <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FieldError message={fieldErrors.disabilityType} />
                 </div>
 
                 <div className="space-y-2">
@@ -530,7 +646,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                     id="accessibilityNeeds"
                     placeholder="e.g., Sign language interpretation, wheelchair access, large print materials..."
                     value={formData.accessibilityNeeds}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, accessibilityNeeds: e.target.value }))}
+                    onChange={(e) => setField("accessibilityNeeds", e.target.value)}
                     rows={3}
                   />
                 </div>
@@ -539,16 +655,16 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                   <Label htmlFor="communicationPreference">Preferred Communication Method</Label>
                   <Select
                     value={formData.communicationPreference}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, communicationPreference: value }))}
+                    onValueChange={(value) => setField("communicationPreference", value)}
                   >
-                    <SelectTrigger id="communicationPreference">
+                    <SelectTrigger id="communicationPreference" className="w-full">
                       <SelectValue placeholder="How would you like to communicate?" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="text">Text/Chat</SelectItem>
                       <SelectItem value="voice">Voice calls</SelectItem>
                       <SelectItem value="video">Video calls</SelectItem>
-                      <SelectItem value="sign-language">Sign language</SelectItem>
+                      <SelectItem value="sign_language">Sign language</SelectItem>
                       <SelectItem value="email">Email</SelectItem>
                     </SelectContent>
                   </Select>
@@ -567,7 +683,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                     type="text"
                     placeholder="City, Country"
                     value={formData.location}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
+                    onChange={(e) => setField("location", e.target.value)}
                     aria-describedby="location-help"
                   />
                   <p id="location-help" className="text-xs text-muted-foreground">
@@ -576,34 +692,49 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
+                  <Label htmlFor="phone" className={fieldErrors.phone ? "text-destructive" : undefined}>
+                    Phone Number *
+                  </Label>
                   <Input
                     id="phone"
                     type="tel"
-                    required
                     value={formData.phone}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-                    aria-describedby="phone-help"
+                    onChange={(e) => setField("phone", e.target.value)}
+                    aria-invalid={!!fieldErrors.phone}
+                    aria-describedby={fieldErrors.phone ? "phone-error" : "phone-help"}
                   />
-                  <p id="phone-help" className="text-xs text-muted-foreground">
-                    We'll use this to contact you about events and important updates
-                  </p>
+                  <FieldError id="phone-error" message={fieldErrors.phone} />
+                  {!fieldErrors.phone && (
+                    <p id="phone-help" className="text-xs text-muted-foreground">
+                      We&apos;ll use this to contact you about events and important updates
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="emergencyContact">Emergency Contact *</Label>
+                  <Label
+                    htmlFor="emergencyContact"
+                    className={fieldErrors.emergencyContact ? "text-destructive" : undefined}
+                  >
+                    Emergency Contact *
+                  </Label>
                   <Input
                     id="emergencyContact"
                     type="text"
-                    required
                     placeholder="Name and phone number"
                     value={formData.emergencyContact}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, emergencyContact: e.target.value }))}
-                    aria-describedby="emergency-help"
+                    onChange={(e) => setField("emergencyContact", e.target.value)}
+                    aria-invalid={!!fieldErrors.emergencyContact}
+                    aria-describedby={
+                      fieldErrors.emergencyContact ? "emergencyContact-error" : "emergency-help"
+                    }
                   />
-                  <p id="emergency-help" className="text-xs text-muted-foreground">
-                    For safety during events (kept private and secure)
-                  </p>
+                  <FieldError id="emergencyContact-error" message={fieldErrors.emergencyContact} />
+                  {!fieldErrors.emergencyContact && (
+                    <p id="emergency-help" className="text-xs text-muted-foreground">
+                      For safety during events (kept private and secure)
+                    </p>
+                  )}
                 </div>
               </fieldset>
 
@@ -611,41 +742,72 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
               <fieldset className="space-y-4">
                 <legend className="text-lg font-semibold">Agreements</legend>
 
-                <div className="flex items-start space-x-2">
+                <div
+                  className={`flex items-start space-x-2 rounded-md p-2 ${
+                    fieldErrors.agreeToTerms ? "ring-2 ring-destructive/30 bg-destructive/5" : ""
+                  }`}
+                >
                   <Checkbox
                     id="agreeToTerms"
                     checked={formData.agreeToTerms}
-                    onCheckedChange={(checked) =>
-                      setFormData((prev) => ({ ...prev, agreeToTerms: checked as boolean }))
-                    }
-                    aria-describedby="terms-help"
+                    onCheckedChange={(checked) => setField("agreeToTerms", checked as boolean)}
+                    aria-invalid={!!fieldErrors.agreeToTerms}
+                    aria-describedby={fieldErrors.agreeToTerms ? "agreeToTerms-error" : "terms-help"}
                   />
                   <div className="space-y-1">
-                    <Label htmlFor="agreeToTerms" className="text-sm font-normal">
+                    <Label
+                      htmlFor="agreeToTerms"
+                      className={`text-sm font-normal ${fieldErrors.agreeToTerms ? "text-destructive" : ""}`}
+                    >
                       I agree to the Terms of Service and Privacy Policy *
                     </Label>
-                    <p id="terms-help" className="text-xs text-muted-foreground">
-                      By checking this, you agree to our community guidelines and data protection practices
-                    </p>
+                    <FieldError id="agreeToTerms-error" message={fieldErrors.agreeToTerms} />
+                    {!fieldErrors.agreeToTerms && (
+                      <p id="terms-help" className="text-xs text-muted-foreground">
+                        By checking this, you agree to our community guidelines and data protection practices
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-2">
+                <div
+                  className={`flex items-start space-x-2 rounded-md p-2 ${
+                    fieldErrors.agreeToAccessibility
+                      ? "ring-2 ring-destructive/30 bg-destructive/5"
+                      : ""
+                  }`}
+                >
                   <Checkbox
                     id="agreeToAccessibility"
                     checked={formData.agreeToAccessibility}
                     onCheckedChange={(checked) =>
-                      setFormData((prev) => ({ ...prev, agreeToAccessibility: checked as boolean }))
+                      setField("agreeToAccessibility", checked as boolean)
                     }
-                    aria-describedby="accessibility-help"
+                    aria-invalid={!!fieldErrors.agreeToAccessibility}
+                    aria-describedby={
+                      fieldErrors.agreeToAccessibility
+                        ? "agreeToAccessibility-error"
+                        : "accessibility-help"
+                    }
                   />
                   <div className="space-y-1">
-                    <Label htmlFor="agreeToAccessibility" className="text-sm font-normal">
+                    <Label
+                      htmlFor="agreeToAccessibility"
+                      className={`text-sm font-normal ${
+                        fieldErrors.agreeToAccessibility ? "text-destructive" : ""
+                      }`}
+                    >
                       I commit to maintaining an inclusive and respectful community *
                     </Label>
-                    <p id="accessibility-help" className="text-xs text-muted-foreground">
-                      Help us create a safe space where everyone feels welcome and supported
-                    </p>
+                    <FieldError
+                      id="agreeToAccessibility-error"
+                      message={fieldErrors.agreeToAccessibility}
+                    />
+                    {!fieldErrors.agreeToAccessibility && (
+                      <p id="accessibility-help" className="text-xs text-muted-foreground">
+                        Help us create a safe space where everyone feels welcome and supported
+                      </p>
+                    )}
                   </div>
                 </div>
               </fieldset>

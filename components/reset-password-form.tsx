@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FieldError } from "@/components/ui/field-error"
 import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Check, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { resetPassword } from "@/lib/auth"
@@ -32,6 +33,10 @@ export function ResetPasswordForm({ email, code, onSuccess, onBack }: ResetPassw
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{
+    newPassword?: string
+    confirmPassword?: string
+  }>({})
   const { toast } = useToast()
 
   // Check password validity
@@ -41,19 +46,23 @@ export function ResetPasswordForm({ email, code, onSuccess, onBack }: ResetPassw
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!isPasswordValid) {
-      toast({
-        title: "Weak Password",
-        description: "Please ensure your password meets all requirements.",
-        variant: "destructive",
-      })
-      return
+    const errors: { newPassword?: string; confirmPassword?: string } = {}
+    if (!newPassword) {
+      errors.newPassword = "Password is required"
+    } else if (!isPasswordValid) {
+      errors.newPassword = "Please ensure your password meets all requirements"
     }
-
-    if (!doPasswordsMatch) {
+    if (!confirmPassword) {
+      errors.confirmPassword = "Please confirm your password"
+    } else if (!doPasswordsMatch) {
+      errors.confirmPassword = "Passwords do not match"
+    }
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      document.getElementById(Object.keys(errors)[0])?.focus()
       toast({
-        title: "Passwords Don't Match",
-        description: "Please ensure both passwords are identical.",
+        title: "Please fix the highlighted fields",
+        description: "Your password is incomplete or invalid.",
         variant: "destructive",
       })
       return
@@ -113,21 +122,33 @@ export function ResetPasswordForm({ email, code, onSuccess, onBack }: ResetPassw
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               {/* New Password */}
               <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
+                <Label
+                  htmlFor="newPassword"
+                  className={fieldErrors.newPassword ? "text-destructive" : undefined}
+                >
+                  New Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="newPassword"
                     type={showPassword ? "text" : "password"}
-                    required
                     placeholder="Enter your new password"
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value)
+                      if (fieldErrors.newPassword) {
+                        setFieldErrors((prev) => ({ ...prev, newPassword: undefined }))
+                      }
+                    }}
                     disabled={isSubmitting}
                     autoComplete="new-password"
-                    aria-describedby="password-requirements"
+                    aria-invalid={!!fieldErrors.newPassword}
+                    aria-describedby={
+                      fieldErrors.newPassword ? "newPassword-error" : "password-requirements"
+                    }
                   />
                   <Button
                     type="button"
@@ -141,6 +162,7 @@ export function ResetPasswordForm({ email, code, onSuccess, onBack }: ResetPassw
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                <FieldError id="newPassword-error" message={fieldErrors.newPassword} />
                 
                 {/* Password Requirements */}
                 <div id="password-requirements" className="space-y-1 mt-3 p-3 bg-muted/50 rounded-lg">
@@ -165,17 +187,30 @@ export function ResetPasswordForm({ email, code, onSuccess, onBack }: ResetPassw
 
               {/* Confirm Password */}
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Label
+                  htmlFor="confirmPassword"
+                  className={fieldErrors.confirmPassword ? "text-destructive" : undefined}
+                >
+                  Confirm New Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
-                    required
                     placeholder="Confirm your new password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value)
+                      if (fieldErrors.confirmPassword) {
+                        setFieldErrors((prev) => ({ ...prev, confirmPassword: undefined }))
+                      }
+                    }}
                     disabled={isSubmitting}
                     autoComplete="new-password"
+                    aria-invalid={!!fieldErrors.confirmPassword}
+                    aria-describedby={
+                      fieldErrors.confirmPassword ? "confirmPassword-error" : undefined
+                    }
                   />
                   <Button
                     type="button"
@@ -189,7 +224,8 @@ export function ResetPasswordForm({ email, code, onSuccess, onBack }: ResetPassw
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
-                {confirmPassword && (
+                <FieldError id="confirmPassword-error" message={fieldErrors.confirmPassword} />
+                {confirmPassword && !fieldErrors.confirmPassword && (
                   <p className={`text-xs flex items-center gap-1 ${doPasswordsMatch ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {doPasswordsMatch ? (
                       <>
@@ -209,7 +245,7 @@ export function ResetPasswordForm({ email, code, onSuccess, onBack }: ResetPassw
               <Button 
                 type="submit" 
                 className="w-full min-h-12" 
-                disabled={isSubmitting || !isPasswordValid || !doPasswordsMatch}
+                disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <>

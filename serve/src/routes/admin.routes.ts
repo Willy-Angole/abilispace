@@ -5,6 +5,13 @@ import multer from 'multer';
 import { config } from '../config/environment';
 import * as adminService from '../services/admin.service';
 import { uploadToCloudinary } from '../config/cloudinary';
+import { strictRateLimiter } from '../middleware/rate-limiter';
+import {
+  extractAccessToken,
+  setAdminAuthCookies,
+  clearAdminAuthCookies,
+  COOKIE_NAMES,
+} from '../utils/cookies';
 
 const router: RouterType = Router();
 
@@ -14,7 +21,7 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit for event posters
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -22,11 +29,6 @@ const upload = multer({
     }
   },
 });
-
-// Environment shorthand
-const env = {
-  JWT_SECRET: config.jwt.secret,
-};
 
 // Types for authenticated admin request
 interface AdminPayload {
@@ -40,16 +42,15 @@ interface AdminRequest extends Request {
   admin?: AdminPayload;
 }
 
-// Admin Auth Middleware
+// Admin Auth Middleware — Bearer header or httpOnly admin cookie
 const adminAuth = async (req: AdminRequest, res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = extractAccessToken(req, COOKIE_NAMES.adminAccess);
+    if (!token) {
       return res.status(401).json({ error: 'Access token required' });
     }
 
-    const token = authHeader.split(' ')[1];
-    const payload = jwt.verify(token, env.JWT_SECRET) as AdminPayload;
+    const payload = jwt.verify(token, config.jwt.secret) as AdminPayload;
 
     if (payload.type !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
@@ -57,7 +58,7 @@ const adminAuth = async (req: AdminRequest, res: Response, next: NextFunction) =
 
     req.admin = payload;
     next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
@@ -76,8 +77,8 @@ const requireRole = (...allowedRoles: string[]) => {
 // AUTH ROUTES
 // =============================================================================
 
-// Admin Login
-router.post('/auth/login', async (req: Request, res: Response) => {
+// Admin Login — strict rate limit (same as user auth)
+router.post('/auth/login', strictRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -89,28 +90,38 @@ router.post('/auth/login', async (req: Request, res: Response) => {
     const userAgent = req.headers['user-agent'];
 
     const result = await adminService.adminLogin(email, password, ipAddress, userAgent);
+
+    if (result?.accessToken && result?.refreshToken) {
+      setAdminAuthCookies(res, {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    }
     
     res.json({
       success: true,
       data: result
     });
-  } catch (error: any) {
-    res.status(401).json({ error: error.message || 'Login failed' });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Login failed';
+    res.status(401).json({ error: message });
   }
 });
 
 // Admin Logout
 router.post('/auth/logout', adminAuth, async (req: AdminRequest, res: Response) => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken } = req.body || {};
     
     if (req.admin && refreshToken) {
       await adminService.adminLogout(req.admin.sub, refreshToken);
     }
+    clearAdminAuthCookies(res);
     
     res.json({ success: true, message: 'Logged out successfully' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Logout failed' });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Logout failed';
+    res.status(500).json({ error: message });
   }
 });
 

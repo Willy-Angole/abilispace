@@ -5,6 +5,8 @@
  * Handles DM and group conversations with real-time support.
  */
 
+import { getAccessToken, isAuthenticated as authIsAuthenticated } from './auth';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // =============================================================================
@@ -12,11 +14,10 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 // =============================================================================
 
 /**
- * Check if user is authenticated (has a token)
+ * Check if user is authenticated (memory token or soft session)
  */
 export function isAuthenticated(): boolean {
-    if (typeof window === 'undefined') return false;
-    return !!localStorage.getItem('shiriki_access_token');
+    return authIsAuthenticated();
 }
 
 // =============================================================================
@@ -95,7 +96,7 @@ export interface ApiResponse<T> {
 
 function getAuthHeaders(): HeadersInit {
     if (typeof window === 'undefined') return {};
-    const token = localStorage.getItem('shiriki_access_token');
+    const token = getAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -115,6 +116,7 @@ async function fetchApi<T>(
         const response = await fetch(url, {
             ...options,
             headers,
+            credentials: 'include',
         });
 
         const data = await response.json();

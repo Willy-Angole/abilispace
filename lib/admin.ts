@@ -126,25 +126,33 @@ interface DailyStatistic {
   new_messages: number;
 }
 
-// Token storage
-const ADMIN_TOKEN_KEY = 'shiriki_admin_token';
-const ADMIN_REFRESH_KEY = 'shiriki_admin_refresh';
+// In-memory admin tokens only (not localStorage)
+let memoryAdminAccess: string | null = null;
+let memoryAdminRefresh: string | null = null;
+const ADMIN_SESSION_FLAG = 'shiriki_admin_session';
 
 function getAdminToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(ADMIN_TOKEN_KEY);
+  return memoryAdminAccess;
 }
 
 function setAdminTokens(tokens: AdminTokens): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(ADMIN_TOKEN_KEY, tokens.accessToken);
-  localStorage.setItem(ADMIN_REFRESH_KEY, tokens.refreshToken);
+  memoryAdminAccess = tokens.accessToken;
+  memoryAdminRefresh = tokens.refreshToken;
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(ADMIN_SESSION_FLAG, '1');
+    localStorage.removeItem('shiriki_admin_token');
+    localStorage.removeItem('shiriki_admin_refresh');
+  }
 }
 
 function clearAdminTokens(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(ADMIN_TOKEN_KEY);
-  localStorage.removeItem(ADMIN_REFRESH_KEY);
+  memoryAdminAccess = null;
+  memoryAdminRefresh = null;
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem(ADMIN_SESSION_FLAG);
+    localStorage.removeItem('shiriki_admin_token');
+    localStorage.removeItem('shiriki_admin_refresh');
+  }
 }
 
 // HTTP helper
@@ -163,6 +171,7 @@ async function adminFetch<T>(endpoint: string, options: RequestInit = {}): Promi
   const response = await fetch(`${API_BASE_URL}/api/admin${endpoint}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -183,6 +192,7 @@ export async function adminLogin(email: string, password: string): Promise<{ adm
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -200,7 +210,7 @@ export async function adminLogin(email: string, password: string): Promise<{ adm
 }
 
 export async function adminLogout(): Promise<void> {
-  const refreshToken = typeof window !== 'undefined' ? localStorage.getItem(ADMIN_REFRESH_KEY) : null;
+  const refreshToken = memoryAdminRefresh;
   
   try {
     await adminFetch('/auth/logout', {
@@ -217,7 +227,11 @@ export async function getAdminProfile(): Promise<AdminUser> {
 }
 
 export function isAdminAuthenticated(): boolean {
-  return !!getAdminToken();
+  if (getAdminToken()) return true;
+  if (typeof window !== 'undefined') {
+    return sessionStorage.getItem(ADMIN_SESSION_FLAG) === '1';
+  }
+  return false;
 }
 
 // =============================================================================
@@ -400,7 +414,7 @@ export async function updateEvent(eventId: string, data: UpdateEventData): Promi
 
 // Upload event poster image
 export async function uploadEventPoster(eventId: string, file: File, imageAlt?: string): Promise<{ event: EventDetails; imageUrl: string }> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('shiriki_admin_token') : null;
+  const token = getAdminToken();
   
   const formData = new FormData();
   formData.append('poster', file);
@@ -414,6 +428,7 @@ export async function uploadEventPoster(eventId: string, file: File, imageAlt?: 
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     },
     body: formData,
+    credentials: 'include',
   });
 
   if (!response.ok) {

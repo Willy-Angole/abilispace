@@ -5,6 +5,7 @@
  */
 
 import { offlineStorage, STORES, type QueuedAction } from "./offline-storage"
+import { getAccessToken } from "./auth"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
 
@@ -89,7 +90,7 @@ class SyncService {
    * Execute a single queued action
    */
   private async executeAction(action: QueuedAction): Promise<boolean> {
-    const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null
+    const token = getAccessToken()
 
     try {
       const response = await fetch(`${API_URL}${action.endpoint}`, {
@@ -99,6 +100,7 @@ class SyncService {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: action.data ? JSON.stringify(action.data) : undefined,
+        credentials: "include",
       })
 
       if (!response.ok) {
@@ -234,7 +236,7 @@ class SyncService {
   async refreshCache(type: "articles" | "events" | "messages"): Promise<boolean> {
     if (!this.isOnline) return false
 
-    const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null
+    const token = getAccessToken()
 
     try {
       let endpoint: string
@@ -259,6 +261,7 @@ class SyncService {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: "include",
       })
 
       if (!response.ok) {
@@ -309,7 +312,7 @@ export async function offlineAwareRequest<T>(
 ): Promise<{ success: boolean; data?: T; fromCache?: boolean; queued?: boolean; error?: string }> {
   const { method = "GET", data, cacheKey, cacheStore, userId } = options
   const isOnline = syncService.getOnlineStatus()
-  const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null
+  const token = getAccessToken()
 
   // If online, try the network request
   if (isOnline) {
@@ -321,6 +324,7 @@ export async function offlineAwareRequest<T>(
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: data ? JSON.stringify(data) : undefined,
+        credentials: "include",
       })
 
       if (!response.ok) {

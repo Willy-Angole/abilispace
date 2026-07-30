@@ -6,6 +6,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
+    // Prefer explicit types; full noImplicitAny rollout is incremental across services
     "noImplicitAny": false,
     "esModuleInterop": true,
     "skipLibCheck": true,

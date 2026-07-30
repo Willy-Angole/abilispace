@@ -4,7 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
+  /* Light gray page canvas; cards stay pure white for contrast */
+  --background: oklch(0.96 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -44,25 +45,26 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  /* Page slightly darker than cards so surfaces elevate the same way as light mode */
+  --background: oklch(0.14 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
+  --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
+  --popover: oklch(0.22 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.92 0 0);
+  --primary-foreground: oklch(0.16 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.72 0 0);
+  --accent: oklch(0.28 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.32 0 0);
+  --input: oklch(0.28 0 0);
+  --ring: oklch(0.55 0 0);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -156,11 +158,16 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Root size driven by accessibility provider (defaults to 16px) */
+    font-size: var(--accessibility-font-size, 16px);
+  }
   body {
     @apply bg-background text-foreground;
-    font-size: var(--accessibility-font-size);
-    line-height: calc(1.5 * var(--accessibility-text-spacing));
-    letter-spacing: calc(0.05em * var(--accessibility-text-spacing));
+    font-size: 1rem;
+    line-height: calc(1.5 * var(--accessibility-text-spacing, 1));
+    letter-spacing: calc(0.0125em * var(--accessibility-text-spacing, 1));
+    word-spacing: calc(0.05em * (var(--accessibility-text-spacing, 1) - 1));
   }
 
   /* Accessibility enhancements */
@@ -188,48 +195,149 @@
   }
 }
 
+/* ---- Color themes applied by AccessibilityProvider ---- */
+
+/* Explicit light theme (force light tokens even if OS is dark) */
+html.light-theme {
+  color-scheme: light;
+}
+
+html.light-theme.dark {
+  /* light-theme wins if both somehow applied */
+  color-scheme: light;
+}
+
 /* Enhanced focus indicators */
-.enhanced-focus *:focus {
+html.enhanced-focus *:focus-visible {
+  outline: 3px solid var(--ring) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--ring) 35%, transparent) !important;
+}
+
+html.enhanced-focus button:focus-visible,
+html.enhanced-focus a:focus-visible,
+html.enhanced-focus input:focus-visible,
+html.enhanced-focus select:focus-visible,
+html.enhanced-focus textarea:focus-visible,
+html.enhanced-focus [role="button"]:focus-visible {
   outline: 3px solid var(--ring) !important;
   outline-offset: 2px !important;
 }
 
-/* Large click targets */
-.large-targets button,
-.large-targets a,
-.large-targets input,
-.large-targets select {
+/* Large click targets (WCAG 2.5.5 target size) */
+html.large-targets button,
+html.large-targets a,
+html.large-targets input,
+html.large-targets select,
+html.large-targets textarea,
+html.large-targets [role="button"],
+html.large-targets [role="checkbox"],
+html.large-targets [role="switch"] {
   min-height: 44px !important;
   min-width: 44px !important;
-  padding: 12px !important;
+}
+
+html.large-targets button,
+html.large-targets a,
+html.large-targets [role="button"] {
+  padding-inline: 0.85rem !important;
+  padding-block: 0.65rem !important;
 }
 
 /* Reduced motion */
-.reduced-motion *,
-.reduced-motion *::before,
-.reduced-motion *::after {
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
 
-/* High contrast adjustments */
-.high-contrast img {
-  filter: contrast(1.2) brightness(1.1);
+/* High contrast — strong foreground/background separation */
+html.high-contrast {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0 0 0);
+  --primary: oklch(0 0 0);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0 0);
+  --secondary-foreground: oklch(0 0 0);
+  --muted: oklch(0.95 0 0);
+  --muted-foreground: oklch(0.2 0 0);
+  --accent: oklch(0.95 0 0);
+  --accent-foreground: oklch(0 0 0);
+  --border: oklch(0 0 0);
+  --input: oklch(0.9 0 0);
+  --ring: oklch(0 0 0);
+  --destructive: oklch(0.5 0.2 25);
+  --destructive-foreground: oklch(1 0 0);
 }
 
-.high-contrast button,
-.high-contrast input,
-.high-contrast select,
-.high-contrast textarea {
-  border: 2px solid var(--foreground) !important;
+html.high-contrast.dark {
+  --background: oklch(0 0 0);
+  --foreground: oklch(1 0 0);
+  --card: oklch(0 0 0);
+  --card-foreground: oklch(1 0 0);
+  --popover: oklch(0 0 0);
+  --popover-foreground: oklch(1 0 0);
+  --primary: oklch(1 0 0);
+  --primary-foreground: oklch(0 0 0);
+  --secondary: oklch(0.15 0 0);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.15 0 0);
+  --muted-foreground: oklch(0.85 0 0);
+  --accent: oklch(0.15 0 0);
+  --accent-foreground: oklch(1 0 0);
+  --border: oklch(1 0 0);
+  --input: oklch(0.2 0 0);
+  --ring: oklch(1 0 0);
 }
 
-/* Responsive text scaling */
+html.high-contrast img {
+  filter: contrast(1.25) brightness(1.05);
+}
+
+html.high-contrast button,
+html.high-contrast input,
+html.high-contrast select,
+html.high-contrast textarea,
+html.high-contrast [data-slot="card"] {
+  border-width: 2px !important;
+  border-color: var(--border) !important;
+}
+
+/* Screen reader optimization — expose more labels, calm motion, clearer live regions */
+html.sr-optimized [aria-hidden="true"]:not(svg):not(path) {
+  /* keep decorative SVGs hidden */
+}
+
+html.sr-optimized img:not([alt]) {
+  outline: 2px dashed var(--destructive);
+}
+
+html.sr-optimized #a11y-live-region {
+  /* ensure live region exists and is not display:none */
+  position: absolute !important;
+}
+
+/* Text spacing applied to readable content */
+html body p,
+html body li,
+html body td,
+html body th,
+html body label,
+html body span {
+  line-height: calc(1.5 * var(--accessibility-text-spacing, 1));
+}
+
+/* Responsive: don't shrink below a11y base */
 @media (max-width: 768px) {
-  body {
-    font-size: calc(var(--accessibility-font-size) * 0.9);
+  html {
+    /* keep chosen size; only slightly reduce if default-ish */
   }
 }
 
@@ -295,17 +403,22 @@ a,
 input,
 select,
 textarea {
-  transition: all 0.2s ease-in-out;
+  transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
-button:hover,
-a:hover {
+html:not(.reduced-motion) button:hover,
+html:not(.reduced-motion) a:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.reduced-motion button:hover,
-.reduced-motion a:hover {
+html.reduced-motion button:hover,
+html.reduced-motion a:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* Focusable skip targets */
+#main-content:focus,
+#navigation:focus {
+  outline: none;
 }

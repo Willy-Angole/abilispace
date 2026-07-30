@@ -148,11 +148,10 @@ PORT=3000
 # Database
 DATABASE_URL=postgres://user:pass@localhost:5432/shiriki
 
-# JWT
-JWT_ACCESS_SECRET=your-secret-key
-JWT_REFRESH_SECRET=your-refresh-secret
-JWT_ACCESS_EXPIRY=15m
-JWT_REFRESH_EXPIRY=7d
+# JWT (single secret; access default 15m, refresh default 7d)
+JWT_SECRET=your-secret-key-at-least-32-characters
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
 
 # Hasura
 HASURA_GRAPHQL_URL=http://localhost:8080/v1/graphql
@@ -161,13 +160,22 @@ HASURA_GRAPHQL_ADMIN_SECRET=your-admin-secret
 
 ## 🛡️ Security Features
 
-- **Argon2id** password hashing (memory-hard, timing-safe)
-- **JWT** with short-lived access tokens and refresh rotation
-- **Rate limiting** using Token Bucket algorithm
-- **Zod validation** on all inputs
+- **bcrypt** password hashing (adaptive cost; default 12 rounds)
+- **JWT** with short-lived access tokens (default **15m**) and refresh rotation (default **7d**)
+- **httpOnly cookies** for access/refresh (plus in-memory Bearer on the SPA for XSS resistance)
+- **CSRF** protection for cookie-authenticated mutating requests (Bearer exempt)
+- **Rate limiting** (token bucket in-memory; Redis when `REDIS_URL` is set)
+- **Zod validation** on request inputs
 - **Parameterized queries** preventing SQL injection
-- **CORS** and helmet middleware
+- **CORS** and helmet middleware + HSTS in production
+- **Strict rate limits** on user and admin login
+- **Authenticated + rate-limited** AI chat endpoint
+- **Allowlisted file uploads** with size and content checks
 - **Request logging** with sensitive data filtering
+
+### Messaging privacy note
+
+Peer messaging is **server-mediated over HTTPS**. It is **not** end-to-end encrypted. Do not claim E2E in product copy or AI prompts.
 
 ## 🎯 Design Patterns
 
@@ -195,15 +203,30 @@ Connection pool factory for database transactions.
 ## 🧪 Testing
 
 ```bash
-# Run tests
+# Run unit tests (validators, password, cookies)
 pnpm test
 
-# Run with coverage
-pnpm test:coverage
-
 # Run specific test file
-pnpm test -- auth.service.test.ts
+pnpm test -- password.test.ts
 ```
+
+CI runs lint/typecheck/tests via `.github/workflows/ci.yml`.
+
+## 🗄 Migrations
+
+```bash
+# Apply SQL migrations in order (tracked in schema_migrations)
+pnpm migrate
+
+# Apply seeds.sql
+pnpm seed
+```
+
+## Architecture boundary
+
+- **Express API** owns auth, business rules, uploads, admin, and AI chat.
+- **Hasura** provides GraphQL/RBAC for selected tables; keep permissions in sync with Express authorization.
+- Prefer Express for sensitive write paths when in doubt.
 
 ## 📈 Performance Optimizations
 

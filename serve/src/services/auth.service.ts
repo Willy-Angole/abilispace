@@ -169,7 +169,7 @@ export class AuthService {
             throw Errors.conflict('An account with this email already exists');
         }
 
-        // Hash password using Argon2id
+        // Hash password using bcrypt
         const passwordHash = await hashPassword(password);
 
         // Create user in transaction

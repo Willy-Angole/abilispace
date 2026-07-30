@@ -26,7 +26,7 @@ GDA — Grassroots Disability Agenda:
 
 Abilispace Platform:
 - GDA's inclusive digital community platform (also known as Shiriki)
-- Features: Live & upcoming accessible events browser, disability news & current affairs articles, end-to-end encrypted peer messaging (DMs and group chats), disability resource library, multilingual support (English & Kiswahili), PWA — works offline
+- Features: Live & upcoming accessible events browser, disability news & current affairs articles, secure peer messaging over HTTPS (DMs and group chats — server-mediated, not end-to-end encrypted), disability resource library, multilingual support (English & Kiswahili), PWA — works offline
 - Accessibility: high-contrast mode, screen reader support (ARIA), full keyboard navigation, scalable text, voice commands
 
 Kenya Disability Rights Framework:

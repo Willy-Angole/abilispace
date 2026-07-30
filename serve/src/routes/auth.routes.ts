@@ -1,9 +1,9 @@
 /**
  * Authentication Routes
- * 
+ *
  * Handles user registration, login, logout, and token management.
  * Supports both credential-based and Google OAuth authentication.
- * Implements rate limiting on sensitive endpoints.
+ * Sets httpOnly cookies for tokens (also returns body for transition).
  */
 
 import { Router, Request, Response, IRouter } from 'express';
@@ -13,9 +13,14 @@ import { asyncHandler } from '../middleware/error-handler';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { strictRateLimiter } from '../middleware/rate-limiter';
 import {
+    setAuthCookies,
+    clearAuthCookies,
+    getCookie,
+    COOKIE_NAMES,
+} from '../utils/cookies';
+import {
     registerSchema,
     loginSchema,
-    refreshTokenSchema,
     updatePasswordSchema,
     requestPasswordResetSchema,
     verifyResetCodeSchema,
@@ -24,7 +29,6 @@ import {
 
 const router: IRouter = Router();
 
-// Google OAuth validation schema
 const googleAuthSchema = z.object({
     idToken: z.string().min(1, 'Google ID token is required'),
     additionalInfo: z.object({
@@ -37,9 +41,24 @@ const googleAuthSchema = z.object({
     }).optional(),
 });
 
+const refreshBodySchema = z.object({
+    refreshToken: z.string().optional(),
+});
+
+function attachAuthCookies(
+    res: Response,
+    result: { accessToken?: string; refreshToken?: string }
+): void {
+    if (result.accessToken && result.refreshToken) {
+        setAuthCookies(res, {
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+        });
+    }
+}
+
 /**
  * POST /api/auth/register
- * Register a new user account
  */
 router.post(
     '/register',
@@ -47,14 +66,13 @@ router.post(
     asyncHandler(async (req: Request, res: Response) => {
         const input = registerSchema.parse(req.body);
         const result = await authService.register(input);
-
+        attachAuthCookies(res, result);
         res.status(201).json(result);
     })
 );
 
 /**
  * POST /api/auth/login
- * Authenticate user and return tokens
  */
 router.post(
     '/login',
@@ -66,20 +84,33 @@ router.post(
             userAgent: req.get('User-Agent'),
         };
         const result = await authService.login(input, sessionInfo);
-
+        attachAuthCookies(res, result);
         res.json(result);
     })
 );
 
 /**
  * POST /api/auth/refresh
- * Refresh access token using refresh token
+ * Accepts refresh token from body or httpOnly cookie
  */
 router.post(
     '/refresh',
     asyncHandler(async (req: Request, res: Response) => {
-        const { refreshToken } = refreshTokenSchema.parse(req.body);
+        const body = refreshBodySchema.parse(req.body || {});
+        const refreshToken =
+            body.refreshToken || getCookie(req, COOKIE_NAMES.refresh);
+
+        if (!refreshToken) {
+            res.status(401).json({
+                success: false,
+                message: 'Refresh token required',
+                code: 'UNAUTHORIZED',
+            });
+            return;
+        }
+
         const tokens = await authService.refreshToken(refreshToken);
+        setAuthCookies(res, tokens);
 
         res.json({
             success: true,
@@ -92,14 +123,15 @@ router.post(
 
 /**
  * POST /api/auth/logout
- * Logout user and revoke tokens
  */
 router.post(
     '/logout',
     authenticate,
     asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-        const refreshToken = req.body.refreshToken;
+        const refreshToken =
+            req.body?.refreshToken || getCookie(req, COOKIE_NAMES.refresh);
         await authService.logout(req.userId!, refreshToken);
+        clearAuthCookies(res);
 
         res.json({
             success: true,
@@ -110,7 +142,6 @@ router.post(
 
 /**
  * POST /api/auth/update-password
- * Update user password (requires authentication)
  */
 router.post(
     '/update-password',
@@ -118,6 +149,7 @@ router.post(
     asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
         const { currentPassword, newPassword } = updatePasswordSchema.parse(req.body);
         await authService.updatePassword(req.userId!, currentPassword, newPassword);
+        clearAuthCookies(res);
 
         res.json({
             success: true,
@@ -128,7 +160,6 @@ router.post(
 
 /**
  * POST /api/auth/request-reset
- * Request password reset email
  */
 router.post(
     '/request-reset',
@@ -136,14 +167,12 @@ router.post(
     asyncHandler(async (req: Request, res: Response) => {
         const { email } = requestPasswordResetSchema.parse(req.body);
         const result = await authService.requestPasswordReset(email);
-
         res.json(result);
     })
 );
 
 /**
  * POST /api/auth/verify-reset-code
- * Verify password reset code without resetting password
  */
 router.post(
     '/verify-reset-code',
@@ -151,14 +180,12 @@ router.post(
     asyncHandler(async (req: Request, res: Response) => {
         const { email, code } = verifyResetCodeSchema.parse(req.body);
         const result = await authService.verifyResetCode(email, code);
-
         res.json(result);
     })
 );
 
 /**
  * POST /api/auth/reset-password
- * Reset password using verification code
  */
 router.post(
     '/reset-password',
@@ -166,14 +193,12 @@ router.post(
     asyncHandler(async (req: Request, res: Response) => {
         const { email, code, newPassword } = resetPasswordSchema.parse(req.body);
         const result = await authService.resetPassword(email, code, newPassword);
-
         res.json(result);
     })
 );
 
 /**
  * GET /api/auth/me
- * Get current authenticated user info
  */
 router.get(
     '/me',
@@ -192,8 +217,6 @@ router.get(
 
 /**
  * POST /api/auth/google
- * Authenticate or register via Google OAuth
- * Handles both sign-in and sign-up flows
  */
 router.post(
     '/google',
@@ -205,7 +228,7 @@ router.post(
             userAgent: req.get('User-Agent'),
         };
         const result = await authService.googleAuth(idToken, additionalInfo, sessionInfo);
-
+        attachAuthCookies(res, result);
         res.json(result);
     })
 );

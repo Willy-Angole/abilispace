@@ -30,10 +30,10 @@ const envSchema = z.object({
     POSTGRES_HOST: z.string().optional(),
     POSTGRES_PORT: z.string().transform(Number).optional(),
 
-    // JWT
+    // JWT — short-lived access, longer refresh (OWASP-aligned defaults)
     JWT_SECRET: z.string().min(32),
-    JWT_EXPIRES_IN: z.string().default('7d'),
-    JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
+    JWT_EXPIRES_IN: z.string().default('15m'),
+    JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
     // Google OAuth
     GOOGLE_CLIENT_ID: z.string().optional(),

@@ -27,12 +27,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  PopoverClose,
-} from "@/components/ui/popover"
-import {
   MessageSquare,
   Send,
   Search,
@@ -71,6 +65,8 @@ import { useToast } from "@/hooks/use-toast"
 import * as messagingApi from "@/lib/messaging"
 import { isAuthenticated, sendTypingIndicator, getTypingUsers, type TypingUser } from "@/lib/messaging"
 import type { Conversation, Message, User } from "@/lib/messaging"
+import { ALLOWED_UPLOAD_ACCEPT } from "@/components/messaging/file-utils"
+import { cn } from "@/lib/utils"
 
 interface SecureMessagingProps {
   user: {
@@ -454,7 +450,10 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop())
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" })
-        const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" })
+        // Use window.File to avoid TS constructor signature conflicts
+        const file = new window.File([blob], `voice-${Date.now()}.webm`, {
+          type: "audio/webm",
+        })
         setAttachmentFile(file)
         setAttachmentPreview("voice")
       }
@@ -488,11 +487,14 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
       if (attachmentFile) {
         const formData = new FormData()
         formData.append("file", attachmentFile)
-        const token = localStorage.getItem("shiriki_access_token")
-        const uploadRes = await fetch("/api/upload", {
+        const { getAccessToken } = await import("@/lib/auth")
+        const token = getAccessToken()
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || ""
+        const uploadRes = await fetch(`${apiBase}/api/upload`, {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
+          credentials: "include",
         })
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
@@ -926,87 +928,88 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
     setShowMobileChat(false)
   }
 
+  const formatUnread = (n: number) => (n > 99 ? "99+" : String(n))
+
   return (
-    <div className="space-y-3 md:space-y-4 overflow-x-hidden">
-      {/* Header - Minimal */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl sm:text-2xl font-bold">Messages</h2>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className="hidden sm:flex items-center gap-1 text-xs cursor-pointer hover:bg-muted transition-colors"
-              >
-                <Shield className="h-3 w-3" />
-                Encrypted
-              </Badge>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" align="start">
-              <div className="relative">
-                <PopoverClose className="absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </PopoverClose>
-                <div className="flex items-start gap-3 pr-6">
-                  <Shield className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                  <div className="space-y-1">
-                    <p className="font-medium">Privacy & Security</p>
-                    <p className="text-sm text-muted-foreground">
-                      Your messages are encrypted and secured. We prioritize your privacy and security.
-                      All communications are protected and only visible to conversation participants.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
+    <div className="w-full max-w-full min-w-0 space-y-3 md:space-y-4 overflow-x-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">Messages</h2>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setSoundEnabled(!soundEnabled)}
           aria-label={soundEnabled ? "Disable sound notifications" : "Enable sound notifications"}
-          className="hidden sm:flex h-8 w-8"
+          className="hidden sm:flex h-8 w-8 shrink-0"
         >
           {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
         </Button>
       </div>
 
-      <div className="flex flex-col md:grid md:gap-4 lg:gap-6 md:grid-cols-3" style={{ height: 'calc(100vh - 160px)' }}>
-        {/* Conversations List - full width when no chat selected, 1/3 when chat open */}
-        <div className={`${activeConversation ? 'md:col-span-1' : 'md:col-span-3'} ${showMobileChat ? 'hidden md:block' : 'block'} h-full`}>
-          <Card className="h-full flex flex-col">
-            {/* Tabs for All, Chats, Groups */}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "chats" | "groups")} className="w-full">
-              <div className="border-b px-3 pt-3">
-                <TabsList className="flex w-full h-10 gap-1">
-                  <TabsTrigger value="all" className="text-sm font-medium flex-1">
-                    All{allUnreadCount > 0 ? ` ${allUnreadCount > 99 ? "99+" : allUnreadCount}` : ""}
+      <div className="flex flex-col md:grid md:gap-4 lg:gap-6 md:grid-cols-3 min-w-0" style={{ height: 'calc(100vh - 160px)' }}>
+        {/* Conversations List */}
+        <div className={cn(
+          "h-full min-w-0 overflow-hidden",
+          activeConversation ? "md:col-span-1" : "md:col-span-3",
+          showMobileChat ? "hidden md:block" : "block"
+        )}>
+          <Card className="h-full flex flex-col overflow-hidden py-0 gap-0 min-w-0 max-w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) => setActiveTab(v as "all" | "chats" | "groups")}
+              className="w-full max-w-full flex flex-col flex-1 min-h-0 min-w-0 gap-0"
+            >
+              {/* Toolbar: filters + actions + search */}
+              <div className="shrink-0 space-y-3 p-3 border-b border-border">
+                <TabsList className="grid w-full grid-cols-3 h-10 p-1 bg-muted/70">
+                  <TabsTrigger
+                    value="all"
+                    className="text-sm font-medium data-[state=active]:shadow-none data-[state=active]:bg-card"
+                  >
+                    All
+                    {allUnreadCount > 0 && (
+                      <span className="ml-1.5 rounded-full bg-primary/10 text-primary px-1.5 text-[10px] font-semibold tabular-nums">
+                        {formatUnread(allUnreadCount)}
+                      </span>
+                    )}
                   </TabsTrigger>
-                  <TabsTrigger value="chats" className="text-sm font-medium flex-1">
-                    <MessageSquare className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-                    Chats{chatUnreadCount > 0 ? ` ${chatUnreadCount > 99 ? "99+" : chatUnreadCount}` : ""}
+                  <TabsTrigger
+                    value="chats"
+                    className="text-sm font-medium data-[state=active]:shadow-none data-[state=active]:bg-card"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 mr-1.5 hidden sm:inline opacity-70" />
+                    Chats
+                    {chatUnreadCount > 0 && (
+                      <span className="ml-1.5 rounded-full bg-primary/10 text-primary px-1.5 text-[10px] font-semibold tabular-nums">
+                        {formatUnread(chatUnreadCount)}
+                      </span>
+                    )}
                   </TabsTrigger>
-                  <TabsTrigger value="groups" className="text-sm font-medium flex-1">
-                    <Users className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
-                    Groups{groupUnreadCount > 0 ? ` ${groupUnreadCount > 99 ? "99+" : groupUnreadCount}` : ""}
+                  <TabsTrigger
+                    value="groups"
+                    className="text-sm font-medium data-[state=active]:shadow-none data-[state=active]:bg-card"
+                  >
+                    <Users className="h-3.5 w-3.5 mr-1.5 hidden sm:inline opacity-70" />
+                    Groups
+                    {groupUnreadCount > 0 && (
+                      <span className="ml-1.5 rounded-full bg-primary/10 text-primary px-1.5 text-[10px] font-semibold tabular-nums">
+                        {formatUnread(groupUnreadCount)}
+                      </span>
+                    )}
                   </TabsTrigger>
                 </TabsList>
-              </div>
 
-              {/* Action Button based on active tab - only show for Chats and Groups */}
-              {activeTab !== "all" && (
-              <div className="p-3 border-b">
+                {activeTab !== "all" && (
+                  <div>
                 {activeTab === "groups" ? (
                   <Dialog open={showNewGroup} onOpenChange={(open) => {
                     setShowNewGroup(open)
                     if (!open) resetNewChatForm()
                   }}>
                     <DialogTrigger asChild>
-                      <Button size="sm" className="w-full">
+                      <Button size="sm" variant="outline" className="w-full h-9">
                         <Plus className="h-4 w-4 mr-2" />
-                        Create New Group
+                        Create group
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -1113,9 +1116,9 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                     if (!open) resetNewChatForm()
                   }}>
                     <DialogTrigger asChild>
-                      <Button size="sm" className="w-full">
+                      <Button size="sm" variant="outline" className="w-full h-9">
                         <Plus className="h-4 w-4 mr-2" />
-                        Start New Chat
+                        New chat
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -1217,128 +1220,148 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                     </DialogContent>
                   </Dialog>
                 ) : null}
-              </div>
-              )}
+                  </div>
+                )}
 
-              {/* Search */}
-              <div className="px-3 pb-3">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                   <Input
                     placeholder="Search conversations..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-9"
+                    className="pl-9 h-9 bg-muted/40 border-transparent focus-visible:bg-background focus-visible:border-input"
                     aria-label="Search conversations"
                   />
                 </div>
               </div>
 
-              {/* Conversations List */}
-              <CardContent className="p-0">
-                <ScrollArea className="h-[calc(100vh-380px)] md:h-80">
+              {/* Conversations List — plain overflow (not Radix ScrollArea) so rows can't force panel width */}
+              <CardContent className="!p-0 flex-1 min-h-0 min-w-0 w-full overflow-hidden">
+                <div className="h-[calc(100vh-380px)] md:h-full min-h-0 min-w-0 w-full max-w-full overflow-y-auto overflow-x-hidden overscroll-contain">
                 {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : filteredConversations.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8 px-4">
+                  <div className="text-center text-muted-foreground py-12 px-6">
                     {activeTab === "chats" ? (
                       <>
-                        <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                        <p className="font-medium">No chats yet</p>
-                        <p className="text-sm mt-1">Start a new chat to message someone privately</p>
+                        <MessageSquare className="h-9 w-9 mx-auto mb-3 opacity-40" />
+                        <p className="font-medium text-foreground">No chats yet</p>
+                        <p className="text-sm mt-1">Start a private conversation</p>
                       </>
                     ) : activeTab === "groups" ? (
                       <>
-                        <Users className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                        <p className="font-medium">No groups yet</p>
-                        <p className="text-sm mt-1">Create a group to chat with multiple people</p>
+                        <Users className="h-9 w-9 mx-auto mb-3 opacity-40" />
+                        <p className="font-medium text-foreground">No groups yet</p>
+                        <p className="text-sm mt-1">Create a group to chat together</p>
                       </>
                     ) : (
                       <>
-                        <Inbox className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                        <p className="font-medium">No conversations yet</p>
-                        <p className="text-sm mt-1">Start a new chat or create a group</p>
+                        <Inbox className="h-9 w-9 mx-auto mb-3 opacity-40" />
+                        <p className="font-medium text-foreground">No conversations</p>
+                        <p className="text-sm mt-1">Start a chat or create a group</p>
                       </>
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-1 p-2">
+                  <ul className="m-0 list-none p-1.5 sm:p-2 space-y-0.5 w-full max-w-full box-border">
                     {filteredConversations.map(conv => {
                       const avatar = getConversationAvatar(conv)
                       const hasUnread = conv.unreadCount > 0
+                      const isActive = activeConversation?.id === conv.id
+                      const preview = conv.lastMessage
+                        ? conv.lastMessage.messageType === "system"
+                          ? conv.lastMessage.content
+                          : conv.lastMessage.senderId === user.id
+                            ? `You: ${conv.lastMessage.content}`
+                            : conv.lastMessage.content
+                        : null
                       return (
-                        <div
-                          key={conv.id}
-                          className={`p-3 rounded-lg cursor-pointer transition-colors relative ${
-                            activeConversation?.id === conv.id
-                              ? "bg-primary text-primary-foreground"
-                              : hasUnread
-                              ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30 border-l-4 border-red-500"
-                              : "hover:bg-muted"
-                          }`}
-                          onClick={() => handleSelectConversation(conv)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              handleSelectConversation(conv)
-                            }
-                          }}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 flex-shrink-0">
+                        <li key={conv.id} className="w-full max-w-full min-w-0 list-none">
+                          <button
+                            type="button"
+                            className={cn(
+                              "grid w-full max-w-full min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors outline-none",
+                              "focus-visible:ring-2 focus-visible:ring-ring",
+                              isActive
+                                ? "bg-accent text-accent-foreground"
+                                : hasUnread
+                                  ? "bg-muted/60 hover:bg-muted"
+                                  : "hover:bg-muted/70"
+                            )}
+                            onClick={() => handleSelectConversation(conv)}
+                          >
+                            <Avatar className="size-10 shrink-0 border border-border/60">
                               {avatar.url && <AvatarImage src={avatar.url} />}
-                              <AvatarFallback>
+                              <AvatarFallback className="bg-muted text-muted-foreground text-sm">
                                 {conv.isGroup ? <Users className="h-4 w-4" /> : avatar.initials}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <p className={`truncate ${hasUnread && activeConversation?.id !== conv.id ? "font-bold" : "font-medium"}`}>
-                                  {getConversationName(conv)}
+                            <div className="min-w-0 max-w-full overflow-hidden">
+                              <div className="grid min-w-0 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                                <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                                  <span
+                                    className={cn(
+                                      "min-w-0 truncate text-sm",
+                                      hasUnread && !isActive ? "font-semibold" : "font-medium"
+                                    )}
+                                    title={getConversationName(conv)}
+                                  >
+                                    {getConversationName(conv)}
+                                  </span>
                                   {conv.isGroup && (
-                                    <span className="ml-1 text-xs text-muted-foreground">(Group)</span>
+                                    <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground leading-none">
+                                      Group
+                                    </span>
                                   )}
-                                </p>
-                                <span className={`text-xs ml-2 flex-shrink-0 ${hasUnread && activeConversation?.id !== conv.id ? "text-red-500 font-medium" : "opacity-50"}`}>
-                                  {conv.lastMessage ? formatTime(conv.lastMessage.createdAt) : formatTime(conv.createdAt)}
+                                </div>
+                                <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums leading-none">
+                                  {conv.lastMessage
+                                    ? formatTime(conv.lastMessage.createdAt)
+                                    : formatTime(conv.createdAt)}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between mt-0.5">
-                                <p className={`text-sm truncate ${hasUnread && activeConversation?.id !== conv.id ? "font-semibold opacity-90" : "opacity-70"}`}>
-                                  {conv.lastMessage ? (
-                                    conv.lastMessage.messageType === "system"
-                                      ? conv.lastMessage.content
-                                      : conv.lastMessage.senderId === user.id
-                                      ? `You: ${conv.lastMessage.content}`
-                                      : conv.lastMessage.content
-                                  ) : (
-                                    <span className="italic">No messages yet - say hello!</span>
+                              <div className="mt-0.5 grid min-w-0 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5">
+                                <span
+                                  className={cn(
+                                    "min-w-0 truncate text-xs sm:text-sm",
+                                    hasUnread && !isActive
+                                      ? "text-foreground/80 font-medium"
+                                      : "text-muted-foreground"
                                   )}
-                                </p>
-                                {hasUnread && activeConversation?.id !== conv.id && (
-                                  <span className="ml-2 flex-shrink-0 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-0.5 min-w-[18px]">
-                                    {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                                  title={preview || undefined}
+                                >
+                                  {preview ?? (
+                                    <span className="italic">No messages yet</span>
+                                  )}
+                                </span>
+                                {hasUnread && !isActive ? (
+                                  <span className="shrink-0 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground tabular-nums">
+                                    {formatUnread(conv.unreadCount)}
                                   </span>
+                                ) : (
+                                  <span className="w-0" aria-hidden />
                                 )}
                               </div>
                             </div>
-                          </div>
-                        </div>
+                          </button>
+                        </li>
                       )
                     })}
-                  </div>
+                  </ul>
                 )}
-              </ScrollArea>
-            </CardContent>
+                </div>
+              </CardContent>
             </Tabs>
           </Card>
         </div>
 
         {/* Chat Area - full screen on mobile when active */}
-        <div className={`md:col-span-2 ${showMobileChat ? 'block' : 'hidden md:block'} ${showMobileChat ? 'fixed inset-0 z-50 bg-background md:relative md:inset-auto md:z-auto' : ''} h-full`}>
+        <div className={cn(
+          "md:col-span-2 h-full min-w-0 overflow-hidden",
+          showMobileChat ? "block fixed inset-0 z-50 bg-background md:relative md:inset-auto md:z-auto" : "hidden md:block"
+        )}>
           {activeConversation ? (
             <Card className="h-full flex flex-col rounded-none md:rounded-lg">
               {/* Chat Header */}
@@ -1535,7 +1558,7 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                                         href={fileUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`flex items-center gap-3 p-3 rounded-xl min-w-[180px] max-w-[260px] transition-colors ${isOwn ? 'bg-white/15 hover:bg-white/25' : 'bg-black/5 hover:bg-black/10'}`}
+                                        className={`flex items-center gap-3 p-3 rounded-xl min-w-[180px] max-w-[260px] transition-colors ${isOwn ? 'bg-primary-foreground/15 hover:bg-primary-foreground/25' : 'bg-background/60 hover:bg-background/80 border border-border/50'}`}
                                       >
                                         <div className={`flex-shrink-0 w-10 h-12 rounded-md flex items-center justify-center ${cardBg}`}>
                                           <span className="text-white text-[9px] font-bold leading-tight text-center px-0.5">{fileLabel}</span>
@@ -1712,7 +1735,7 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                     )}
                     <div className="flex gap-2 items-end">
                       {/* Hidden file input */}
-                      <input ref={fileInputRef} type="file" className="hidden" accept="*/*" onChange={handleFileSelect} />
+                      <input ref={fileInputRef} type="file" className="hidden" accept={ALLOWED_UPLOAD_ACCEPT} onChange={handleFileSelect} />
                       {/* Attachment button */}
                       <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
                         <Paperclip className="h-5 w-5" />

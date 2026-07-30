@@ -37,14 +37,20 @@ export class DatabasePool {
      * Initializes connection pool with optimized settings
      */
     private constructor() {
+        const connectionString = config.database.url;
+        const isLocal =
+            /localhost|127\.0\.0\.1/.test(connectionString) ||
+            process.env.DATABASE_SSL === 'false';
+
         this.pool = new Pool({
-            connectionString: config.database.url,
+            connectionString,
             max: 20, // Maximum connections in pool
             min: 2,  // Minimum connections to maintain
             idleTimeoutMillis: 30000, // Close idle connections after 30s
             connectionTimeoutMillis: 60000, // Fail after 60s if no connection available (Railway needs time to wake up)
             maxUses: 7500, // Close connection after 7500 uses (prevents memory leaks)
-            ssl: { rejectUnauthorized: false }, // Railway requires SSL
+            // Railway/managed Postgres needs SSL; local Postgres typically does not
+            ssl: isLocal ? false : { rejectUnauthorized: false },
         });
 
         // Handle pool errors

@@ -17,7 +17,7 @@ import { DatabasePool } from './database/pool';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { requestLogger } from './middleware/request-logger';
 import { rateLimiter } from './middleware/rate-limiter';
-import { securityHeaders, getCSRFTokenHandler } from './utils/security';
+import { securityHeaders, getCSRFTokenHandler, csrfMiddleware } from './utils/security';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -121,11 +121,14 @@ class App {
         // Health check endpoint (no auth required)
         this.app.use('/health', healthRoutes);
 
-        // CSRF token endpoint
+        // CSRF token endpoint (for cookie-session clients)
         this.app.get('/api/csrf-token', getCSRFTokenHandler);
 
         // API v1 routes
         const apiRouter = express.Router();
+
+        // CSRF protection on mutating API calls when using cookies (Bearer exempt)
+        apiRouter.use(csrfMiddleware);
         
         apiRouter.use('/auth', authRoutes);
         apiRouter.use('/users', userRoutes);

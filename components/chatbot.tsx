@@ -63,8 +63,8 @@ const RULES: Rule[] = [
   {
     keywords: ["message", "chat", "messaging", "ujumbe", "zungumza", "peer"],
     answer: {
-      en: "Use the 'Messages' tab to chat securely with community members. Messages are encrypted for your privacy.",
-      sw: "Tumia kichupo 'Ujumbe' kuzungumza kwa usalama na wanachama. Ujumbe umesimbwa kwa faragha yako.",
+      en: "Use the 'Messages' tab to chat securely with community members over HTTPS. (Messages are server-mediated, not end-to-end encrypted.)",
+      sw: "Tumia kichupo 'Ujumbe' kuzungumza kwa usalama na wanachama kupitia HTTPS. (Ujumbe hupitia seva; si usimbaji wa mwisho-hadi-mwisho.)",
     },
   },
   {
@@ -203,10 +203,16 @@ export function Chatbot() {
         .slice(-10)
         .map(m => ({ role: m.role === "user" ? "user" : "model" as const, content: m.text }))
 
+      const { getAccessToken } = await import("@/lib/auth")
+      const token = getAccessToken()
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ message: text, language, history }),
+        credentials: "include",
         signal: AbortSignal.timeout(15000),
       })
 
@@ -253,9 +259,9 @@ export function Chatbot() {
         aria-label={t("chatbotButtonLabel")}
         aria-expanded={isOpen}
         className={cn(
-          "fixed bottom-20 right-4 z-50 h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200",
-          "bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
-          isOpen && "rotate-90 bg-muted text-foreground hover:bg-muted/90"
+          "fixed bottom-20 right-4 z-50 h-14 w-14 rounded-full shadow-none border border-border flex items-center justify-center transition-all duration-200",
+          "bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
+          isOpen && "rotate-90 bg-muted text-muted-foreground hover:bg-muted/90"
         )}
       >
         {isOpen ? <X className="h-6 w-6" aria-hidden /> : <MessageCircle className="h-6 w-6" aria-hidden />}
@@ -266,7 +272,7 @@ export function Chatbot() {
         <div
           role="dialog"
           aria-label={t("chatbotTitle")}
-          className="fixed bottom-36 right-4 z-50 w-80 sm:w-96 rounded-xl shadow-2xl border bg-background flex flex-col overflow-hidden"
+          className="fixed bottom-36 right-4 z-50 w-80 sm:w-96 rounded-xl shadow-none border border-border bg-card text-card-foreground flex flex-col overflow-hidden"
           style={{ maxHeight: "70vh" }}
         >
           {/* Header */}
@@ -302,8 +308,10 @@ export function Chatbot() {
                 <div key={msg.id} className={cn("flex items-end gap-2", msg.role === "user" && "flex-row-reverse")}>
                   <div
                     className={cn(
-                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white text-xs",
-                      msg.role === "bot" ? "bg-primary" : "bg-muted-foreground"
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs",
+                      msg.role === "bot"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
                     )}
                     aria-hidden
                   >
@@ -325,7 +333,7 @@ export function Chatbot() {
               {/* Typing indicator */}
               {isTyping && (
                 <div className="flex items-end gap-2">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-white" aria-hidden>
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden>
                     <Bot className="h-3.5 w-3.5" />
                   </div>
                   <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1" aria-label="Abili is typing">

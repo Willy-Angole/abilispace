@@ -9,6 +9,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { db } from '../database/pool';
+import { extractAccessToken, COOKIE_NAMES } from '../utils/cookies';
 
 // Environment shorthand
 const JWT_SECRET = config.jwt.secret;
@@ -45,17 +46,15 @@ export const verifyAdminToken = async (
   next: NextFunction
 ): Promise<void | Response> => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = extractAccessToken(req, COOKIE_NAMES.adminAccess);
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       return res.status(401).json({
         success: false,
         error: 'Access token required',
         code: 'MISSING_TOKEN',
       });
     }
-
-    const token = authHeader.split(' ')[1];
     
     // Verify JWT
     const payload = jwt.verify(token, JWT_SECRET) as AdminTokenPayload;

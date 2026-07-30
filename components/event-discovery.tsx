@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { Calendar, MapPin, Users, Search, Filter, Accessibility, Video, Heart, Loader2, RefreshCw, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 import {
   getEvents,
   getEventById,
@@ -591,7 +592,7 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
                   variant="outline"
                   onClick={() => handleWithdrawRequest(selectedEvent.id)}
                   disabled={isRegistering}
-                  className="min-h-12 border-orange-500 text-orange-600 hover:bg-orange-50"
+                  className="min-h-12 border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10"
                   aria-describedby="registration-status"
                 >
                   {isRegistering ? (
@@ -625,161 +626,164 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
 
   // Events List View
   return (
-    <div className="space-y-6" role="main" aria-label="Event Discovery">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h2 className="text-2xl font-bold">Discover Events</h2>
-        <div className="flex gap-2">
+    <div className="w-full max-w-full min-w-0 space-y-4" role="main" aria-label="Event Discovery">
+      {/* Page header — matches Messages / dashboard density */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Discover Events</h2>
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            size="sm"
+            className="h-9"
             onClick={() => fetchEvents()}
             disabled={isLoading}
             aria-label="Refresh events"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
+            <RefreshCw className={cn("h-4 w-4 sm:mr-2", isLoading && "animate-spin")} />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
           <Button
-            variant="outline"
+            variant={showFilters ? "secondary" : "outline"}
+            size="sm"
+            className="h-9"
             onClick={() => setShowFilters(!showFilters)}
             aria-expanded={showFilters}
             aria-controls="filters-panel"
           >
-            <Filter className="h-4 w-4 mr-2" aria-hidden="true" />
-            Filters
+            <Filter className="h-4 w-4 sm:mr-2" aria-hidden="true" />
+            <span className="hidden sm:inline">Filters</span>
             {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-2">
-                Active
-              </Badge>
+              <span className="ml-1.5 rounded-full bg-primary/15 text-primary px-1.5 text-[10px] font-semibold tabular-nums">
+                •
+              </span>
             )}
           </Button>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <Input
-                placeholder="Search events by title, description, or tags..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                aria-label="Search events"
-              />
-            </div>
+      {/* Unified search + filter toolbar */}
+      <Card className="overflow-hidden py-0 gap-0">
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
+              aria-hidden="true"
+            />
+            <Input
+              placeholder="Search events by title, description, or tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-10 bg-muted/40 border-transparent focus-visible:bg-background focus-visible:border-input"
+              aria-label="Search events"
+            />
+          </div>
 
-            {/* Quick Filters */}
-            <div className="flex flex-wrap gap-2">
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-40" aria-label="Filter by category">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.category} value={cat.category}>
-                      {formatCategory(cat.category)} ({cat.count})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full sm:w-[11rem] h-9" aria-label="Filter by category">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.category} value={cat.category}>
+                    {formatCategory(cat.category)} ({cat.count})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger className="w-32" aria-label="Filter by event type">
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="virtual">Virtual</SelectItem>
-                  <SelectItem value="in_person">In-Person</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={selectedType} onValueChange={setSelectedType}>
+              <SelectTrigger className="w-full sm:w-[9rem] h-9" aria-label="Filter by event type">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="virtual">Virtual</SelectItem>
+                <SelectItem value="in_person">In-Person</SelectItem>
+                <SelectItem value="hybrid">Hybrid</SelectItem>
+              </SelectContent>
+            </Select>
 
-            {/* Advanced Filters */}
-            {showFilters && (
-              <div id="filters-panel" className="border-t pt-4 space-y-4">
-                <div>
-                  <Label className="text-sm font-medium mb-3 block">
-                    Accessibility Features
-                  </Label>
-                  <div
-                    className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
-                    role="group"
-                    aria-label="Accessibility feature filters"
-                  >
-                    {accessibilityOptions.length > 0 ? (
-                      accessibilityOptions.map((feature) => (
-                        <div key={feature.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`filter-${feature.id}`}
-                            checked={accessibilityFilters.includes(feature.name)}
-                            onCheckedChange={() => toggleAccessibilityFilter(feature.name)}
-                          />
-                          <Label htmlFor={`filter-${feature.id}`} className="text-sm cursor-pointer">
-                            {feature.name}
-                          </Label>
-                        </div>
-                      ))
-                    ) : (
-                      // Fallback to common features if API hasn't loaded
-                      [
-                        "Sign Language",
-                        "Live Captions",
-                        "Wheelchair Access",
-                        "Audio Description",
-                        "Screen Reader Compatible",
-                      ].map((feature) => (
-                        <div key={feature} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`filter-${feature}`}
-                            checked={accessibilityFilters.includes(feature)}
-                            onCheckedChange={() => toggleAccessibilityFilter(feature)}
-                          />
-                          <Label htmlFor={`filter-${feature}`} className="text-sm cursor-pointer">
-                            {feature}
-                          </Label>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-muted-foreground"
+                onClick={clearFilters}
+              >
+                Clear all
+              </Button>
             )}
           </div>
+
+          {showFilters && (
+            <div
+              id="filters-panel"
+              className="rounded-lg border border-border bg-muted/30 p-3 sm:p-4 space-y-3"
+            >
+              <Label className="text-sm font-medium">Accessibility features</Label>
+              <div
+                className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+                role="group"
+                aria-label="Accessibility feature filters"
+              >
+                {accessibilityOptions.length > 0 ? (
+                  accessibilityOptions.map((feature) => (
+                    <div key={feature.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`filter-${feature.id}`}
+                        checked={accessibilityFilters.includes(feature.name)}
+                        onCheckedChange={() => toggleAccessibilityFilter(feature.name)}
+                      />
+                      <Label htmlFor={`filter-${feature.id}`} className="text-sm cursor-pointer font-normal">
+                        {feature.name}
+                      </Label>
+                    </div>
+                  ))
+                ) : (
+                  [
+                    "Sign Language",
+                    "Live Captions",
+                    "Wheelchair Access",
+                    "Audio Description",
+                    "Screen Reader Compatible",
+                  ].map((feature) => (
+                    <div key={feature} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`filter-${feature}`}
+                        checked={accessibilityFilters.includes(feature)}
+                        onCheckedChange={() => toggleAccessibilityFilter(feature)}
+                      />
+                      <Label htmlFor={`filter-${feature}`} className="text-sm cursor-pointer font-normal">
+                        {feature}
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Results Summary */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
+      {/* Results meta */}
+      <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground px-0.5">
         <span aria-live="polite">
-          {isLoading ? (
-            "Loading events..."
-          ) : (
-            <>
-              Showing {events.length} of {pagination?.total || 0} events
-            </>
-          )}
+          {isLoading
+            ? "Loading events..."
+            : `${events.length} of ${pagination?.total || 0} events`}
         </span>
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            Clear Filters
-          </Button>
-        )}
       </div>
 
       {/* Error State */}
       {error && (
-        <Card className="border-destructive">
-          <CardContent className="pt-6 text-center">
-            <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-            <p className="text-destructive">{error}</p>
-            <Button variant="outline" onClick={() => fetchEvents()} className="mt-4">
-              Try Again
+        <Card className="border-destructive/50">
+          <CardContent className="py-8 text-center space-y-3">
+            <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
+            <p className="text-destructive text-sm">{error}</p>
+            <Button variant="outline" size="sm" onClick={() => fetchEvents()}>
+              Try again
             </Button>
           </CardContent>
         </Card>
@@ -787,15 +791,15 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
 
       {/* Loading State */}
       {isLoading && !error && (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
+            <Card key={i} className="overflow-hidden">
+              <CardHeader className="space-y-2">
+                <Skeleton className="h-5 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-16 w-full mb-4" />
+                <Skeleton className="h-14 w-full mb-3" />
                 <div className="flex gap-2">
                   <Skeleton className="h-8 w-24" />
                   <Skeleton className="h-8 w-20" />
@@ -806,20 +810,33 @@ export function EventDiscovery({ user }: EventDiscoveryProps) {
         </div>
       )}
 
-      {/* Events Grid */}
+      {/* Events list */}
       {!isLoading && !error && (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {events.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <p className="text-muted-foreground">
-                  No events found matching your criteria. Try adjusting your filters.
-                </p>
+            <Card className="border-dashed">
+              <CardContent className="py-12 px-6 text-center space-y-3">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <Calendar className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium text-foreground">No events found</p>
+                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                    {hasActiveFilters
+                      ? "Nothing matches your search or filters. Try clearing them or checking back later."
+                      : "There are no published events yet. Check back soon."}
+                  </p>
+                </div>
+                {hasActiveFilters && (
+                  <Button variant="outline" size="sm" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
             events.map((event) => (
-              <Card key={event.id} className="hover:shadow-md transition-shadow overflow-hidden">
+              <Card key={event.id} className="overflow-hidden">
                 <CardHeader>
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div className="space-y-1">

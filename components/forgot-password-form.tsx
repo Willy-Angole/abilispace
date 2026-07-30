@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FieldError } from "@/components/ui/field-error"
 import { ArrowLeft, Mail, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { requestPasswordReset } from "@/lib/auth"
@@ -17,40 +18,45 @@ interface ForgotPasswordFormProps {
 
 export function ForgotPasswordForm({ onSuccess, onBack }: ForgotPasswordFormProps) {
   const [email, setEmail] = useState("")
+  const [emailError, setEmailError] = useState<string | undefined>()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!email.trim()) {
-      toast({
-        title: "Email Required",
-        description: "Please enter your email address.",
-        variant: "destructive",
-      })
+
+    const trimmed = email.trim()
+    if (!trimmed) {
+      setEmailError("Email is required")
+      document.getElementById("email")?.focus()
       return
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError("Enter a valid email address")
+      document.getElementById("email")?.focus()
+      return
+    }
+    setEmailError(undefined)
 
     setIsSubmitting(true)
 
     try {
-      const response = await requestPasswordReset(email)
-      
+      const response = await requestPasswordReset(trimmed)
+
       toast({
         title: "Check Your Email",
-        description: response.message || "If an account exists with this email, a verification code has been sent.",
+        description:
+          response.message ||
+          "If an account exists with this email, a verification code has been sent.",
       })
-      
-      // Always proceed to reset form (even if email doesn't exist, for security)
-      onSuccess(email)
-    } catch (error) {
-      // Even on error, show success message to prevent email enumeration
+
+      onSuccess(trimmed)
+    } catch {
       toast({
         title: "Check Your Email",
         description: "If an account exists with this email, a verification code has been sent.",
       })
-      onSuccess(email)
+      onSuccess(trimmed)
     } finally {
       setIsSubmitting(false)
     }
@@ -59,10 +65,10 @@ export function ForgotPasswordForm({ onSuccess, onBack }: ForgotPasswordFormProp
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="container mx-auto px-4 max-w-md">
-        <Button 
-          variant="ghost" 
-          onClick={onBack} 
-          className="mb-6" 
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          className="mb-6"
           aria-label="Go back to sign in"
           disabled={isSubmitting}
         >
@@ -77,27 +83,36 @@ export function ForgotPasswordForm({ onSuccess, onBack }: ForgotPasswordFormProp
             </div>
             <CardTitle className="text-2xl">Forgot Password?</CardTitle>
             <CardDescription>
-              No worries! Enter your email address and we&apos;ll send you a verification code to reset your password.
+              No worries! Enter your email address and we&apos;ll send you a verification code to
+              reset your password.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email" className={emailError ? "text-destructive" : undefined}>
+                  Email Address
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  required
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (emailError) setEmailError(undefined)
+                  }}
                   disabled={isSubmitting}
                   autoComplete="email"
-                  aria-describedby="email-help"
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? "email-error" : "email-help"}
                 />
-                <p id="email-help" className="text-xs text-muted-foreground">
-                  Enter the email address associated with your account
-                </p>
+                <FieldError id="email-error" message={emailError} />
+                {!emailError && (
+                  <p id="email-help" className="text-xs text-muted-foreground">
+                    Enter the email address associated with your account
+                  </p>
+                )}
               </div>
 
               <Button type="submit" className="w-full min-h-12" disabled={isSubmitting}>
@@ -115,8 +130,8 @@ export function ForgotPasswordForm({ onSuccess, onBack }: ForgotPasswordFormProp
             <div className="mt-6 text-center text-sm text-muted-foreground">
               <p>
                 Remember your password?{" "}
-                <Button 
-                  variant="link" 
+                <Button
+                  variant="link"
                   className="p-0 h-auto font-normal text-primary"
                   onClick={onBack}
                   disabled={isSubmitting}

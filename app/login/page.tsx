@@ -7,8 +7,9 @@ import { AccessibilityFloatingButton } from "@/components/accessibility-provider
 export default function LoginPage() {
   const router = useRouter()
 
-  const handleLogin = (userData: any) => {
-    localStorage.setItem("shiriki_user", JSON.stringify(userData))
+  const handleLogin = (userData: unknown) => {
+    // Tokens stored by lib/auth; user profile already cached
+    void userData
     router.push("/dashboard")
   }
 

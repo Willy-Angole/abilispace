@@ -147,8 +147,28 @@ export function validateCSRFToken(sessionId: string, token: string): boolean {
 }
 
 /**
- * CSRF middleware
- * Validates CSRF token on state-changing requests
+ * Paths that establish a session and must remain CSRF-exempt.
+ */
+const CSRF_EXEMPT_PATHS = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/google',
+    '/auth/request-reset',
+    '/auth/verify-reset-code',
+    '/auth/reset-password',
+    '/admin/auth/login',
+    '/csrf-token',
+];
+
+/**
+ * CSRF middleware for cookie-authenticated mutating requests.
+ *
+ * Bearer-only clients (Authorization header) are exempt: classic CSRF
+ * requires the browser to auto-send cookies; custom headers are not sent
+ * cross-site without CORS preflight.
+ *
+ * Enforcement only when an auth cookie is present (established session).
  */
 export function csrfMiddleware(
     req: Request,
@@ -159,11 +179,33 @@ export function csrfMiddleware(
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
         return next();
     }
-    
-    // Get session ID from auth token or generate one
-    const sessionId = (req as any).userId || req.ip || 'unknown';
+
+    const path = req.path || '';
+    if (CSRF_EXEMPT_PATHS.some((p) => path === p || path.endsWith(p))) {
+        return next();
+    }
+
+    // Bearer auth is not vulnerable to classic cookie CSRF
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+        return next();
+    }
+
+    // Only enforce when browser would auto-send session cookies
+    const cookies = req.headers.cookie || '';
+    const hasSessionCookie =
+        cookies.includes('abilispace_access=') ||
+        cookies.includes('abilispace_admin_access=');
+
+    if (!hasSessionCookie) {
+        // No cookie session — nothing to CSRF against (client must use Bearer)
+        return next();
+    }
+
+    const sessionId =
+        (req as Request & { userId?: string }).userId || req.ip || 'unknown';
     const csrfToken = req.headers['x-csrf-token'] as string;
-    
+
     if (!csrfToken || !validateCSRFToken(sessionId, csrfToken)) {
         res.status(403).json({
             success: false,
@@ -172,18 +214,18 @@ export function csrfMiddleware(
         });
         return;
     }
-    
+
     next();
 }
 
 /**
- * Endpoint to get a CSRF token
- * Call this on app load to get a token for subsequent requests
+ * Endpoint to get a CSRF token for cookie-authenticated forms/SPA.
  */
 export function getCSRFTokenHandler(req: Request, res: Response): void {
-    const sessionId = (req as any).userId || req.ip || 'unknown';
+    const sessionId =
+        (req as Request & { userId?: string }).userId || req.ip || 'unknown';
     const token = createCSRFToken(sessionId);
-    
+
     res.json({
         success: true,
         csrfToken: token,
@@ -214,96 +256,28 @@ export function securityHeaders(
     // Control referrer information
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     
-    // Permissions Policy
+    // Permissions Policy — camera/mic allowed for messaging voice notes only via feature policy refinement
     res.setHeader(
         'Permissions-Policy',
-        'camera=(), microphone=(), geolocation=(), payment=()'
+        'geolocation=(), payment=()'
     );
     
-    // HSTS (uncomment in production with HTTPS)
-    // res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    // HSTS in production (requires HTTPS termination)
+    if (process.env.NODE_ENV === 'production') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
     
     next();
 }
 
 // ==========================================
-// PASSWORD VALIDATION
+// PASSWORD VALIDATION (single source — re-export from password utils)
 // ==========================================
 
-/**
- * Password strength requirements
- */
-export interface PasswordValidationResult {
-    isValid: boolean;
-    errors: string[];
-    score: number;
-}
-
-/**
- * Validate password strength
- * Checks for length, complexity, and common patterns
- */
-export function validatePasswordStrength(password: string): PasswordValidationResult {
-    const errors: string[] = [];
-    let score = 0;
-    
-    // Length check
-    if (password.length < 8) {
-        errors.push('Password must be at least 8 characters long');
-    } else if (password.length >= 12) {
-        score += 2;
-    } else {
-        score += 1;
-    }
-    
-    // Uppercase check
-    if (/[A-Z]/.test(password)) {
-        score += 1;
-    } else {
-        errors.push('Password must contain at least one uppercase letter');
-    }
-    
-    // Lowercase check
-    if (/[a-z]/.test(password)) {
-        score += 1;
-    } else {
-        errors.push('Password must contain at least one lowercase letter');
-    }
-    
-    // Number check
-    if (/[0-9]/.test(password)) {
-        score += 1;
-    } else {
-        errors.push('Password must contain at least one number');
-    }
-    
-    // Special character check
-    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-        score += 1;
-    }
-    
-    // Common password patterns check
-    const commonPatterns = [
-        /^(password|123456|qwerty|abc123|admin|letmein|welcome)/i,
-        /(.)\1{3,}/, // Repeated characters
-        /^[0-9]+$/, // Only numbers
-        /^[a-zA-Z]+$/, // Only letters
-    ];
-    
-    for (const pattern of commonPatterns) {
-        if (pattern.test(password)) {
-            score -= 1;
-            errors.push('Password contains a common pattern');
-            break;
-        }
-    }
-    
-    return {
-        isValid: errors.length === 0 && score >= 3,
-        errors,
-        score: Math.max(0, Math.min(5, score)),
-    };
-}
+export {
+    validatePasswordStrength,
+    type PasswordValidationResult,
+} from './password';
 
 // ==========================================
 // CLEANUP

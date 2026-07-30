@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FieldError } from "@/components/ui/field-error"
 import { ArrowLeft, ShieldCheck, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { verifyResetCode, requestPasswordReset } from "@/lib/auth"
@@ -18,6 +19,7 @@ interface VerifyCodeFormProps {
 
 export function VerifyCodeForm({ email, onSuccess, onBack }: VerifyCodeFormProps) {
   const [code, setCode] = useState(["", "", "", "", "", ""])
+  const [codeError, setCodeError] = useState<string | undefined>()
   const [isVerifying, setIsVerifying] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
@@ -41,6 +43,7 @@ export function VerifyCodeForm({ email, onSuccess, onBack }: VerifyCodeFormProps
   const handleCodeChange = (index: number, value: string) => {
     // Only allow numbers
     if (value && !/^\d$/.test(value)) return
+    if (codeError) setCodeError(undefined)
     
     const newCode = [...code]
     newCode[index] = value
@@ -116,6 +119,8 @@ export function VerifyCodeForm({ email, onSuccess, onBack }: VerifyCodeFormProps
     const verificationCode = code.join("")
     
     if (verificationCode.length !== 6) {
+      setCodeError("Please enter the complete 6-digit verification code")
+      inputRefs.current[0]?.focus()
       toast({
         title: "Invalid Code",
         description: "Please enter the complete 6-digit verification code.",
@@ -124,6 +129,7 @@ export function VerifyCodeForm({ email, onSuccess, onBack }: VerifyCodeFormProps
       return
     }
 
+    setCodeError(undefined)
     setIsVerifying(true)
 
     try {
@@ -136,9 +142,11 @@ export function VerifyCodeForm({ email, onSuccess, onBack }: VerifyCodeFormProps
         })
         onSuccess(verificationCode)
       } else {
+        const msg = response.message || "The code you entered is incorrect or expired."
+        setCodeError(msg)
         toast({
           title: "Invalid Code",
-          description: response.message || "The code you entered is incorrect or expired.",
+          description: msg,
           variant: "destructive",
         })
         // Clear the code on error
@@ -146,9 +154,12 @@ export function VerifyCodeForm({ email, onSuccess, onBack }: VerifyCodeFormProps
         inputRefs.current[0]?.focus()
       }
     } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : "Unable to verify code. Please try again."
+      setCodeError(msg)
       toast({
         title: "Verification Failed",
-        description: error instanceof Error ? error.message : "Unable to verify code. Please try again.",
+        description: msg,
         variant: "destructive",
       })
       setCode(["", "", "", "", "", ""])
@@ -186,7 +197,9 @@ export function VerifyCodeForm({ email, onSuccess, onBack }: VerifyCodeFormProps
             <div className="space-y-6">
               {/* Verification Code Input */}
               <div className="space-y-2">
-                <Label>Verification Code</Label>
+                <Label className={codeError ? "text-destructive" : undefined}>
+                  Verification Code
+                </Label>
                 <div className="flex justify-center gap-2" onPaste={handlePaste}>
                   {code.map((digit, index) => (
                     <Input
@@ -200,10 +213,12 @@ export function VerifyCodeForm({ email, onSuccess, onBack }: VerifyCodeFormProps
                       onKeyDown={(e) => handleKeyDown(index, e)}
                       className="w-12 h-14 text-center text-xl font-mono border-2 focus:border-primary"
                       disabled={isVerifying}
+                      aria-invalid={!!codeError}
                       aria-label={`Digit ${index + 1} of verification code`}
                     />
                   ))}
                 </div>
+                <FieldError className="text-center" message={codeError} />
                 <div className="text-center mt-3">
                   <Button
                     type="button"
@@ -229,7 +244,7 @@ export function VerifyCodeForm({ email, onSuccess, onBack }: VerifyCodeFormProps
               <Button 
                 onClick={handleVerify}
                 className="w-full min-h-12" 
-                disabled={isVerifying || !isCodeComplete}
+                disabled={isVerifying}
               >
                 {isVerifying ? (
                   <>

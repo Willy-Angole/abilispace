@@ -357,9 +357,9 @@ export function DataSaverSettings() {
         )}
 
         {/* Tips */}
-        <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-sm">
-          <p className="font-medium text-blue-700 dark:text-blue-300 mb-1">💡 Tips for Remote Areas</p>
-          <ul className="text-blue-600 dark:text-blue-400 space-y-1 text-xs">
+        <div className="p-3 bg-muted rounded-lg text-sm border border-border">
+          <p className="font-medium text-foreground mb-1">💡 Tips for Remote Areas</p>
+          <ul className="text-muted-foreground space-y-1 text-xs">
             <li>• Download content when you have good connectivity</li>
             <li>• Enable Data Saver mode to reduce bandwidth usage</li>
             <li>• Your messages will sync automatically when back online</li>

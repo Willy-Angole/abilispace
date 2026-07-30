@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FieldError } from "@/components/ui/field-error"
 import { ArrowLeft, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { login, type User } from "@/lib/auth"
@@ -17,23 +18,56 @@ interface LoginFormProps {
   onForgotPassword: () => void
 }
 
+type LoginErrors = Partial<Record<"email" | "password", string>>
+
 export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProps) {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   })
+  const [fieldErrors, setFieldErrors] = useState<LoginErrors>({})
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
-  // Handle email/password form submission
+  const clearFieldError = (field: keyof LoginErrors) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  const validate = (): LoginErrors => {
+    const errors: LoginErrors = {}
+    const email = formData.email.trim()
+    if (!email) {
+      errors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Enter a valid email address"
+    }
+    if (!formData.password) {
+      errors.password = "Password is required"
+    }
+    return errors
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const errors = validate()
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      const first = Object.keys(errors)[0]
+      document.getElementById(first)?.focus()
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
       const response = await login({
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password,
       })
 
@@ -44,6 +78,10 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
         })
         onSuccess(response.user)
       } else {
+        setFieldErrors({
+          email: " ",
+          password: response.message || "Invalid email or password",
+        })
         toast({
           title: "Sign In Failed",
           description: response.message || "Invalid credentials",
@@ -51,10 +89,15 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
         })
       }
     } catch (error) {
-      // Network error - show error message
+      const message =
+        error instanceof Error ? error.message : "Unable to connect to server. Please try again."
+      setFieldErrors({
+        email: " ",
+        password: message,
+      })
       toast({
         title: "Sign In Failed",
-        description: error instanceof Error ? error.message : "Unable to connect to server. Please try again.",
+        description: message,
         variant: "destructive",
       })
     } finally {
@@ -65,10 +108,10 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="container mx-auto px-4 max-w-md">
-        <Button 
-          variant="ghost" 
-          onClick={onBack} 
-          className="mb-6" 
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          className="mb-6"
           aria-label="Go back to welcome page"
           disabled={isSubmitting}
         >
@@ -82,35 +125,49 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
             <CardDescription className="text-center">Welcome back to Abilispace</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email" className={fieldErrors.email ? "text-destructive" : undefined}>
+                  Email Address
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  required
                   value={formData.email}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                  aria-describedby="email-help"
+                  onChange={(e) => {
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                    clearFieldError("email")
+                  }}
+                  aria-invalid={!!fieldErrors.email}
+                  aria-describedby={fieldErrors.email ? "email-error" : "email-help"}
                   disabled={isSubmitting}
-                  autoComplete="off"
+                  autoComplete="email"
                 />
-                <p id="email-help" className="text-xs text-muted-foreground">
-                  Enter the email address you used to register
-                </p>
+                <FieldError id="email-error" message={fieldErrors.email?.trim() || undefined} />
+                {!fieldErrors.email && (
+                  <p id="email-help" className="text-xs text-muted-foreground">
+                    Enter the email address you used to register
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className={fieldErrors.password ? "text-destructive" : undefined}>
+                  Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    required
                     value={formData.password}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, password: e.target.value }))
+                      clearFieldError("password")
+                    }}
+                    aria-invalid={!!fieldErrors.password}
+                    aria-describedby={fieldErrors.password ? "password-error" : undefined}
                     disabled={isSubmitting}
-                    autoComplete="off"
+                    autoComplete="current-password"
                   />
                   <Button
                     type="button"
@@ -124,6 +181,7 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                <FieldError id="password-error" message={fieldErrors.password?.trim() || undefined} />
                 <div className="flex justify-end">
                   <Button
                     type="button"

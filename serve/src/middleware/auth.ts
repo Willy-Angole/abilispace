@@ -1,12 +1,13 @@
 /**
  * Authentication Middleware
- * 
+ *
  * Handles JWT verification and user context injection.
- * Implements the Chain of Responsibility pattern for auth checks.
+ * Accepts Bearer header or httpOnly access cookie.
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken, extractBearerToken, TokenPayload } from '../utils/jwt';
+import { verifyAccessToken, TokenPayload } from '../utils/jwt';
+import { extractAccessToken, COOKIE_NAMES } from '../utils/cookies';
 import { logger } from '../utils/logger';
 import { updateSessionActivity } from '../services/auth.service';
 
@@ -28,7 +29,7 @@ export function authenticate(
     res: Response,
     next: NextFunction
 ): void {
-    const token = extractBearerToken(req.headers.authorization);
+    const token = extractAccessToken(req, COOKIE_NAMES.access);
 
     if (!token) {
         res.status(401).json({
@@ -50,7 +51,6 @@ export function authenticate(
         return;
     }
 
-    // Attach user info to request
     req.user = payload;
     req.userId = payload.sub;
     req.accessToken = token;
@@ -70,13 +70,14 @@ export function optionalAuthenticate(
     res: Response,
     next: NextFunction
 ): void {
-    const token = extractBearerToken(req.headers.authorization);
+    const token = extractAccessToken(req, COOKIE_NAMES.access);
 
     if (token) {
         const payload = verifyAccessToken(token);
         if (payload) {
             req.user = payload;
             req.userId = payload.sub;
+            req.accessToken = token;
         }
     }
 
@@ -85,9 +86,6 @@ export function optionalAuthenticate(
 
 /**
  * Role-based access control middleware factory
- * Creates middleware that checks for required roles
- * 
- * @param allowedRoles - Array of roles that can access the route
  */
 export function requireRole(...allowedRoles: string[]) {
     return (

@@ -671,7 +671,7 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
             </Card>
           ) : (
             articles.map((article) => (
-              <Card key={article.id} className="hover:shadow-md transition-shadow overflow-hidden">
+              <Card key={article.id} className="overflow-hidden">
                 <CardHeader>
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div className="space-y-2 flex-1">

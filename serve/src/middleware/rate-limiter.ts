@@ -1,63 +1,83 @@
 /**
  * Rate Limiter Middleware
- * 
- * Implements token bucket algorithm for rate limiting.
- * Uses in-memory storage for simplicity (can be upgraded to Redis for distributed systems).
+ *
+ * Token bucket algorithm with optional Redis backend for multi-instance deploys.
+ * Falls back to in-memory Map when REDIS_URL is not configured.
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { createClient, RedisClientType } from 'redis';
 import { config } from '../config/environment';
 import { logger } from '../utils/logger';
 
-/**
- * Token bucket entry for rate limiting
- */
 interface TokenBucket {
     tokens: number;
     lastRefill: number;
 }
 
-/**
- * In-memory store for rate limit buckets
- * Uses Map for O(1) lookup performance
- * 
- * Time Complexity: O(1) for get/set operations
- * Space Complexity: O(n) where n is number of unique clients
- */
+let redisClient: RedisClientType | null = null;
+let redisReady = false;
+
+async function initRedis(): Promise<void> {
+    if (!config.redis.url || redisClient) return;
+    try {
+        redisClient = createClient({ url: config.redis.url });
+        redisClient.on('error', (err) => {
+            logger.warn('Redis rate-limit client error', { err: String(err) });
+            redisReady = false;
+        });
+        await redisClient.connect();
+        redisReady = true;
+        logger.info('Redis connected for rate limiting');
+    } catch (error) {
+        logger.warn('Redis unavailable; using in-memory rate limiting', { error });
+        redisClient = null;
+        redisReady = false;
+    }
+}
+
+// Best-effort connect on module load
+void initRedis();
+
 class RateLimitStore {
     private buckets: Map<string, TokenBucket> = new Map();
     private readonly maxTokens: number;
-    private readonly refillRate: number; // tokens per millisecond
+    private readonly refillRate: number;
     private readonly windowMs: number;
+    private readonly prefix: string;
 
-    constructor(maxRequests: number, windowMs: number) {
+    constructor(maxRequests: number, windowMs: number, prefix = 'rl') {
         this.maxTokens = maxRequests;
         this.windowMs = windowMs;
         this.refillRate = maxRequests / windowMs;
+        this.prefix = prefix;
 
-        // Periodic cleanup to prevent memory leaks
         setInterval(() => this.cleanup(), windowMs);
     }
 
-    /**
-     * Check if request should be allowed
-     * Implements token bucket algorithm
-     * 
-     * @param key - Client identifier (IP address)
-     * @returns Object with allowed status and remaining tokens
-     */
-    public consume(key: string): { allowed: boolean; remaining: number; resetAt: number } {
+    public async consume(
+        key: string
+    ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+        if (redisReady && redisClient) {
+            return this.consumeRedis(key);
+        }
+        return this.consumeMemory(key);
+    }
+
+    private consumeMemory(key: string): {
+        allowed: boolean;
+        remaining: number;
+        resetAt: number;
+    } {
         const now = Date.now();
         let bucket = this.buckets.get(key);
 
         if (!bucket) {
-            // New client - create full bucket
             bucket = {
-                tokens: this.maxTokens - 1, // Consume one token
+                tokens: this.maxTokens - 1,
                 lastRefill: now,
             };
             this.buckets.set(key, bucket);
-
             return {
                 allowed: true,
                 remaining: bucket.tokens,
@@ -65,14 +85,12 @@ class RateLimitStore {
             };
         }
 
-        // Refill tokens based on time elapsed
         const timePassed = now - bucket.lastRefill;
         const tokensToAdd = timePassed * this.refillRate;
         bucket.tokens = Math.min(this.maxTokens, bucket.tokens + tokensToAdd);
         bucket.lastRefill = now;
 
         if (bucket.tokens >= 1) {
-            // Allow request and consume token
             bucket.tokens -= 1;
             return {
                 allowed: true,
@@ -81,7 +99,6 @@ class RateLimitStore {
             };
         }
 
-        // Rate limit exceeded
         return {
             allowed: false,
             remaining: 0,
@@ -90,9 +107,32 @@ class RateLimitStore {
     }
 
     /**
-     * Remove expired buckets to free memory
-     * Called periodically by cleanup interval
+     * Fixed-window counter in Redis (simple, multi-instance safe)
      */
+    private async consumeRedis(
+        key: string
+    ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+        const redisKey = `${this.prefix}:${key}`;
+        const now = Date.now();
+        try {
+            const count = await redisClient!.incr(redisKey);
+            if (count === 1) {
+                await redisClient!.pExpire(redisKey, this.windowMs);
+            }
+            const ttl = await redisClient!.pTTL(redisKey);
+            const resetAt = now + (ttl > 0 ? ttl : this.windowMs);
+            const remaining = Math.max(0, this.maxTokens - count);
+            return {
+                allowed: count <= this.maxTokens,
+                remaining,
+                resetAt,
+            };
+        } catch (error) {
+            logger.warn('Redis rate limit failed; falling back to memory', { error });
+            return this.consumeMemory(key);
+        }
+    }
+
     private cleanup(): void {
         const now = Date.now();
         const threshold = now - this.windowMs * 2;
@@ -109,80 +149,43 @@ class RateLimitStore {
     }
 }
 
-// Initialize rate limit store
 const store = new RateLimitStore(
     config.security.rateLimitMaxRequests,
-    config.security.rateLimitWindowMs
+    config.security.rateLimitWindowMs,
+    'rl:global'
 );
 
 /**
- * Get client identifier for rate limiting
- * Uses IP address with fallback options
+ * Client key: prefer Express req.ip (respects trust proxy) over spoofable raw header alone.
  */
 function getClientKey(req: Request): string {
-    // Check for forwarded IP (behind proxy)
-    const forwarded = req.headers['x-forwarded-for'];
-    if (forwarded) {
-        const ips = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
-        return ips.trim();
+    // req.ip is derived from socket / trusted proxy hops when trust proxy is set
+    if (req.ip) {
+        return req.ip;
     }
-
-    // Direct connection IP
-    return req.ip || req.socket.remoteAddress || 'unknown';
+    return req.socket.remoteAddress || 'unknown';
 }
 
-/**
- * Rate limiter middleware
- * Applies token bucket rate limiting to all requests
- */
 export function rateLimiter(
     req: Request,
     res: Response,
     next: NextFunction
 ): void {
-    const clientKey = getClientKey(req);
-    const result = store.consume(clientKey);
-
-    // Set rate limit headers
-    res.setHeader('X-RateLimit-Limit', config.security.rateLimitMaxRequests);
-    res.setHeader('X-RateLimit-Remaining', result.remaining);
-    res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetAt / 1000));
-
-    if (!result.allowed) {
-        logger.warn('Rate limit exceeded', {
-            clientKey,
-            path: req.path,
-            method: req.method,
-        });
-
-        res.status(429).json({
-            success: false,
-            message: 'Too many requests, please try again later',
-            code: 'RATE_LIMITED',
-            retryAfter: Math.ceil((result.resetAt - Date.now()) / 1000),
-        });
-        return;
-    }
-
-    next();
-}
-
-/**
- * Create custom rate limiter with different limits
- * Factory function for endpoint-specific rate limiting
- */
-export function createRateLimiter(maxRequests: number, windowMs: number) {
-    const customStore = new RateLimitStore(maxRequests, windowMs);
-
-    return (req: Request, res: Response, next: NextFunction): void => {
+    void (async () => {
         const clientKey = getClientKey(req);
-        const result = customStore.consume(clientKey);
+        const result = await store.consume(clientKey);
 
-        res.setHeader('X-RateLimit-Limit', maxRequests);
+        res.setHeader('X-RateLimit-Limit', config.security.rateLimitMaxRequests);
         res.setHeader('X-RateLimit-Remaining', result.remaining);
         res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetAt / 1000));
 
         if (!result.allowed) {
+            logger.warn('Rate limit exceeded', {
+                clientKey,
+                path: req.path,
+                method: req.method,
+            });
+
             res.status(429).json({
                 success: false,
                 message: 'Too many requests, please try again later',
@@ -193,11 +196,35 @@ export function createRateLimiter(maxRequests: number, windowMs: number) {
         }
 
         next();
+    })().catch(next);
+}
+
+export function createRateLimiter(maxRequests: number, windowMs: number) {
+    const customStore = new RateLimitStore(maxRequests, windowMs, `rl:${maxRequests}:${windowMs}`);
+
+    return (req: Request, res: Response, next: NextFunction): void => {
+        void (async () => {
+            const clientKey = getClientKey(req);
+            const result = await customStore.consume(clientKey);
+
+            res.setHeader('X-RateLimit-Limit', maxRequests);
+            res.setHeader('X-RateLimit-Remaining', result.remaining);
+            res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetAt / 1000));
+
+            if (!result.allowed) {
+                res.status(429).json({
+                    success: false,
+                    message: 'Too many requests, please try again later',
+                    code: 'RATE_LIMITED',
+                    retryAfter: Math.ceil((result.resetAt - Date.now()) / 1000),
+                });
+                return;
+            }
+
+            next();
+        })().catch(next);
     };
 }
 
-/**
- * Strict rate limiter for sensitive endpoints (login, password reset)
- * 5 requests per 15 minutes
- */
+/** Strict rate limiter for sensitive endpoints (login, password reset): 5 / 15 min */
 export const strictRateLimiter = createRateLimiter(5, 15 * 60 * 1000);

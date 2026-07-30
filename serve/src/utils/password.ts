@@ -2,8 +2,8 @@
  * Password Utility
  * 
  * Secure password hashing and verification using bcrypt.
- * bcrypt is a battle-tested password hashing algorithm that
- * provides adaptive cost factor for future-proofing.
+ * bcrypt provides an adaptive cost factor (OWASP-aligned rounds via config).
+ * (Note: documentation previously mentioned Argon2id; implementation uses bcrypt.)
  */
 
 import bcrypt from 'bcrypt';
@@ -69,46 +69,79 @@ export function needsRehash(hash: string): boolean {
 }
 
 /**
- * Validate password strength
- * 
+ * Password strength requirements
+ */
+export interface PasswordValidationResult {
+    isValid: boolean;
+    errors: string[];
+    score: number;
+}
+
+/**
+ * Validate password strength (single source of truth)
+ *
  * Requirements:
  * - Minimum 8 characters
  * - At least one uppercase letter
  * - At least one lowercase letter
  * - At least one number
  * - At least one special character
- * 
- * @param password - Password to validate
- * @returns Object with isValid flag and validation errors
+ * - Avoid common patterns
  */
-export function validatePasswordStrength(password: string): {
-    isValid: boolean;
-    errors: string[];
-} {
+export function validatePasswordStrength(password: string): PasswordValidationResult {
     const errors: string[] = [];
+    let score = 0;
 
     if (password.length < 8) {
         errors.push('Password must be at least 8 characters long');
+    } else if (password.length >= 12) {
+        score += 2;
+    } else {
+        score += 1;
     }
 
-    if (!/[A-Z]/.test(password)) {
+    if (/[A-Z]/.test(password)) {
+        score += 1;
+    } else {
         errors.push('Password must contain at least one uppercase letter');
     }
 
-    if (!/[a-z]/.test(password)) {
+    if (/[a-z]/.test(password)) {
+        score += 1;
+    } else {
         errors.push('Password must contain at least one lowercase letter');
     }
 
-    if (!/[0-9]/.test(password)) {
+    if (/[0-9]/.test(password)) {
+        score += 1;
+    } else {
         errors.push('Password must contain at least one number');
     }
 
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+        score += 1;
+    } else {
         errors.push('Password must contain at least one special character');
     }
 
+    const commonPatterns = [
+        /^(password|123456|qwerty|abc123|admin|letmein|welcome)/i,
+        /(.)\1{3,}/,
+        /^[0-9]+$/,
+        /^[a-zA-Z]+$/,
+    ];
+
+    for (const pattern of commonPatterns) {
+        if (pattern.test(password)) {
+            score -= 1;
+            errors.push('Password contains a common pattern');
+            break;
+        }
+    }
+
     return {
-        isValid: errors.length === 0,
+        isValid: errors.length === 0 && score >= 3,
         errors,
+        score: Math.max(0, Math.min(5, score)),
     };
 }

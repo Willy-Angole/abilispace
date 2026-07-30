@@ -265,21 +265,21 @@ const CATEGORY_CONFIG: Record<
   string,
   { icon: React.ElementType; color: string; labelKey: string }
 > = {
-  legal: { icon: Scale, color: "text-blue-600", labelKey: "resourcesLegalRights" },
-  health: { icon: Heart, color: "text-red-500", labelKey: "resourcesHealth" },
-  assistive: { icon: Monitor, color: "text-purple-600", labelKey: "resourcesAssistiveTech" },
-  education: { icon: GraduationCap, color: "text-green-600", labelKey: "resourcesEducation" },
-  employment: { icon: Briefcase, color: "text-orange-500", labelKey: "resourcesEmployment" },
-  housing: { icon: Home, color: "text-teal-600", labelKey: "resourcesHousing" },
-  financial: { icon: DollarSign, color: "text-yellow-600", labelKey: "resourcesFinancial" },
-  types: { icon: Brain, color: "text-indigo-600", labelKey: "resourcesDisabilityTypes" },
+  legal: { icon: Scale, color: "text-blue-600 dark:text-blue-400", labelKey: "resourcesLegalRights" },
+  health: { icon: Heart, color: "text-red-600 dark:text-red-400", labelKey: "resourcesHealth" },
+  assistive: { icon: Monitor, color: "text-purple-600 dark:text-purple-400", labelKey: "resourcesAssistiveTech" },
+  education: { icon: GraduationCap, color: "text-green-600 dark:text-green-400", labelKey: "resourcesEducation" },
+  employment: { icon: Briefcase, color: "text-orange-600 dark:text-orange-400", labelKey: "resourcesEmployment" },
+  housing: { icon: Home, color: "text-teal-600 dark:text-teal-400", labelKey: "resourcesHousing" },
+  financial: { icon: DollarSign, color: "text-yellow-600 dark:text-yellow-400", labelKey: "resourcesFinancial" },
+  types: { icon: Brain, color: "text-indigo-600 dark:text-indigo-400", labelKey: "resourcesDisabilityTypes" },
 }
 
 const TYPE_BADGE: Record<Resource["type"], string> = {
-  organization: "bg-blue-100 text-blue-800",
-  guide: "bg-green-100 text-green-800",
-  hotline: "bg-red-100 text-red-800",
-  legal: "bg-purple-100 text-purple-800",
+  organization: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  guide: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
+  hotline: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+  legal: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
 }
 
 export function Resources() {
