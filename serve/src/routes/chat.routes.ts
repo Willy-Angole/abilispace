@@ -1,11 +1,11 @@
-import { Router, Response } from 'express';
+import { Router, type IRouter, Response } from 'express';
 import { z } from 'zod';
 import { askGemini } from '../services/gemini.service';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { createRateLimiter } from '../middleware/rate-limiter';
 import { asyncHandler } from '../middleware/error-handler';
 
-const router = Router();
+const router: IRouter = Router();
 
 /** Stricter limit for AI endpoints: 20 requests per 15 minutes per client */
 const chatRateLimiter = createRateLimiter(20, 15 * 60 * 1000);
