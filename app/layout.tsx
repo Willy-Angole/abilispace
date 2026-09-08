@@ -19,7 +19,10 @@ export const metadata: Metadata = {
   title: "Abilispace - Inclusive Platform for People with Disabilities",
   description:
     "An accessible platform connecting people with disabilities to live events, current affairs, and meaningful conversations. Built with comprehensive accessibility features.",
-  generator: "v0.app",
+  icons: {
+    icon: "/new-logo.png",
+    apple: "/new-logo.png",
+  },
   keywords: [
     "accessibility",
     "disability",
