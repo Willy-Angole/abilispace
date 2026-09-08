@@ -7,6 +7,7 @@ import { Users, Calendar, MessageSquare, Newspaper, Accessibility } from "lucide
 import { AccessibilityFloatingButton } from "@/components/accessibility-provider"
 import { LanguageSwitcher, useLanguage } from "@/components/language-provider"
 import { SiteFooter } from "@/components/site-footer"
+import { QRShare } from "@/components/qr-share"
 import Image from "next/image"
 
 export default function HomePage() {
@@ -184,6 +185,7 @@ export default function HomePage() {
                 >
                   {t("signIn")}
                 </button>
+                <QRShare />
               </div>
             </div>
 

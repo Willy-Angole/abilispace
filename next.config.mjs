@@ -15,6 +15,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "res.cloudinary.com",
       },
+      {
+        protocol: "https",
+        hostname: "api.qrserver.com",
+      },
     ],
     // Use modern formats for better compression
     formats: ["image/avif", "image/webp"],
