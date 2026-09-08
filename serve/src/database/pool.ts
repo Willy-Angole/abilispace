@@ -50,7 +50,7 @@ export class DatabasePool {
             connectionTimeoutMillis: 60000, // Fail after 60s if no connection available (Railway needs time to wake up)
             maxUses: 7500, // Close connection after 7500 uses (prevents memory leaks)
             // Railway/managed Postgres needs SSL; local Postgres typically does not
-            ssl: isLocal ? false : { rejectUnauthorized: false },
+            ssl: isLocal ? false : { rejectUnauthorized: false, checkServerIdentity: () => undefined },
         });
 
         // Handle pool errors
