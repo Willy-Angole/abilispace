@@ -1,6 +1,6 @@
-# QA & Security checklist (v1.1.0)
+# QA & Security checklist (v1.1.1)
 
-Status as of 2026-09-22 production tag.
+Status as of 2026-09-23 production tag.
 
 ## Automated
 
@@ -29,6 +29,10 @@ Status as of 2026-09-22 production tag.
 | `/health/detailed` disabled in production | Done |
 | Error logs redact secrets | Done |
 | JSON body limit 1MB | Done |
+| HSTS disabled on non-production HTTP | Done |
+| Local uploads ignore spoofed Host headers | Done |
+| Local upload paths restricted to generated names | Done |
+| Voice-note microphone allowed for this site only | Done |
 | Parameterized SQL | Done |
 | Password strength validation | Done |
 | Anti-enumeration password reset | Done |
@@ -49,4 +53,6 @@ Status as of 2026-09-22 production tag.
 - [ ] Apply DB migrations (`pnpm migrate` in `serve`)
 - [ ] TLS termination + HSTS at edge
 - [ ] Configure SMTP, Cloudinary, Gemini, Redis as needed
+- [ ] Set `PUBLIC_API_URL` if attachments may be stored on the API host
+- [ ] Set `NEXT_PUBLIC_SITE_URL` to the public site origin
 - [ ] Verify `/health` and auth login/register smoke tests

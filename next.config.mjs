@@ -17,6 +17,7 @@ const contentSecurityPolicy = [
   scriptSrc,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://res.cloudinary.com",
+  `media-src 'self' blob: https://res.cloudinary.com ${apiUrl}`,
   "font-src 'self'",
   connectSrc,
   "frame-src https://accounts.google.com",
@@ -72,7 +73,7 @@ const nextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), payment=()",
+            value: "camera=(), microphone=(self), geolocation=(), payment=()",
           },
           {
             key: "Content-Security-Policy",

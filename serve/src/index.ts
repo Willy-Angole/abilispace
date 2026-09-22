@@ -9,6 +9,7 @@
  */
 
 import express, { Application, Request, Response, NextFunction } from 'express';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config/environment';
@@ -78,6 +79,14 @@ class App {
                 },
             },
             crossOriginEmbedderPolicy: false,
+            // The site on :3002 calls this API on another origin. Helmet's
+            // default same-origin policy makes the browser reject that fetch.
+            crossOriginResourcePolicy: { policy: 'cross-origin' },
+            // HSTS on plain http://localhost makes the browser switch to HTTPS
+            // and login then fails with "Failed to fetch".
+            hsts: config.isProduction
+                ? { maxAge: 15552000, includeSubDomains: true }
+                : false,
         }));
 
         // Additional security headers
@@ -101,6 +110,28 @@ class App {
 
         // Rate limiting
         this.app.use(rateLimiter);
+
+        // Voice notes and other files saved when Cloudinary is unavailable.
+        // Names are unguessable; the handler rejects anything else so a request
+        // cannot walk out of the upload directory.
+        const uploadRoot = path.resolve(process.cwd(), 'uploads');
+        this.app.use('/uploads', (req, res, next) => {
+            const name = path.basename(req.path);
+            if (!/^[0-9]+-[a-f0-9]{16}\.[a-z0-9]{1,8}$/.test(name)) {
+                res.status(404).end();
+                return;
+            }
+            next();
+        }, express.static(uploadRoot, {
+            fallthrough: false,
+            index: false,
+            setHeaders(res) {
+                res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+                res.setHeader('X-Content-Type-Options', 'nosniff');
+                res.setHeader('Content-Security-Policy', "default-src 'none'");
+                res.setHeader('Cache-Control', 'private, max-age=86400');
+            },
+        }));
 
         // Body parsing middleware
         this.app.use(express.json({ limit: '1mb' }));
@@ -146,7 +177,7 @@ class App {
         this.app.get('/', (_req: Request, res: Response) => {
             res.json({
                 name: 'Abilispace API',
-                version: '1.1.0',
+                version: '1.1.1',
                 status: 'running',
                 documentation: '/api/docs',
             });
@@ -220,7 +251,11 @@ process.on('uncaughtException', (error: Error) => {
 
 process.on('unhandledRejection', (reason: unknown) => {
     logger.error('Unhandled Rejection:', reason);
-    process.exit(1);
+    // Known Cloudinary failures are caught at the call site. Any other
+    // unhandled rejection in production means the process should stop.
+    if (config.isProduction) {
+        process.exit(1);
+    }
 });
 
 // Start the server

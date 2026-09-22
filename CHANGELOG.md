@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.1] — 2026-09-23
+
+Patch release for login, voice notes, and the audit of those fixes.
+
+### Fixes
+- Login no longer fails when the API sends HSTS or a same-origin resource policy on local HTTP
+- A Cloudinary failure no longer exits the API and drops in-flight sign-in
+- Voice notes can be recorded (`microphone=(self)`) and sent when Cloudinary is unavailable
+- A failed attachment upload is reported as an upload error instead of "Validation failed"
+
+### Security
+- Local upload URLs are not built from a client-supplied Host header
+- Production refuses the local file fallback unless `PUBLIC_API_URL` is set
+- Upload filenames are unguessable, and the file route rejects any other path
+- Served uploads cannot execute as pages (`Content-Security-Policy: default-src 'none'`, nosniff)
+- Unhandled promise rejections still stop the process in production
+
 ## [1.1.0] — 2026-09-22
 
 Production release with the AbiliSpace brand theme, public SEO, and security hardening found in review.

@@ -449,11 +449,11 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
       recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data)
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop())
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" })
-        // Use window.File to avoid TS constructor signature conflicts
-        const file = new window.File([blob], `voice-${Date.now()}.webm`, {
-          type: "audio/webm",
-        })
+        const recordedType = recorder.mimeType || "audio/webm"
+        const mime = recordedType.split(";")[0] || "audio/webm"
+        const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : "webm"
+        const blob = new Blob(audioChunksRef.current, { type: mime })
+        const file = new window.File([blob], `voice-${Date.now()}.${ext}`, { type: mime })
         setAttachmentFile(file)
         setAttachmentPreview("voice")
       }
@@ -496,19 +496,25 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
           body: formData,
           credentials: "include",
         })
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json()
-          fileUrl = uploadData.url
-          if (attachmentPreview === "voice" || attachmentFile.type.startsWith("audio/")) {
-            messageType = "voice"
-            messageContent = messageContent || "🎤 Voice note"
-          } else if (attachmentFile.type.startsWith("image/")) {
-            messageType = "image"
-            messageContent = messageContent || "📷 Image"
-          } else {
-            messageType = "file"
-            messageContent = messageContent || `📎 ${attachmentFile.name}`
-          }
+        const uploadData = await uploadRes.json().catch(() => ({} as { url?: string; error?: string }))
+        if (!uploadRes.ok || !uploadData.url) {
+          toast({
+            title: "Couldn't send the attachment",
+            description: uploadData.error || "Upload failed",
+            variant: "destructive",
+          })
+          return
+        }
+        fileUrl = uploadData.url
+        if (attachmentPreview === "voice" || attachmentFile.type.startsWith("audio/")) {
+          messageType = "voice"
+          messageContent = messageContent || "Voice note"
+        } else if (attachmentFile.type.startsWith("image/")) {
+          messageType = "image"
+          messageContent = messageContent || "Image"
+        } else {
+          messageType = "file"
+          messageContent = messageContent || attachmentFile.name
         }
       }
 

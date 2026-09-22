@@ -40,6 +40,10 @@ next-env.d.ts
 **/logs/*.log
 *.log
 
+# Local attachment fallback when Cloudinary is unavailable
+serve/uploads/
+uploads/
+
 # Legacy / rewrite artifacts
 .git-rewrite/
 

@@ -110,10 +110,11 @@ export function errorHandler(
     // Handle Zod validation errors
     if (err instanceof ZodError) {
         const formattedErrors = formatZodErrors(err);
-        
+        const detail = Object.values(formattedErrors).flat().filter(Boolean).join('. ');
+
         res.status(422).json({
             success: false,
-            message: 'Validation failed',
+            message: detail || 'Validation failed',
             code: 'VALIDATION_ERROR',
             errors: formattedErrors,
         });
