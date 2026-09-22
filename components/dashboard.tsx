@@ -250,6 +250,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         className="object-contain"
         style={collapsed ? { width: 28, height: 28 } : { width: "auto", height: 32 }}
       />
+      {!collapsed && <span className="mt-2 block h-1 w-10 bg-[var(--as-red)]" aria-hidden="true" />}
     </div>
   )
 

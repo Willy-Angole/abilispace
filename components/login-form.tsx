@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { BrandMark } from "@/components/brand-mark"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -121,6 +122,7 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
 
         <Card>
           <CardHeader>
+            <BrandMark className="mb-2" />
             <CardTitle className="text-2xl text-center">Sign In</CardTitle>
             <CardDescription className="text-center">Welcome back to Abilispace</CardDescription>
           </CardHeader>

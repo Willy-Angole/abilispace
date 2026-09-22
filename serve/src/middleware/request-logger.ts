@@ -27,7 +27,11 @@ export function requestLogger(
     next: NextFunction
 ): void {
     // Generate unique request ID
-    const requestId = (req.headers['x-request-id'] as string) || uuidv4();
+    const headerId = req.headers['x-request-id'];
+    const requestId =
+        typeof headerId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(headerId)
+            ? headerId
+            : uuidv4();
     req.requestId = requestId;
     req.startTime = Date.now();
 
@@ -40,7 +44,7 @@ export function requestLogger(
     // Log incoming request
     reqLogger.info('Incoming request', {
         method: req.method,
-        url: req.url,
+        path: req.path,
         userAgent: req.headers['user-agent'],
         ip: req.ip || req.socket.remoteAddress,
     });
@@ -52,7 +56,7 @@ export function requestLogger(
 
         reqLogger[logLevel]('Request completed', {
             method: req.method,
-            url: req.url,
+            path: req.path,
             statusCode: res.statusCode,
             duration: `${duration}ms`,
             contentLength: res.get('Content-Length'),

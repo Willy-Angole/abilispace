@@ -28,7 +28,7 @@ export function SiteFooter({ onNavigate }: SiteFooterProps) {
   const sw = language === "sw"
 
   return (
-    <footer className="border-t border-border bg-card text-card-foreground" role="contentinfo">
+    <footer className="border-t-[3px] border-[var(--as-red)] bg-card text-card-foreground" role="contentinfo">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="flex flex-col md:flex-row gap-8 py-8">
           <div className="flex-1 space-y-3">

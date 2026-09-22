@@ -69,6 +69,20 @@ export const Errors = {
 /**
  * Format Zod validation errors into user-friendly format
  */
+const SENSITIVE_KEY = /password|token|secret|authorization|cookie|code/i;
+
+function redact(value: unknown, depth = 0): unknown {
+    if (depth > 4 || value == null) return value;
+    if (Array.isArray(value)) return value.slice(0, 20).map((item) => redact(item, depth + 1));
+    if (typeof value !== 'object') return value;
+
+    const out: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+        out[key] = SENSITIVE_KEY.test(key) ? '[redacted]' : redact(val, depth + 1);
+    }
+    return out;
+}
+
 function formatZodErrors(error: ZodError): Record<string, string[]> {
     const errors: Record<string, string[]> = {};
 
@@ -133,10 +147,10 @@ export function errorHandler(
 
     // Handle unknown errors
     logger.error('Unhandled error:', {
-        error: err,
+        message: err.message,
         path: req.path,
         method: req.method,
-        body: req.body,
+        body: redact(req.body),
     });
 
     res.status(500).json({

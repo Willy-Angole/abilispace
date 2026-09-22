@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { BrandMark } from "@/components/brand-mark"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -203,6 +204,7 @@ export function RegisterForm({ onSuccess, onBack, onSignIn }: RegisterFormProps)
 
         <Card>
           <CardHeader>
+            <BrandMark className="mb-2" />
             <CardTitle className="text-2xl text-center">Create Your Account</CardTitle>
             <CardDescription className="text-center">
               Join our inclusive community and start connecting with accessible events and peers

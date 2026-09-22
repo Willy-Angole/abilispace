@@ -103,8 +103,8 @@ class App {
         this.app.use(rateLimiter);
 
         // Body parsing middleware
-        this.app.use(express.json({ limit: '10mb' }));
-        this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+        this.app.use(express.json({ limit: '1mb' }));
+        this.app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
         // Request logging
         this.app.use(requestLogger);
@@ -146,7 +146,7 @@ class App {
         this.app.get('/', (_req: Request, res: Response) => {
             res.json({
                 name: 'Abilispace API',
-                version: '1.0.0',
+                version: '1.1.0',
                 status: 'running',
                 documentation: '/api/docs',
             });

@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { BrandMark } from "@/components/brand-mark"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -113,8 +114,9 @@ export function ResetPasswordForm({ email, code, onSuccess, onBack }: ResetPassw
 
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 p-3 bg-green-100 dark:bg-green-900/30 rounded-full w-fit">
-              <KeyRound className="h-8 w-8 text-green-600 dark:text-green-400" />
+            <BrandMark className="mb-2" />
+            <div className="mx-auto mb-4 p-3 bg-primary/10 rounded-full w-fit">
+              <KeyRound className="h-8 w-8 text-primary" />
             </div>
             <CardTitle className="text-2xl">Create New Password</CardTitle>
             <CardDescription>

@@ -38,3 +38,4 @@ Server-mediated over HTTPS. **Not end-to-end encrypted.**
 3. Restrict `CORS_ORIGIN` to real frontends
 4. Set `REDIS_URL` for multi-instance rate limits
 5. Keep `GEMINI_API_KEY` secret; chat requires auth
+6. Set `NEXT_PUBLIC_SITE_URL` to the public origin so canonical URLs and the sitemap match production

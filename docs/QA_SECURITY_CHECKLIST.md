@@ -1,6 +1,6 @@
-# QA & Security checklist (v1.0.0)
+# QA & Security checklist (v1.1.0)
 
-Status as of 2026-07-31 production tag.
+Status as of 2026-09-22 production tag.
 
 ## Automated
 
@@ -23,6 +23,12 @@ Status as of 2026-07-31 production tag.
 | Upload allowlist + size limits | Done |
 | Admin login rate limited | Done |
 | Helmet + security headers + HSTS (prod) | Done |
+| Frontend CSP + Permissions-Policy | Done |
+| SMTP password not written to logs | Done |
+| SMTP TLS verified in production | Done |
+| `/health/detailed` disabled in production | Done |
+| Error logs redact secrets | Done |
+| JSON body limit 1MB | Done |
 | Parameterized SQL | Done |
 | Password strength validation | Done |
 | Anti-enumeration password reset | Done |
