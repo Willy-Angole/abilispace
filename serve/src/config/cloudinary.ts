@@ -55,6 +55,19 @@ export interface UploadResult {
 }
 
 /**
+ * Cloudinary's upload/destroy helpers return a promise and also take a callback.
+ * If the returned promise rejects and nothing handles it, Node reports an
+ * unhandled rejection and this API would exit. Swallow that duplicate rejection;
+ * the callback still reports the same failure.
+ */
+function ignoreReturnedRejection(result: unknown): void {
+  const maybePromise = result as { catch?: (onRejected: () => void) => void } | null;
+  if (maybePromise && typeof maybePromise.catch === 'function') {
+    maybePromise.catch(() => undefined);
+  }
+}
+
+/**
  * Upload an image to Cloudinary
  * 
  * @param fileBuffer - The image file buffer
@@ -79,7 +92,7 @@ export async function uploadProfileImage(
     const base64Image = `data:image/jpeg;base64,${fileBuffer.toString('base64')}`;
 
     const result = await new Promise<UploadApiResponse>((resolve, reject) => {
-      cloudinary.uploader.upload(
+      ignoreReturnedRejection(cloudinary.uploader.upload(
         base64Image,
         {
           folder: PROFILE_IMAGE_OPTIONS.folder,
@@ -97,7 +110,7 @@ export async function uploadProfileImage(
             reject(new Error('No result from Cloudinary'));
           }
         }
-      );
+      ));
     });
 
     logger.info('Profile image uploaded successfully', {
@@ -130,7 +143,7 @@ export async function uploadProfileImage(
  */
 export async function deleteProfileImage(publicId: string): Promise<boolean> {
   try {
-    await cloudinary.uploader.destroy(publicId);
+    ignoreReturnedRejection(await cloudinary.uploader.destroy(publicId));
     logger.info('Profile image deleted', { publicId });
     return true;
   } catch (error) {
@@ -191,7 +204,7 @@ export async function uploadToCloudinary(
     const base64Image = `data:image/jpeg;base64,${fileBuffer.toString('base64')}`;
 
     const result = await new Promise<UploadApiResponse>((resolve, reject) => {
-      cloudinary.uploader.upload(
+      ignoreReturnedRejection(cloudinary.uploader.upload(
         base64Image,
         {
           folder: options.folder || 'shiriki/uploads',
@@ -212,7 +225,7 @@ export async function uploadToCloudinary(
             reject(new Error('No result from Cloudinary'));
           }
         }
-      );
+      ));
     });
 
     logger.info('Image uploaded successfully to Cloudinary', {
@@ -258,7 +271,7 @@ export async function uploadFileToCloudinary(
     const dataUri = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
 
     const result = await new Promise<UploadApiResponse>((resolve, reject) => {
-      cloudinary.uploader.upload(
+      ignoreReturnedRejection(cloudinary.uploader.upload(
         dataUri,
         {
           folder: 'shiriki/messages',
@@ -270,7 +283,7 @@ export async function uploadFileToCloudinary(
           else if (result) resolve(result);
           else reject(new Error('No result from Cloudinary'));
         }
-      );
+      ));
     });
 
     return { success: true, url: result.secure_url, publicId: result.public_id };

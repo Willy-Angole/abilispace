@@ -1,6 +1,6 @@
-# QA & Security checklist (v1.0.0)
+# QA & Security checklist (v1.3.0)
 
-Status as of 2026-07-31 production tag.
+Status as of 2026-09-23 production tag.
 
 ## Automated
 
@@ -23,6 +23,19 @@ Status as of 2026-07-31 production tag.
 | Upload allowlist + size limits | Done |
 | Admin login rate limited | Done |
 | Helmet + security headers + HSTS (prod) | Done |
+| Frontend CSP + Permissions-Policy | Done |
+| SMTP password not written to logs | Done |
+| SMTP TLS verified in production | Done |
+| `/health/detailed` disabled in production | Done |
+| Error logs redact secrets | Done |
+| JSON body limit 1MB | Done |
+| HSTS disabled on non-production HTTP | Done |
+| Local uploads ignore spoofed Host headers | Done |
+| Local upload paths restricted to generated names | Done |
+| Voice-note microphone allowed for this site only | Done |
+| Thought image URLs limited to our hosts | Done |
+| Sponsored thoughts require admin approval | Done |
+| Sponsorship review does not leak database errors | Done |
 | Parameterized SQL | Done |
 | Password strength validation | Done |
 | Anti-enumeration password reset | Done |
@@ -43,4 +56,6 @@ Status as of 2026-07-31 production tag.
 - [ ] Apply DB migrations (`pnpm migrate` in `serve`)
 - [ ] TLS termination + HSTS at edge
 - [ ] Configure SMTP, Cloudinary, Gemini, Redis as needed
+- [ ] Set `PUBLIC_API_URL` if attachments may be stored on the API host
+- [ ] Set `NEXT_PUBLIC_SITE_URL` to the public site origin
 - [ ] Verify `/health` and auth login/register smoke tests

@@ -1,7 +1,11 @@
-import { Router, Response, IRouter } from 'express';
+import { Router, Request, Response, IRouter } from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
+import { config } from '../config/environment';
+import { publicUploadBase } from '../utils/public-url';
 import { uploadFileToCloudinary } from '../config/cloudinary';
 import { logger } from '../utils/logger';
 import { createRateLimiter } from '../middleware/rate-limiter';
@@ -113,14 +117,24 @@ router.post(
                 .replace(/[^a-zA-Z0-9._-]/g, '_')
                 .slice(0, 100);
 
-            const result = await uploadFileToCloudinary(
+            let result = await uploadFileToCloudinary(
                 req.file.buffer,
                 safeName,
                 req.file.mimetype
             );
 
-            if (!result.success) {
-                return res.status(500).json({ success: false, error: result.error });
+            if (!result.success || !result.url) {
+                if (config.isProduction && !config.publicApiUrl) {
+                    return res.status(503).json({
+                        success: false,
+                        error: 'File storage is not configured',
+                    });
+                }
+                const url = saveLocalUpload(req.file.buffer, safeName, req);
+                logger.warn('Stored upload locally because Cloudinary was unavailable', {
+                    userId: req.userId,
+                });
+                result = { success: true, url };
             }
 
             logger.info('File uploaded', { userId: req.userId, url: result.url });
@@ -132,6 +146,23 @@ router.post(
         }
     }
 );
+
+const LOCAL_UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
+
+function saveLocalUpload(buffer: Buffer, originalName: string, req: Request): string {
+    fs.mkdirSync(LOCAL_UPLOAD_DIR, { recursive: true });
+    const ext = path.extname(originalName).toLowerCase();
+    const safeExt = /^\.[a-z0-9]{1,8}$/.test(ext) ? ext : '.bin';
+    const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${safeExt}`;
+    fs.writeFileSync(path.join(LOCAL_UPLOAD_DIR, filename), buffer);
+
+    const base = publicUploadBase({
+        configured: config.publicApiUrl,
+        host: req.get('host') || undefined,
+        port: config.port,
+    });
+    return `${base}/uploads/${filename}`;
+}
 
 /**
  * Lightweight content sniffing — not a full antivirus, but blocks obvious spoofs.

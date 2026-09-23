@@ -1,8 +1,9 @@
 import { AdminDashboard } from '@/components/admin-dashboard';
 
 export const metadata = {
-  title: 'Admin Dashboard - Abilispace',
-  description: 'Abilispace platform administration dashboard',
+  title: 'Admin',
+  description: 'Abilispace platform administration',
+  robots: { index: false, follow: false },
 };
 
 export default function AdminPage() {

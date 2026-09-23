@@ -1,11 +1,11 @@
 {
-  "name": "Abilispace - Inclusive Community Platform",
+  "name": "Abilispace — Inclusive community platform",
   "short_name": "Abilispace",
-  "description": "An accessible platform connecting people with disabilities to live events, current affairs, and meaningful conversations.",
+  "description": "An inclusive platform connecting people with disabilities to live events, current affairs, and meaningful conversations.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0f172a",
+  "background_color": "#f4f1ec",
+  "theme_color": "#427690",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en",
@@ -13,69 +13,9 @@
   "icons": [
     {
       "src": "/new-logo.png",
-      "sizes": "192x192",
+      "sizes": "1512x378",
       "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/new-logo.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshot-wide.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshot-narrow.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Events",
-      "short_name": "Events",
-      "description": "Discover accessible events",
-      "url": "/?tab=events",
-      "icons": [{ "src": "/icon-events.png", "sizes": "96x96" }]
-    },
-    {
-      "src": "/new-logo.png",
-      "short_name": "News",
-      "description": "Read current affairs",
-      "url": "/?tab=news",
-      "icons": [{ "src": "/icon-news.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Messages",
-      "short_name": "Messages",
-      "description": "Secure messaging",
-      "url": "/?tab=messages",
-      "icons": [{ "src": "/icon-messages.png", "sizes": "96x96" }]
-    }
-  ],
-  "related_applications": [],
-  "prefer_related_applications": false,
-  "features": [
-    "Accessibility",
-    "Offline Support",
-    "Push Notifications"
-  ],
-  "share_target": {
-    "action": "/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
-    }
-  }
+  ]
 }

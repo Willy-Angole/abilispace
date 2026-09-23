@@ -55,7 +55,8 @@ export class EmailService {
             },
             // Additional settings for better compatibility
             tls: {
-                rejectUnauthorized: false, // Accept self-signed certificates
+                // Production mail hosts present a public certificate.
+                rejectUnauthorized: config.isProduction,
             },
             connectionTimeout: 10000, // 10 second timeout
             greetingTimeout: 10000,
@@ -66,10 +67,7 @@ export class EmailService {
             host: config.smtp.host,
             port: config.smtp.port,
             secure: config.smtp.secure,
-            user: config.smtp.user || 'NOT SET',
-            passwordLength: config.smtp.password ? config.smtp.password.length : 0,
-            passwordFirstChar: config.smtp.password ? config.smtp.password[0] : 'N/A',
-            from: config.smtp.from,
+            configured: this.isConfigured,
         });
     }
 

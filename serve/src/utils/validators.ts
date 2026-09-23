@@ -206,6 +206,32 @@ export const addMembersSchema = z.object({
     memberIds: z.array(uuidSchema).min(1, 'At least one member is required'),
 });
 
+export const createThoughtSchema = z.object({
+    body: z.string().trim().max(2000).default(''),
+    imageUrl: z.string().url().refine(
+        (value) => value.startsWith('https://') || value.startsWith('http://'),
+        'Photo URL must use http or https'
+    ).optional(),
+    requestSponsorship: z.boolean().optional(),
+    sponsorName: z.string().trim().max(120).optional(),
+}).refine((data) => data.body.length > 0 || Boolean(data.imageUrl), {
+    message: 'Write something or add a photo',
+    path: ['body'],
+}).refine((data) => !data.requestSponsorship || (data.sponsorName || '').trim().length >= 2, {
+    message: 'Add the sponsor name',
+    path: ['sponsorName'],
+});
+
+export const createCommentSchema = z.object({
+    body: z.string().trim().min(1, 'Write a comment first').max(1000),
+});
+
+export const thoughtsFeedQuerySchema = z.object({
+    feed: z.enum(['community', 'following']).default('community'),
+    before: z.string().datetime().optional(),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
 export const sendMessageSchema = z.object({
     conversationId: uuidSchema,
     content: z.string().min(1, 'Message content is required').max(10000),

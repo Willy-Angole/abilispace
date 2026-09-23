@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { config } from '../config/environment';
 import * as adminService from '../services/admin.service';
+import * as thoughtsService from '../services/thoughts.service';
 import { uploadToCloudinary } from '../config/cloudinary';
 import { strictRateLimiter } from '../middleware/rate-limiter';
 import {
@@ -621,6 +622,46 @@ router.get('/articles/categories', adminAuth, async (req: AdminRequest, res: Res
     res.status(500).json({ error: error.message || 'Failed to fetch article categories' });
   }
 });
+
+// =============================================================================
+// SPONSORED THOUGHTS
+// =============================================================================
+
+router.get('/sponsored-thoughts', adminAuth, async (req: AdminRequest, res: Response) => {
+  try {
+    const status = req.query.status === 'approved' || req.query.status === 'rejected'
+      ? req.query.status
+      : 'pending';
+    const data = await thoughtsService.listSponsorshipRequests(status);
+    res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch sponsorship requests' });
+  }
+});
+
+router.patch(
+  '/sponsored-thoughts/:id',
+  adminAuth,
+  requireRole('super_admin', 'admin', 'moderator'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const decision = req.body?.status;
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
+        return res.status(400).json({ error: 'Invalid thought id' });
+      }
+      if (decision !== 'approved' && decision !== 'rejected') {
+        return res.status(400).json({ error: 'status must be approved or rejected' });
+      }
+      const data = await thoughtsService.reviewSponsorship(req.params.id, decision);
+      res.json({ success: true, data });
+    } catch (error: any) {
+      const status = error.statusCode || 500;
+      res.status(status).json({
+        error: error.statusCode ? error.message : 'Failed to review sponsorship',
+      });
+    }
+  }
+);
 
 // =============================================================================
 // REPORTS MANAGEMENT ROUTES

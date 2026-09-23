@@ -66,6 +66,13 @@ const envSchema = z.object({
     // CORS
     CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
+    // Public origin of this API, used when a file is stored locally.
+    // Example: https://api.abilispace.org
+    PUBLIC_API_URL: z.preprocess(
+        (val) => (val === '' ? undefined : val),
+        z.string().url().optional()
+    ),
+
     // Logging
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 });
@@ -174,6 +181,9 @@ export const config = {
 
     // CORS
     corsOrigin: env.CORS_ORIGIN.split(',').map(origin => origin.trim()),
+
+    // Optional public origin for locally stored uploads
+    publicApiUrl: env.PUBLIC_API_URL,
 
     // Logging
     logLevel: env.LOG_LEVEL,

@@ -33,7 +33,7 @@ export function useLanguage() {
   return useContext(LanguageContext)
 }
 
-export function LanguageSwitcher({ className }: { className?: string }) {
+export function LanguageSwitcher({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { language, setLanguage, t } = useLanguage()
 
   const toggle = () => setLanguage(language === "en" ? "sw" : "en")
@@ -47,8 +47,12 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       aria-label={`Switch language to ${t("switchTo")}`}
       title={`Switch to ${t("switchTo")}`}
     >
-      <Languages className="h-4 w-4 mr-1.5" aria-hidden="true" />
-      {t("switchTo")}
+      <Languages className={compact ? "h-4 w-4 sm:mr-1.5" : "h-4 w-4 mr-1.5"} aria-hidden="true" />
+      {compact ? (
+        <span className="max-sm:sr-only">{t("switchTo")}</span>
+      ) : (
+        t("switchTo")
+      )}
     </Button>
   )
 }

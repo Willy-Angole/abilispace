@@ -1,4 +1,30 @@
 /** @type {import('next').NextConfig} */
+const isProd = process.env.NODE_ENV === "production"
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+const scriptSrc = isProd
+  ? "script-src 'self' 'unsafe-inline' https://accounts.google.com"
+  : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com"
+const connectSrc = isProd
+  ? `connect-src 'self' ${apiUrl} https://accounts.google.com`
+  : `connect-src 'self' ${apiUrl} https://accounts.google.com ws: http://localhost:* http://127.0.0.1:*`
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  scriptSrc,
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob: https://res.cloudinary.com https://api.qrserver.com ${apiUrl}`,
+  `media-src 'self' blob: https://res.cloudinary.com ${apiUrl}`,
+  "font-src 'self'",
+  connectSrc,
+  "frame-src https://accounts.google.com",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+].join("; ")
+
 const nextConfig = {
   output: 'standalone',
   // Fail the build on type and lint errors (quality gate)
@@ -46,12 +72,16 @@ const nextConfig = {
             value: "DENY",
           },
           {
-            key: "X-XSS-Protection",
-            value: "1; mode=block",
-          },
-          {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(self), geolocation=(), payment=()",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: contentSecurityPolicy,
           },
         ],
       },

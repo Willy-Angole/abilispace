@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Providers } from "@/components/providers"
+import { siteConfig } from "@/lib/site"
 import "./globals.css"
 
 export const viewport: Viewport = {
@@ -10,34 +11,74 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f4f5" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#f4f1ec" },
+    { media: "(prefers-color-scheme: dark)", color: "#141413" },
   ],
 }
 
 export const metadata: Metadata = {
-  title: "Abilispace - Inclusive Platform for People with Disabilities",
-  description:
-    "An accessible platform connecting people with disabilities to live events, current affairs, and meaningful conversations. Built with comprehensive accessibility features.",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: siteConfig.title,
+    template: "%s · Abilispace",
+  },
+  description: siteConfig.description,
+  applicationName: siteConfig.name,
   icons: {
     icon: "/new-logo.png",
     apple: "/new-logo.png",
   },
   keywords: [
-    "accessibility",
+    "Abilispace",
     "disability",
-    "inclusive",
-    "events",
-    "community",
-    "assistive technology",
+    "accessibility",
+    "inclusive community",
+    "Kenya",
+    "Grassroots Disability Agenda",
+    "accessible events",
     "screen reader",
-    "keyboard navigation",
   ],
-  authors: [{ name: "Abilispace Team" }],
+  authors: [{ name: "Abilispace", url: siteConfig.publisher.url }],
   creator: "Abilispace",
-  publisher: "Abilispace",
-  robots: "index, follow",
+  publisher: siteConfig.publisher.name,
+  robots: { index: true, follow: true },
   manifest: "/manifest.json",
+  openGraph: {
+    type: "website",
+    locale: siteConfig.locale,
+    url: "/",
+    siteName: siteConfig.name,
+    title: siteConfig.title,
+    description: siteConfig.description,
+    images: [
+      {
+        url: "/marketing/hero.jpg",
+        width: 1248,
+        height: 832,
+        alt: "Three friends, including a wheelchair user, talking together over a laptop",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.title,
+    description: siteConfig.description,
+    images: ["/marketing/hero.jpg"],
+  },
+}
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: siteConfig.name,
+  url: siteConfig.url,
+  description: siteConfig.description,
+  inLanguage: "en",
+  publisher: {
+    "@type": "Organization",
+    name: siteConfig.publisher.name,
+    url: siteConfig.publisher.url,
+  },
 }
 
 export default function RootLayout({
@@ -49,12 +90,12 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="color-scheme" content="light dark" />
-        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>

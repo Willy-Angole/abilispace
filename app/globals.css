@@ -4,40 +4,48 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Light gray page canvas; cards stay pure white for contrast */
-  --background: oklch(0.96 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  /* AbiliSpace wordmark: Abili #427690, Space #EA2313 */
+  --as-blue: #427690;
+  --as-blue-deep: #36657c;
+  --as-red: #ea2313;
+  --as-blue-text: #36657c;
+  --as-on-blue: #ffffff;
+  --as-tint: #e8f1f5;
+
+  /* Warm paper canvas; cards stay white. Primary actions use the logo blue. */
+  --background: #f4f1ec;
+  --foreground: #1c1c1c;
+  --card: #ffffff;
+  --card-foreground: #1c1c1c;
+  --popover: #ffffff;
+  --popover-foreground: #1c1c1c;
+  --primary: #427690;
+  --primary-foreground: #ffffff;
+  --secondary: #e8f1f5;
+  --secondary-foreground: #36657c;
+  --muted: #efece7;
+  --muted-foreground: #5c5852;
+  --accent: #e8f1f5;
+  --accent-foreground: #36657c;
+  --destructive: #c81e12;
+  --destructive-foreground: #ffffff;
+  --border: #e4dfd6;
+  --input: #e4dfd6;
+  --ring: #427690;
+  --chart-1: #427690;
+  --chart-2: #ea2313;
+  --chart-3: #36657c;
+  --chart-4: #ce9140;
+  --chart-5: #8ec3d6;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1c1c1c;
+  --sidebar-primary: #427690;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f1f5;
+  --sidebar-accent-foreground: #36657c;
+  --sidebar-border: #e4dfd6;
+  --sidebar-ring: #427690;
 
   /* Accessibility variables */
   --accessibility-font-size: 16px;
@@ -45,39 +53,48 @@
 }
 
 .dark {
-  /* Page slightly darker than cards so surfaces elevate the same way as light mode */
-  --background: oklch(0.14 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.22 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0 0);
-  --primary-foreground: oklch(0.16 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.72 0 0);
-  --accent: oklch(0.28 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.32 0 0);
-  --input: oklch(0.28 0 0);
-  --ring: oklch(0.55 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --as-blue-text: #9fd0e2;
+  --as-tint: #1a3038;
+
+  --background: #141413;
+  --foreground: #f4f1ec;
+  --card: #1c1c1b;
+  --card-foreground: #f4f1ec;
+  --popover: #1c1c1b;
+  --popover-foreground: #f4f1ec;
+  /* Filled buttons stay the logo blue with white type */
+  --primary: #427690;
+  --primary-foreground: #ffffff;
+  --secondary: #1a3038;
+  --secondary-foreground: #9fd0e2;
+  --muted: #242422;
+  --muted-foreground: #c4bfb6;
+  --accent: #1a3038;
+  --accent-foreground: #9fd0e2;
+  --destructive: #ea2313;
+  --destructive-foreground: #ffffff;
+  --border: #343432;
+  --input: #343432;
+  --ring: #8ec3d6;
+  --chart-1: #8ec3d6;
+  --chart-2: #ff6d5e;
+  --chart-3: #427690;
+  --chart-4: #e0b36a;
+  --chart-5: #f4f1ec;
+  --sidebar: #1c1c1b;
+  --sidebar-foreground: #f4f1ec;
+  --sidebar-primary: #427690;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a3038;
+  --sidebar-accent-foreground: #9fd0e2;
+  --sidebar-border: #343432;
+  --sidebar-ring: #8ec3d6;
+}
+
+/* Links and icons use a lighter blue on dark surfaces. Filled buttons use
+   text-primary-foreground, so they keep white type on the logo blue. */
+.dark .text-primary {
+  color: var(--as-blue-text);
 }
 
 /* High contrast theme */
@@ -95,6 +112,12 @@
   --border: oklch(0 0 0);
   --input: oklch(1 0 0);
   --ring: oklch(0 0 0);
+  --as-blue: var(--foreground);
+  --as-blue-deep: var(--foreground);
+  --as-red: var(--foreground);
+  --as-blue-text: var(--foreground);
+  --as-on-blue: var(--background);
+  --as-tint: var(--muted);
 }
 
 .high-contrast.dark {
@@ -111,6 +134,18 @@
   --border: oklch(1 0 0);
   --input: oklch(0 0 0);
   --ring: oklch(1 0 0);
+  --as-blue: var(--foreground);
+  --as-blue-deep: var(--foreground);
+  --as-red: var(--foreground);
+  --as-blue-text: var(--foreground);
+  --as-on-blue: var(--background);
+  --as-tint: var(--muted);
+}
+
+/* Homepage uses the same tokens as the rest of the app. */
+.home-scandi {
+  background: var(--background);
+  color: var(--foreground);
 }
 
 @theme inline {
@@ -275,6 +310,12 @@ html.high-contrast {
   --ring: oklch(0 0 0);
   --destructive: oklch(0.5 0.2 25);
   --destructive-foreground: oklch(1 0 0);
+  --as-blue: var(--foreground);
+  --as-blue-deep: var(--foreground);
+  --as-red: var(--foreground);
+  --as-blue-text: var(--foreground);
+  --as-on-blue: var(--background);
+  --as-tint: var(--muted);
 }
 
 html.high-contrast.dark {
@@ -295,6 +336,17 @@ html.high-contrast.dark {
   --border: oklch(1 0 0);
   --input: oklch(0.2 0 0);
   --ring: oklch(1 0 0);
+  --as-blue: var(--foreground);
+  --as-blue-deep: var(--foreground);
+  --as-red: var(--foreground);
+  --as-blue-text: var(--foreground);
+  --as-on-blue: var(--background);
+  --as-tint: var(--muted);
+}
+
+html.high-contrast .text-primary,
+html.high-contrast.dark .text-primary {
+  color: var(--foreground);
 }
 
 html.high-contrast img {

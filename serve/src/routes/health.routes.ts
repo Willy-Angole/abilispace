@@ -7,6 +7,7 @@
 
 import { Router, Request, Response, IRouter } from 'express';
 import { db } from '../database/pool';
+import { config } from '../config/environment';
 import { asyncHandler } from '../middleware/error-handler';
 
 const router: IRouter = Router();
@@ -74,6 +75,12 @@ router.get(
 router.get(
     '/detailed',
     asyncHandler(async (_req: Request, res: Response) => {
+        // Memory and pool stats are for local debugging only.
+        if (config.isProduction) {
+            res.status(404).json({ status: 'not found' });
+            return;
+        }
+
         const dbStats = db.getStats();
 
         res.json({

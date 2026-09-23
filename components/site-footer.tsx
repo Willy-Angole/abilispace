@@ -10,6 +10,7 @@ const PLATFORM_LINKS: {
   labelSw: string
   tab: DashboardTab
 }[] = [
+  { label: "Thoughts", labelSw: "Mawazo", tab: "thoughts" },
   { label: "Messaging", labelSw: "Ujumbe", tab: "messages" },
   { label: "Current Affairs", labelSw: "Habari za Sasa", tab: "news" },
   { label: "Events", labelSw: "Matukio", tab: "events" },
@@ -28,7 +29,7 @@ export function SiteFooter({ onNavigate }: SiteFooterProps) {
   const sw = language === "sw"
 
   return (
-    <footer className="border-t border-border bg-card text-card-foreground" role="contentinfo">
+    <footer className="border-t-[3px] border-[var(--as-red)] bg-card text-card-foreground" role="contentinfo">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="flex flex-col md:flex-row gap-8 py-8">
           <div className="flex-1 space-y-3">

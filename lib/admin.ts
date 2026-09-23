@@ -515,6 +515,27 @@ export async function getArticleCategories(): Promise<string[]> {
 // REPORTS
 // =============================================================================
 
+export interface SponsorshipRequest {
+  id: string
+  body: string
+  imageUrl?: string
+  createdAt: string
+  sponsorName?: string
+  sponsorshipStatus?: string
+  author: { id: string; firstName: string; lastName: string }
+}
+
+export async function getSponsorshipRequests(status: "pending" | "approved" | "rejected" = "pending"): Promise<SponsorshipRequest[]> {
+  return adminFetch<SponsorshipRequest[]>(`/sponsored-thoughts?status=${status}`)
+}
+
+export async function reviewSponsorship(id: string, status: "approved" | "rejected"): Promise<SponsorshipRequest> {
+  return adminFetch<SponsorshipRequest>(`/sponsored-thoughts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  })
+}
+
 export async function getReports(params: {
   page?: number;
   limit?: number;
