@@ -30,6 +30,7 @@ import articleRoutes from './routes/article.routes';
 import healthRoutes from './routes/health.routes';
 import adminRoutes from './routes/admin.routes';
 import uploadRoutes from './routes/upload.routes';
+import thoughtsRoutes from './routes/thoughts.routes';
 import chatRoutes from './routes/chat.routes';
 
 // Service imports
@@ -169,6 +170,7 @@ class App {
         apiRouter.use('/articles', articleRoutes);
         apiRouter.use('/admin', adminRoutes);
         apiRouter.use('/upload', uploadRoutes);
+        apiRouter.use('/thoughts', thoughtsRoutes);
         apiRouter.use('/chat', chatRoutes);
 
         this.app.use('/api', apiRouter);
@@ -177,7 +179,7 @@ class App {
         this.app.get('/', (_req: Request, res: Response) => {
             res.json({
                 name: 'Abilispace API',
-                version: '1.1.1',
+                version: '1.2.0',
                 status: 'running',
                 documentation: '/api/docs',
             });

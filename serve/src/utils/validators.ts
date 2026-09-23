@@ -206,6 +206,20 @@ export const addMembersSchema = z.object({
     memberIds: z.array(uuidSchema).min(1, 'At least one member is required'),
 });
 
+export const createThoughtSchema = z.object({
+    body: z.string().trim().min(1, 'Write something first').max(2000),
+});
+
+export const createCommentSchema = z.object({
+    body: z.string().trim().min(1, 'Write a comment first').max(1000),
+});
+
+export const thoughtsFeedQuerySchema = z.object({
+    feed: z.enum(['community', 'following']).default('community'),
+    before: z.string().datetime().optional(),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
 export const sendMessageSchema = z.object({
     conversationId: uuidSchema,
     content: z.string().min(1, 'Message content is required').max(10000),

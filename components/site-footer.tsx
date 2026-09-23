@@ -10,6 +10,7 @@ const PLATFORM_LINKS: {
   labelSw: string
   tab: DashboardTab
 }[] = [
+  { label: "Thoughts", labelSw: "Mawazo", tab: "thoughts" },
   { label: "Messaging", labelSw: "Ujumbe", tab: "messages" },
   { label: "Current Affairs", labelSw: "Habari za Sasa", tab: "news" },
   { label: "Events", labelSw: "Matukio", tab: "events" },

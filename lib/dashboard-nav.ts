@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react"
 
 /** All primary app sections reachable from the sidebar */
 export type DashboardTab =
+  | "thoughts"
   | "messages"
   | "news"
   | "events"

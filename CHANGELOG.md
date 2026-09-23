@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0] — 2026-09-23
+
+### Product
+- Thoughts feed is the first screen after sign-in
+- Users can post, comment, like, share, and follow other people
+- Following and Everyone filters
+- Requires migration `006_add_thoughts.sql`
+
 ## [1.1.1] — 2026-09-23
 
 Patch release for login, voice notes, and the audit of those fixes.

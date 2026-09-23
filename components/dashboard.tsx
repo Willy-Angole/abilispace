@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import {
   Calendar,
   MessageSquare,
+  PenLine,
   Newspaper,
   LogOut,
   User,
@@ -20,6 +21,7 @@ import {
   Accessibility,
 } from "lucide-react"
 import { EventDiscovery } from "@/components/event-discovery"
+import { ThoughtsFeed } from "@/components/thoughts-feed"
 import { SecureMessaging } from "@/components/secure-messaging"
 import { CurrentAffairs } from "@/components/current-affairs"
 import { ProfileEdit } from "@/components/profile-edit"
@@ -47,7 +49,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<DashboardTab>("messages")
+  const [activeTab, setActiveTab] = useState<DashboardTab>("thoughts")
   const [currentUser, setCurrentUser] = useState<UserType>(user)
   const [isEditing, setIsEditing] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -103,6 +105,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
   }
 
   const navItems: NavItem[] = [
+    { id: "thoughts", label: t("thoughts"), icon: PenLine, group: "main" },
     { id: "messages", label: t("messages"), icon: MessageSquare, badge: unreadCount, group: "main" },
     { id: "news", label: t("news"), icon: Newspaper, group: "main" },
     { id: "events", label: t("events"), icon: Calendar, group: "main" },
@@ -443,6 +446,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
               activeTab === "messages" ? "overflow-hidden max-w-full" : ""
             )}
           >
+            {activeTab === "thoughts" && <ThoughtsFeed user={user} />}
+
             {activeTab === "events" && <EventDiscovery user={user} />}
 
             {activeTab === "news" && <CurrentAffairs user={user} />}
