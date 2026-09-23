@@ -179,7 +179,7 @@ class App {
         this.app.get('/', (_req: Request, res: Response) => {
             res.json({
                 name: 'Abilispace API',
-                version: '1.2.0',
+                version: '1.3.0',
                 status: 'running',
                 documentation: '/api/docs',
             });

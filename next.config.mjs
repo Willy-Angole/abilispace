@@ -16,7 +16,7 @@ const contentSecurityPolicy = [
   "form-action 'self'",
   scriptSrc,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://res.cloudinary.com",
+  `img-src 'self' data: blob: https://res.cloudinary.com ${apiUrl}`,
   `media-src 'self' blob: https://res.cloudinary.com ${apiUrl}`,
   "font-src 'self'",
   connectSrc,

@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.0] — 2026-09-23
+
+### Product
+- Thoughts can include a photo, with a full-size preview
+- Long thoughts collapse behind Show more
+- Comments show the time, a photo, a like, and can be reshared as a new thought
+- Users can change their profile photo from the composer
+- Users can submit a sponsored thought; it is shown beside the timeline only after an admin approves it
+
+### Security
+- Thought photos must be hosted on Cloudinary, the public API, or localhost in development
+- Sponsorship review rejects invalid ids and does not return database errors
+- Production migration no longer inserts sample sponsored posts
+
+### Migrations
+- `007_add_thought_images.sql`
+- `008_add_sponsored_thoughts.sql`
+- `009_add_comment_likes.sql`
+- `010_add_sponsorship_review.sql`
+
 ## [1.2.0] — 2026-09-23
 
 ### Product

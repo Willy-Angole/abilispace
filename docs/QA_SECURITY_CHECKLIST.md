@@ -1,4 +1,4 @@
-# QA & Security checklist (v1.1.1)
+# QA & Security checklist (v1.3.0)
 
 Status as of 2026-09-23 production tag.
 
@@ -33,6 +33,9 @@ Status as of 2026-09-23 production tag.
 | Local uploads ignore spoofed Host headers | Done |
 | Local upload paths restricted to generated names | Done |
 | Voice-note microphone allowed for this site only | Done |
+| Thought image URLs limited to our hosts | Done |
+| Sponsored thoughts require admin approval | Done |
+| Sponsorship review does not leak database errors | Done |
 | Parameterized SQL | Done |
 | Password strength validation | Done |
 | Anti-enumeration password reset | Done |

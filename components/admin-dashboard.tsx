@@ -287,6 +287,74 @@ function OverviewTab({
 // USERS TAB
 // =============================================================================
 
+function SponsoredThoughtsTab() {
+  const { toast } = useToast();
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await adminApi.getSponsorshipRequests('pending');
+      setItems(result || []);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to load requests', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const review = async (id: string, status: 'approved' | 'rejected') => {
+    try {
+      await adminApi.reviewSponsorship(id, status);
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      toast({ title: status === 'approved' ? 'Approved' : 'Rejected' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Review failed', variant: 'destructive' });
+    }
+  };
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Loading sponsorship requests…</p>;
+  }
+
+  if (items.length === 0) {
+    return <p className="text-sm text-muted-foreground">No thoughts are waiting for approval.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <Card key={item.id}>
+          <CardContent className="space-y-3 pt-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">{item.sponsorName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {item.author?.firstName} {item.author?.lastName}
+                </p>
+              </div>
+              <Badge variant="outline">Pending</Badge>
+            </div>
+            <p className="whitespace-pre-wrap text-sm">{item.body}</p>
+            {item.imageUrl && (
+              <img src={item.imageUrl} alt="" className="max-h-48 rounded-md object-cover" />
+            )}
+            <div className="flex gap-2">
+              <Button type="button" size="sm" onClick={() => void review(item.id, 'approved')}>Approve</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => void review(item.id, 'rejected')}>Reject</Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 function UsersTab() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2708,12 +2776,13 @@ export function AdminDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-6">
+          <TabsList className="flex h-auto w-full max-w-3xl flex-wrap">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="caregivers">Caregivers</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="articles">Articles</TabsTrigger>
+            <TabsTrigger value="sponsored">Sponsored</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -2740,6 +2809,10 @@ export function AdminDashboard() {
 
           <TabsContent value="articles">
             <ArticlesTab />
+          </TabsContent>
+
+          <TabsContent value="sponsored">
+            <SponsoredThoughtsTab />
           </TabsContent>
 
           <TabsContent value="settings">

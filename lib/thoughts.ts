@@ -12,6 +12,7 @@ export interface ThoughtAuthor {
 export interface ThoughtOriginal {
   id: string
   body: string
+  imageUrl?: string
   createdAt: string
   author: ThoughtAuthor
 }
@@ -19,6 +20,7 @@ export interface ThoughtOriginal {
 export interface Thought {
   id: string
   body: string
+  imageUrl?: string
   createdAt: string
   author: ThoughtAuthor
   likeCount: number
@@ -27,6 +29,9 @@ export interface Thought {
   likedByMe: boolean
   sharedByMe: boolean
   followingAuthor: boolean
+  isSponsored: boolean
+  sponsorName?: string
+  sponsorshipStatus?: "pending" | "approved" | "rejected"
   original?: ThoughtOriginal
 }
 
@@ -36,6 +41,8 @@ export interface ThoughtComment {
   body: string
   createdAt: string
   author: ThoughtAuthor
+  likeCount: number
+  likedByMe: boolean
   mine: boolean
 }
 
@@ -61,11 +68,37 @@ export function listThoughts(feed: "community" | "following") {
   return request<{ success: boolean; data: Thought[] }>(`/api/thoughts?feed=${feed}`)
 }
 
-export function createThought(body: string) {
+export function listSponsoredThoughts() {
+  return request<{ success: boolean; data: Thought[] }>("/api/thoughts/sponsored")
+}
+
+export function createThought(body: string, imageUrl?: string, sponsorship?: { sponsorName: string }) {
   return request<{ success: boolean; data: Thought }>("/api/thoughts", {
     method: "POST",
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({
+      body,
+      imageUrl,
+      requestSponsorship: Boolean(sponsorship),
+      sponsorName: sponsorship?.sponsorName,
+    }),
   })
+}
+
+export async function uploadThoughtPhoto(file: File): Promise<string> {
+  const token = getAccessToken()
+  const formData = new FormData()
+  formData.append("file", file)
+  const response = await fetch(`${API_BASE}/api/upload`, {
+    method: "POST",
+    credentials: "include",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  })
+  const data = await response.json().catch(() => ({} as { url?: string; error?: string }))
+  if (!response.ok || !data.url) {
+    throw new Error(data.error || "Upload failed")
+  }
+  return data.url
 }
 
 export function deleteThought(id: string) {
@@ -87,6 +120,27 @@ export function deleteComment(thoughtId: string, commentId: string) {
   return request<{ success: boolean }>(`/api/thoughts/${thoughtId}/comments/${commentId}`, {
     method: "DELETE",
   })
+}
+
+export function likeComment(thoughtId: string, commentId: string) {
+  return request<{ success: boolean; data: ThoughtComment }>(
+    `/api/thoughts/${thoughtId}/comments/${commentId}/like`,
+    { method: "POST" }
+  )
+}
+
+export function unlikeComment(thoughtId: string, commentId: string) {
+  return request<{ success: boolean; data: ThoughtComment }>(
+    `/api/thoughts/${thoughtId}/comments/${commentId}/like`,
+    { method: "DELETE" }
+  )
+}
+
+export function reshareComment(thoughtId: string, commentId: string) {
+  return request<{ success: boolean; data: Thought }>(
+    `/api/thoughts/${thoughtId}/comments/${commentId}/reshare`,
+    { method: "POST" }
+  )
 }
 
 export function likeThought(id: string) {

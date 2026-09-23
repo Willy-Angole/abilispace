@@ -14,6 +14,14 @@ const router: IRouter = Router();
 router.use(authenticate);
 
 router.get(
+    '/sponsored',
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const data = await thoughts.listSponsoredThoughts(req.userId!);
+        res.json({ success: true, data });
+    })
+);
+
+router.get(
     '/',
     asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
         const query = thoughtsFeedQuerySchema.parse(req.query);
@@ -26,7 +34,14 @@ router.post(
     '/',
     asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
         const input = createThoughtSchema.parse(req.body);
-        const data = await thoughts.createThought(req.userId!, input.body);
+        const data = await thoughts.createThought(
+            req.userId!,
+            input.body,
+            input.imageUrl,
+            input.requestSponsorship && input.sponsorName
+                ? { sponsorName: input.sponsorName }
+                : undefined
+        );
         res.status(201).json({ success: true, data });
     })
 );
@@ -55,6 +70,36 @@ router.post(
         const id = uuidSchema.parse(req.params.id);
         const input = createCommentSchema.parse(req.body);
         const data = await thoughts.addComment(req.userId!, id, input.body);
+        res.status(201).json({ success: true, data });
+    })
+);
+
+router.post(
+    '/:id/comments/:commentId/like',
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const id = uuidSchema.parse(req.params.id);
+        const commentId = uuidSchema.parse(req.params.commentId);
+        const data = await thoughts.likeComment(req.userId!, id, commentId);
+        res.json({ success: true, data });
+    })
+);
+
+router.delete(
+    '/:id/comments/:commentId/like',
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const id = uuidSchema.parse(req.params.id);
+        const commentId = uuidSchema.parse(req.params.commentId);
+        const data = await thoughts.unlikeComment(req.userId!, id, commentId);
+        res.json({ success: true, data });
+    })
+);
+
+router.post(
+    '/:id/comments/:commentId/reshare',
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const id = uuidSchema.parse(req.params.id);
+        const commentId = uuidSchema.parse(req.params.commentId);
+        const data = await thoughts.reshareComment(req.userId!, id, commentId);
         res.status(201).json({ success: true, data });
     })
 );

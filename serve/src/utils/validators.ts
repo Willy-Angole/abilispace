@@ -207,7 +207,19 @@ export const addMembersSchema = z.object({
 });
 
 export const createThoughtSchema = z.object({
-    body: z.string().trim().min(1, 'Write something first').max(2000),
+    body: z.string().trim().max(2000).default(''),
+    imageUrl: z.string().url().refine(
+        (value) => value.startsWith('https://') || value.startsWith('http://'),
+        'Photo URL must use http or https'
+    ).optional(),
+    requestSponsorship: z.boolean().optional(),
+    sponsorName: z.string().trim().max(120).optional(),
+}).refine((data) => data.body.length > 0 || Boolean(data.imageUrl), {
+    message: 'Write something or add a photo',
+    path: ['body'],
+}).refine((data) => !data.requestSponsorship || (data.sponsorName || '').trim().length >= 2, {
+    message: 'Add the sponsor name',
+    path: ['sponsorName'],
 });
 
 export const createCommentSchema = z.object({

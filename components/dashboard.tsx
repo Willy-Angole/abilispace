@@ -446,7 +446,9 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
               activeTab === "messages" ? "overflow-hidden max-w-full" : ""
             )}
           >
-            {activeTab === "thoughts" && <ThoughtsFeed user={user} />}
+            {activeTab === "thoughts" && (
+              <ThoughtsFeed user={currentUser} onUserUpdate={handleUserUpdate} />
+            )}
 
             {activeTab === "events" && <EventDiscovery user={user} />}
 

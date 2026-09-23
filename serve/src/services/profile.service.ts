@@ -7,8 +7,13 @@
  * @version 1.0.0
  */
 
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 import { db } from '../database/pool';
 import { logger } from '../utils/logger';
+import { config } from '../config/environment';
+import { publicUploadBase } from '../utils/public-url';
 import { uploadProfileImage, deleteProfileImage } from '../config/cloudinary';
 
 /**
@@ -180,6 +185,28 @@ export async function updateUserProfile(
   }
 }
 
+function storeAvatarLocally(buffer: Buffer): string | null {
+  if (config.isProduction && !config.publicApiUrl) return null;
+  const dir = path.resolve(process.cwd(), 'uploads');
+  fs.mkdirSync(dir, { recursive: true });
+  const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.jpg`;
+  fs.writeFileSync(path.join(dir, filename), buffer);
+  const base = publicUploadBase({
+    configured: config.publicApiUrl,
+    host: config.isDevelopment ? `localhost:${config.port}` : undefined,
+    port: config.port,
+  });
+  return `${base}/uploads/${filename}`;
+}
+
+function removeLocalAvatar(avatarUrl?: string): void {
+  if (!avatarUrl) return;
+  const name = avatarUrl.split('/uploads/')[1]?.split('?')[0];
+  if (!name || !/^[0-9]+-[a-f0-9]{16}\.[a-z0-9]{1,8}$/.test(name)) return;
+  const filePath = path.resolve(process.cwd(), 'uploads', name);
+  fs.rm(filePath, { force: true }, () => undefined);
+}
+
 /**
  * Upload and update user avatar
  */
@@ -191,10 +218,13 @@ export async function updateUserAvatar(
     // Get current avatar to delete old one
     const currentProfile = await getUserProfile(userId);
 
-    // Upload new image to Cloudinary
+    // Upload new image to Cloudinary, or keep it on this server if that fails.
     const uploadResult = await uploadProfileImage(imageBuffer, userId);
+    const avatarUrl = uploadResult.success && uploadResult.url
+      ? uploadResult.url
+      : storeAvatarLocally(imageBuffer);
 
-    if (!uploadResult.success || !uploadResult.url) {
+    if (!avatarUrl) {
       return {
         success: false,
         error: uploadResult.error || 'Failed to upload image',
@@ -202,7 +232,7 @@ export async function updateUserAvatar(
     }
 
     // Update user's avatar URL in database
-    await updateUserProfile(userId, { avatarUrl: uploadResult.url });
+    await updateUserProfile(userId, { avatarUrl });
 
     // Delete old avatar if it was a Cloudinary image
     if (currentProfile?.avatarUrl && currentProfile.avatarUrl.includes('cloudinary')) {
@@ -215,11 +245,13 @@ export async function updateUserAvatar(
       }
     }
 
-    logger.info('User avatar updated successfully', { userId, avatarUrl: uploadResult.url });
+    removeLocalAvatar(currentProfile?.avatarUrl);
+
+    logger.info('User avatar updated successfully', { userId });
 
     return {
       success: true,
-      avatarUrl: uploadResult.url,
+      avatarUrl,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -246,7 +278,8 @@ export async function deleteUserAvatar(userId: string): Promise<boolean> {
       }
     }
 
-    await updateUserProfile(userId, { avatarUrl: undefined });
+    removeLocalAvatar(profile?.avatarUrl);
+    await updateUserProfile(userId, { avatarUrl: "" });
     logger.info('User avatar deleted', { userId });
 
     return true;
