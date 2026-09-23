@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { AccessibilityFloatingButton } from "@/components/accessibility-provider"
 import { HomeProduct } from "@/components/home-product"
 import { LanguageSwitcher, useLanguage } from "@/components/language-provider"
+import { QRShare } from "@/components/qr-share"
 import { SiteFooter } from "@/components/site-footer"
 import Image from "next/image"
 
@@ -247,6 +248,7 @@ export default function HomePage() {
               >
                 {t("signIn")}
               </button>
+              <QRShare />
             </div>
             <p className="mx-auto mt-10 max-w-sm text-sm leading-relaxed text-black/50 dark:text-white/50">
               <span className="font-medium text-black/70 dark:text-white/70">{t("worksOffline")}. </span>

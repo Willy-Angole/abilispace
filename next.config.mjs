@@ -16,7 +16,7 @@ const contentSecurityPolicy = [
   "form-action 'self'",
   scriptSrc,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: https://res.cloudinary.com ${apiUrl}`,
+  `img-src 'self' data: blob: https://res.cloudinary.com https://api.qrserver.com ${apiUrl}`,
   `media-src 'self' blob: https://res.cloudinary.com ${apiUrl}`,
   "font-src 'self'",
   connectSrc,
@@ -40,6 +40,10 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
+      },
+      {
+        protocol: "https",
+        hostname: "api.qrserver.com",
       },
     ],
     // Use modern formats for better compression
