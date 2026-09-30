@@ -24,6 +24,10 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   applicationName: siteConfig.name,
+  icons: {
+    icon: "/new-logo.png",
+    apple: "/new-logo.png",
+  },
   keywords: [
     "Abilispace",
     "disability",

@@ -12,8 +12,8 @@ export function QRShare() {
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<Mode>("register")
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://abilispace.org"
-  const targetUrl = `${origin}/${mode}`
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://abilispace.org"
+  const targetUrl = `${baseUrl}/${mode}`
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(targetUrl)}`
 
   function handleDownload() {

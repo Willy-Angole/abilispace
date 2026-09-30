@@ -42,7 +42,7 @@ Server-mediated over HTTPS. **Not end-to-end encrypted.**
 
 - Remote Postgres verifies TLS certificates.
 - `DATABASE_SSL=false` turns TLS off. Use that only for a database that does not speak TLS.
-- `DATABASE_SSL_REJECT_UNAUTHORIZED=false` is an explicit opt-out when the host certificate is not in Node's trust store. Do not set `NODE_TLS_REJECT_UNAUTHORIZED`.
+- `DATABASE_SSL_REJECT_UNAUTHORIZED=false` is an explicit opt-out when the host certificate is not in Node's trust store. It also skips the hostname check, which managed Postgres needs. Do not set `NODE_TLS_REJECT_UNAUTHORIZED`.
 - Query failures log a short fragment and the database error code, not the full statement.
 
 ## Admin API

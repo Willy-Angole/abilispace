@@ -16,7 +16,7 @@
 - Admin errors return a generic message instead of database text
 - Article writes validate the category, priority, booleans, and article id
 - Deleting an account requires the current password, or DELETE when the account has no password
-- Remote Postgres verifies TLS certificates unless `DATABASE_SSL_REJECT_UNAUTHORIZED=false`
+- Remote Postgres verifies TLS certificates unless `DATABASE_SSL_REJECT_UNAUTHORIZED=false` (that opt-out also skips the hostname check used by managed Postgres)
 - Query failures log a short fragment and the error code, not the full statement
 
 ### Migrations
