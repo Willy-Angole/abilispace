@@ -11,6 +11,7 @@
 import { db } from '../database/pool';
 import { logger } from '../utils/logger';
 import { Errors } from '../middleware/error-handler';
+import { verifyPassword } from '../utils/password';
 import { 
     UpdateUserInput, 
     UpdateAccessibilitySettingsInput,
@@ -275,7 +276,32 @@ export class UserService {
      * Soft delete user account
      * Preserves data for compliance but marks as deleted
      */
-    async deleteAccount(userId: string): Promise<void> {
+    async deleteAccount(
+        userId: string,
+        input: { password?: string; confirm?: string } = {}
+    ): Promise<void> {
+        const existing = await db.query<{ password_hash: string | null }>(
+            `SELECT password_hash FROM users WHERE id = $1 AND deleted_at IS NULL`,
+            { values: [userId] }
+        );
+
+        if (!existing.rowCount) {
+            throw Errors.notFound('User');
+        }
+
+        const passwordHash = existing.rows[0].password_hash;
+        if (passwordHash) {
+            if (!input.password) {
+                throw Errors.badRequest('Current password is required');
+            }
+            const matches = await verifyPassword(passwordHash, input.password);
+            if (!matches) {
+                throw Errors.unauthorized('Current password is incorrect');
+            }
+        } else if (input.confirm !== 'DELETE') {
+            throw Errors.badRequest('Type DELETE to confirm account deletion');
+        }
+
         await db.transaction(async (client) => {
             // Soft delete user
             await client.query(
@@ -303,6 +329,102 @@ export class UserService {
         });
 
         logger.info('User account deleted', { userId });
+    }
+
+    /**
+     * JSON export of the signed-in user's own records.
+     * Messages are limited to ones this user sent.
+     */
+    async exportAccount(userId: string): Promise<{
+        exportedAt: string;
+        profile: Record<string, unknown>;
+        registrations: { items: unknown[]; truncated: boolean };
+        bookmarks: { items: unknown[]; truncated: boolean };
+        thoughts: { items: unknown[]; truncated: boolean };
+        comments: { items: unknown[]; truncated: boolean };
+        messages: { items: unknown[]; truncated: boolean };
+    }> {
+        const limit = 5001;
+        const profileResult = await db.query(
+            `SELECT id, email, first_name as "firstName", last_name as "lastName",
+                    phone, location, account_type as "accountType",
+                    disability_type as "disabilityType",
+                    accessibility_needs as "accessibilityNeeds",
+                    communication_preference as "communicationPreference",
+                    emergency_contact as "emergencyContact",
+                    email_verified as "emailVerified",
+                    created_at as "createdAt"
+             FROM users
+             WHERE id = $1 AND deleted_at IS NULL`,
+            { values: [userId] }
+        );
+
+        if (!profileResult.rowCount) {
+            throw Errors.notFound('User');
+        }
+
+        const [registrations, bookmarks, thoughts, comments, messages] = await Promise.all([
+            db.query(
+                `SELECT er.id, er.event_id as "eventId", e.title as "eventTitle",
+                        er.status, er.registered_at as "registeredAt",
+                        er.accommodation_notes as "accommodationNotes"
+                 FROM event_registrations er
+                 JOIN events e ON e.id = er.event_id
+                 WHERE er.user_id = $1
+                 ORDER BY er.registered_at DESC
+                 LIMIT $2`,
+                { values: [userId, limit] }
+            ),
+            db.query(
+                `SELECT ub.article_id as "articleId", a.title, ub.created_at as "createdAt"
+                 FROM user_bookmarks ub
+                 JOIN articles a ON a.id = ub.article_id
+                 WHERE ub.user_id = $1
+                 ORDER BY ub.created_at DESC
+                 LIMIT $2`,
+                { values: [userId, limit] }
+            ),
+            db.query(
+                `SELECT id, body, image_url as "imageUrl", created_at as "createdAt"
+                 FROM thoughts
+                 WHERE author_id = $1 AND deleted_at IS NULL
+                 ORDER BY created_at DESC
+                 LIMIT $2`,
+                { values: [userId, limit] }
+            ),
+            db.query(
+                `SELECT id, thought_id as "thoughtId", body, created_at as "createdAt"
+                 FROM thought_comments
+                 WHERE author_id = $1 AND deleted_at IS NULL
+                 ORDER BY created_at DESC
+                 LIMIT $2`,
+                { values: [userId, limit] }
+            ),
+            db.query(
+                `SELECT id, conversation_id as "conversationId", content,
+                        message_type as "messageType", created_at as "createdAt"
+                 FROM messages
+                 WHERE sender_id = $1 AND deleted_at IS NULL
+                 ORDER BY created_at DESC
+                 LIMIT $2`,
+                { values: [userId, limit] }
+            ),
+        ]);
+
+        const pack = (rows: unknown[]) => ({
+            items: rows.slice(0, 5000),
+            truncated: rows.length > 5000,
+        });
+
+        return {
+            exportedAt: new Date().toISOString(),
+            profile: profileResult.rows[0],
+            registrations: pack(registrations.rows),
+            bookmarks: pack(bookmarks.rows),
+            thoughts: pack(thoughts.rows),
+            comments: pack(comments.rows),
+            messages: pack(messages.rows),
+        };
     }
 
     /**

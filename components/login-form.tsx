@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { BrandMark } from "@/components/brand-mark"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,7 +29,12 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
   const [fieldErrors, setFieldErrors] = useState<LoginErrors>({})
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [idleNotice, setIdleNotice] = useState(false)
   const { toast } = useToast()
+
+  useEffect(() => {
+    setIdleNotice(new URLSearchParams(window.location.search).get("reason") === "idle")
+  }, [])
 
   const clearFieldError = (field: keyof LoginErrors) => {
     setFieldErrors((prev) => {
@@ -127,6 +132,11 @@ export function LoginForm({ onSuccess, onBack, onForgotPassword }: LoginFormProp
             <CardDescription className="text-center">Welcome back to Abilispace</CardDescription>
           </CardHeader>
           <CardContent>
+            {idleNotice && (
+              <p role="status" className="mb-4 text-sm text-foreground">
+                You were signed out after 30 minutes without activity. Sign in again to continue.
+              </p>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div className="space-y-2">
                 <Label htmlFor="email" className={fieldErrors.email ? "text-destructive" : undefined}>

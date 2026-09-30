@@ -10,13 +10,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Camera, Loader2, Save, Trash2, User, X } from "lucide-react"
+import { Camera, Download, Loader2, Save, Trash2, User, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { 
   updateProfile, 
   uploadAvatar, 
   deleteAvatar, 
   getProfile,
+  exportMyData,
+  deleteMyAccount,
+  clearAuth,
   type User as UserType,
   type ProfileUpdateInput 
 } from "@/lib/auth"
@@ -42,6 +45,11 @@ export function ProfileEdit({ user, onUpdate, onClose }: ProfileEditProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [isDeletingAvatar, setIsDeletingAvatar] = useState(false)
+  const [deletePassword, setDeletePassword] = useState("")
+  const [deleteConfirm, setDeleteConfirm] = useState("")
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
@@ -207,7 +215,59 @@ export function ProfileEdit({ user, onUpdate, onClose }: ProfileEditProps) {
     }
   }
 
-  const isLoading = isSubmitting || isUploadingAvatar || isDeletingAvatar
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      await exportMyData()
+      toast({
+        title: "Download started",
+        description: "Your data file is being saved.",
+      })
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Could not download your data.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const askDeleteAccount = () => {
+    if (!deletePassword && deleteConfirm.trim() !== "DELETE") {
+      toast({
+        title: "Confirmation needed",
+        description: "Enter your current password, or type DELETE if you sign in with Google and have no password.",
+        variant: "destructive",
+      })
+      document.getElementById("delete-account-password")?.focus()
+      return
+    }
+    setConfirmDeleteOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    setIsDeletingAccount(true)
+    try {
+      await deleteMyAccount(
+        deletePassword ? { password: deletePassword } : { confirm: "DELETE" }
+      )
+      clearAuth()
+      window.location.assign("/")
+    } catch (error) {
+      setConfirmDeleteOpen(false)
+      toast({
+        title: "Could not delete account",
+        description: error instanceof Error ? error.message : "Try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeletingAccount(false)
+    }
+  }
+
+  const isLoading = isSubmitting || isUploadingAvatar || isDeletingAvatar || isExporting || isDeletingAccount
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -479,6 +539,89 @@ export function ProfileEdit({ user, onUpdate, onClose }: ProfileEditProps) {
             </Button>
           </div>
         </form>
+
+        <section className="mt-8 space-y-6 border-t pt-6" aria-labelledby="your-data-heading">
+          <div className="space-y-2">
+            <h3 id="your-data-heading" className="text-lg font-semibold">Your data</h3>
+            <p className="text-sm text-muted-foreground">
+              Download a copy of your profile, event registrations, bookmarks, thoughts, comments, and messages you sent.
+            </p>
+            <Button type="button" variant="outline" onClick={handleExport} disabled={isExporting || isDeletingAccount}>
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Preparing download...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download my data
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            <h3 id="delete-account-heading" className="text-lg font-semibold">Delete account</h3>
+            <p id="delete-account-help" className="text-sm text-muted-foreground">
+              This deactivates your account and signs you out. Enter your current password. If you sign in with Google and have not set a password, type DELETE in the confirmation box.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="delete-account-password">Current password</Label>
+              <Input
+                id="delete-account-password"
+                type="password"
+                autoComplete="current-password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                aria-describedby="delete-account-help"
+                disabled={isDeletingAccount}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="delete-account-confirm">Confirmation</Label>
+              <Input
+                id="delete-account-confirm"
+                type="text"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                autoComplete="off"
+                aria-describedby="delete-account-help"
+                disabled={isDeletingAccount}
+              />
+            </div>
+            <Button type="button" variant="destructive" onClick={askDeleteAccount} disabled={isDeletingAccount || isExporting}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete account
+            </Button>
+          </div>
+        </section>
+
+        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete your account?</DialogTitle>
+              <DialogDescription>
+                This deactivates your account and signs you out. Download your data first if you still need it.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setConfirmDeleteOpen(false)} disabled={isDeletingAccount}>
+                Cancel
+              </Button>
+              <Button type="button" variant="destructive" onClick={confirmDelete} disabled={isDeletingAccount}>
+                {isDeletingAccount ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete account"
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   )

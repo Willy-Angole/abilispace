@@ -299,12 +299,61 @@ export const articleFilterSchema = z.object({
     ]).optional(),
     region: z.enum(['national', 'international', 'local']).optional(),
     priority: z.enum(['high', 'medium', 'low']).optional(),
+    timeSensitive: z.enum(['true', 'false']).optional(),
     accessibilityFeatures: z.array(z.string()).optional(),
     search: z.string().optional(),
 }).merge(paginationSchema);
 
 export const bookmarkArticleSchema = z.object({
     articleId: uuidSchema,
+});
+
+const emptyToUndefined = (val: unknown) => (val === '' || val == null ? undefined : val);
+
+const optionalHttpUrl = z.preprocess(
+    emptyToUndefined,
+    z.string().trim().url().max(500).optional()
+);
+
+const articleCategorySchema = z.enum([
+    'policy',
+    'technology',
+    'legal',
+    'medical',
+    'housing',
+    'digital_rights',
+    'education',
+    'employment',
+]);
+
+export const createArticleSchema = z.object({
+    title: z.string().trim().min(1).max(500),
+    summary: z.string().trim().min(1).max(5000),
+    content: z.string().trim().min(1).max(100000),
+    category: articleCategorySchema,
+    source: z.string().trim().min(1).max(255),
+    sourceUrl: optionalHttpUrl,
+    author: z.preprocess(emptyToUndefined, z.string().trim().max(255).optional()),
+    region: z.enum(['national', 'international', 'local']).optional(),
+    priority: z.enum(['high', 'medium', 'low']).optional(),
+    isTimeSensitive: z.boolean().optional(),
+    readTimeMinutes: z.preprocess(
+        emptyToUndefined,
+        z.coerce.number().int().min(1).max(240).optional()
+    ),
+    imageUrl: optionalHttpUrl,
+    imageAlt: z.preprocess(emptyToUndefined, z.string().trim().max(500).optional()),
+    hasAudio: z.boolean().optional(),
+    audioUrl: optionalHttpUrl,
+    hasVideo: z.boolean().optional(),
+    videoUrl: optionalHttpUrl,
+    isPublished: z.boolean().optional(),
+    tags: z.array(z.string().trim().min(1).max(100)).max(20).optional(),
+});
+
+export const deleteAccountSchema = z.object({
+    password: z.string().min(1).max(200).optional(),
+    confirm: z.string().max(32).optional(),
 });
 
 // =============================================================================
@@ -329,3 +378,5 @@ export type UserSearchQueryInput = z.infer<typeof userSearchQuerySchema>;
 export type EventFilterInput = z.infer<typeof eventFilterSchema>;
 export type EventRegistrationInput = z.infer<typeof eventRegistrationSchema>;
 export type ArticleFilterInput = z.infer<typeof articleFilterSchema>;
+export type CreateArticleInput = z.infer<typeof createArticleSchema>;
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;

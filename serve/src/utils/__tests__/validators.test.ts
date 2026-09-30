@@ -3,6 +3,7 @@ import {
   loginSchema,
   passwordSchema,
   uuidSchema,
+  createArticleSchema,
 } from '../validators';
 
 describe('passwordSchema', () => {
@@ -35,6 +36,37 @@ describe('registerSchema', () => {
     });
     expect(data.email).toBe('member@example.com');
     expect(data.accountType).toBe('member');
+  });
+});
+
+describe('createArticleSchema', () => {
+  it('accepts a valid article and blank optional urls', () => {
+    const article = createArticleSchema.parse({
+      title: 'A title',
+      summary: 'A summary',
+      content: 'The story',
+      category: 'policy',
+      source: 'GDA',
+      sourceUrl: '',
+      imageUrl: '',
+      priority: 'high',
+      isTimeSensitive: true,
+    });
+    expect(article.category).toBe('policy');
+    expect(article.sourceUrl).toBeUndefined();
+    expect(article.isTimeSensitive).toBe(true);
+  });
+
+  it('rejects an unknown category', () => {
+    expect(() =>
+      createArticleSchema.parse({
+        title: 'A title',
+        summary: 'A summary',
+        content: 'The story',
+        category: 'gossip',
+        source: 'GDA',
+      })
+    ).toThrow();
   });
 });
 

@@ -49,7 +49,7 @@ export function SiteFooter({ onNavigate }: SiteFooterProps) {
                 className="object-contain"
               />
               <ExternalLink
-                className="h-3 w-3 text-muted-foreground/60 group-hover:text-primary transition-colors"
+                className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors"
                 aria-hidden="true"
               />
             </a>

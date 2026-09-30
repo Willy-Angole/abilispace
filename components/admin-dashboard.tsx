@@ -1959,6 +1959,7 @@ function ArticlesTab() {
     author: '',
     region: 'national' as 'national' | 'international' | 'local',
     priority: 'medium' as 'high' | 'medium' | 'low',
+    isTimeSensitive: false,
     readTimeMinutes: 5,
     imageUrl: '',
     isPublished: true,
@@ -2023,6 +2024,7 @@ function ArticlesTab() {
         author: '',
         region: 'national',
         priority: 'medium',
+        isTimeSensitive: false,
         readTimeMinutes: 5,
         imageUrl: '',
         isPublished: true,
@@ -2036,6 +2038,25 @@ function ArticlesTab() {
       });
     } finally {
       setCreateLoading(false);
+    }
+  };
+
+  const handleToggleTimeSensitive = async (articleId: string, isTimeSensitive: boolean) => {
+    try {
+      await adminApi.setArticleTimeSensitive(articleId, !isTimeSensitive);
+      toast({
+        title: 'Success',
+        description: !isTimeSensitive
+          ? 'Article highlighted as time-sensitive'
+          : 'Time-sensitive highlight removed',
+      });
+      fetchArticles();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update article',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -2154,6 +2175,9 @@ function ArticlesTab() {
                     <TableRow key={article.id}>
                       <TableCell>
                         <div className="font-medium max-w-xs truncate">{article.title}</div>
+                        {article.is_time_sensitive && (
+                          <div className="text-xs font-semibold text-[#6b2e0e] dark:text-[#f6d7c3]">Time-sensitive</div>
+                        )}
                         <div className="text-sm text-muted-foreground max-w-xs truncate">
                           {article.summary}
                         </div>
@@ -2186,6 +2210,15 @@ function ArticlesTab() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleToggleTimeSensitive(article.id, Boolean(article.is_time_sensitive))}
+                            aria-pressed={Boolean(article.is_time_sensitive)}
+                            aria-label={article.is_time_sensitive ? 'Remove time-sensitive highlight' : 'Highlight as time-sensitive'}
+                          >
+                            <Clock className={`h-4 w-4 ${article.is_time_sensitive ? 'text-[#6b2e0e] dark:text-[#f6d7c3]' : ''}`} />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -2309,8 +2342,12 @@ function ArticlesTab() {
                 <Label htmlFor="article-priority">Priority</Label>
                 <Select
                   value={newArticle.priority}
-                  onValueChange={(value: 'high' | 'medium' | 'low') => 
-                    setNewArticle({ ...newArticle, priority: value })
+                  onValueChange={(value: 'high' | 'medium' | 'low') =>
+                    setNewArticle({
+                      ...newArticle,
+                      priority: value,
+                      isTimeSensitive: value === 'high' ? true : newArticle.isTimeSensitive,
+                    })
                   }
                 >
                   <SelectTrigger>
@@ -2396,6 +2433,15 @@ function ArticlesTab() {
                   placeholder="https://example.com/image.jpg"
                 />
               </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="article-time-sensitive"
+                checked={newArticle.isTimeSensitive}
+                onCheckedChange={(checked) => setNewArticle({ ...newArticle, isTimeSensitive: checked })}
+              />
+              <Label htmlFor="article-time-sensitive">Highlight as time-sensitive</Label>
             </div>
 
             <div className="flex items-center gap-2">

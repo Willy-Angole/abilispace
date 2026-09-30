@@ -27,6 +27,7 @@ export interface Article {
     author?: string;
     region: string;
     priority: 'high' | 'medium' | 'low';
+    isTimeSensitive?: boolean;
     readTimeMinutes: number;
     imageUrl?: string;
     imageAlt?: string;
@@ -76,6 +77,7 @@ export interface ArticleFilters {
     category?: string;
     region?: string;
     priority?: 'high' | 'medium' | 'low';
+    timeSensitive?: boolean;
     accessibilityFeatures?: string[];
     search?: string;
     page?: number;
@@ -122,6 +124,9 @@ function buildQueryString(filters: ArticleFilters): string {
     }
     if (filters.priority) {
         params.append('priority', filters.priority);
+    }
+    if (filters.timeSensitive) {
+        params.append('timeSensitive', 'true');
     }
     if (filters.search) {
         params.append('search', filters.search);
@@ -269,9 +274,11 @@ export async function getArticlesByRegion(
  */
 export async function getBookmarks(
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    timeSensitive = false
 ): Promise<ArticlesResponse> {
-    return apiRequest<ArticlesResponse>(`/api/articles/bookmarks?page=${page}&limit=${limit}`);
+    const flag = timeSensitive ? '&timeSensitive=true' : '';
+    return apiRequest<ArticlesResponse>(`/api/articles/bookmarks?page=${page}&limit=${limit}${flag}`);
 }
 
 /**

@@ -11,6 +11,7 @@
 
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { config } from '../config/environment';
+import { databaseSsl } from './ssl';
 import { logger } from '../utils/logger';
 
 /**
@@ -38,9 +39,6 @@ export class DatabasePool {
      */
     private constructor() {
         const connectionString = config.database.url;
-        const isLocal =
-            /localhost|127\.0\.0\.1/.test(connectionString) ||
-            process.env.DATABASE_SSL === 'false';
 
         this.pool = new Pool({
             connectionString,
@@ -49,8 +47,7 @@ export class DatabasePool {
             idleTimeoutMillis: 30000, // Close idle connections after 30s
             connectionTimeoutMillis: 60000, // Fail after 60s if no connection available (Railway needs time to wake up)
             maxUses: 7500, // Close connection after 7500 uses (prevents memory leaks)
-            // Railway/managed Postgres needs SSL; local Postgres typically does not
-            ssl: isLocal ? false : { rejectUnauthorized: false },
+            ssl: databaseSsl(connectionString),
         });
 
         // Handle pool errors
@@ -126,7 +123,12 @@ export class DatabasePool {
             
             return result;
         } catch (error) {
-            logger.error('Query execution failed:', { query: text, error });
+            const pgError = error as { code?: string; message?: string };
+            logger.error('Query execution failed', {
+                query: text.replace(/\s+/g, ' ').slice(0, 120),
+                code: pgError.code,
+                message: (pgError.message || 'query failed').slice(0, 200),
+            });
             throw error;
         }
     }

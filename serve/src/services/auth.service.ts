@@ -10,7 +10,7 @@
  */
 
 import { db } from '../database/pool';
-import { hashPassword, verifyPassword, needsRehash } from '../utils/password';
+import { hashPassword, verifyPassword, needsRehash, DUMMY_PASSWORD_HASH } from '../utils/password';
 import { generateTokenPair, createRefreshTokenData, hashToken, TokenPair } from '../utils/jwt';
 import { logger } from '../utils/logger';
 import { AppError, Errors } from '../middleware/error-handler';
@@ -125,6 +125,92 @@ export async function deactivateSession(userId: string, accessToken: string): Pr
     }
 }
 
+/** Real user activity, not background polling or token refresh. */
+export const USER_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const LOGIN_LOCK_AFTER = 5;
+const LOGIN_LOCK_MINUTES = 15;
+
+export async function touchUserActivity(userId: string): Promise<void> {
+    await db.query(
+        `UPDATE users
+         SET last_user_activity_at = CURRENT_TIMESTAMP
+         WHERE id = $1 AND deleted_at IS NULL`,
+        { values: [userId] }
+    );
+}
+
+async function revokeAllSessions(userId: string): Promise<void> {
+    await db.query(
+        `UPDATE refresh_tokens
+         SET revoked_at = CURRENT_TIMESTAMP
+         WHERE user_id = $1 AND revoked_at IS NULL`,
+        { values: [userId] }
+    );
+    await db.query(
+        `UPDATE user_sessions
+         SET is_active = FALSE
+         WHERE user_id = $1 AND is_active = TRUE`,
+        { values: [userId] }
+    );
+}
+
+async function enforceIdle(userId: string, lastActivity: Date | null): Promise<void> {
+    if (!lastActivity) {
+        await touchUserActivity(userId);
+        return;
+    }
+
+    if (Date.now() - new Date(lastActivity).getTime() >= USER_IDLE_TIMEOUT_MS) {
+        await revokeAllSessions(userId);
+        throw Errors.sessionIdle();
+    }
+}
+
+export async function assertUserSessionActive(userId: string): Promise<void> {
+    const result = await db.query<{ last_user_activity_at: Date | null; is_active: boolean }>(
+        `SELECT last_user_activity_at, is_active
+         FROM users
+         WHERE id = $1 AND deleted_at IS NULL`,
+        { values: [userId] }
+    );
+
+    if (!result.rowCount || !result.rows[0].is_active) {
+        throw Errors.unauthorized('Authentication required');
+    }
+
+    await enforceIdle(userId, result.rows[0].last_user_activity_at);
+}
+
+async function recordFailedLogin(userId: string): Promise<never> {
+    const updated = await db.query<{ locked_until: Date | null }>(
+        `UPDATE users
+         SET failed_login_attempts = CASE
+               WHEN locked_until IS NOT NULL AND locked_until <= CURRENT_TIMESTAMP THEN 1
+               ELSE failed_login_attempts + 1
+             END,
+             locked_until = CASE
+               WHEN (
+                 CASE
+                   WHEN locked_until IS NOT NULL AND locked_until <= CURRENT_TIMESTAMP THEN 1
+                   ELSE failed_login_attempts + 1
+                 END
+               ) >= $2
+               THEN CURRENT_TIMESTAMP + ($3::int * INTERVAL '1 minute')
+               ELSE NULL
+             END
+         WHERE id = $1
+         RETURNING locked_until`,
+        { values: [userId, LOGIN_LOCK_AFTER, LOGIN_LOCK_MINUTES] }
+    );
+
+    const lockedUntil = updated.rows[0]?.locked_until;
+    if (lockedUntil && new Date(lockedUntil) > new Date()) {
+        throw Errors.unauthorized('Too many failed attempts. Try again in 15 minutes.');
+    }
+
+    throw Errors.unauthorized('Invalid email or password');
+}
+
 /**
  * AuthService - Handles authentication operations
  * 
@@ -179,8 +265,9 @@ export class AuthService {
                 `INSERT INTO users (
                     email, password_hash, first_name, last_name, gender, phone, location,
                     account_type, sector_role, disability_type, accessibility_needs,
-                    communication_preference, emergency_contact
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    communication_preference, emergency_contact,
+                    last_user_activity_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
                 RETURNING id, email, first_name as "firstName", last_name as "lastName",
                     phone, location, disability_type as "disabilityType",
                     communication_preference as "communicationPreference",
@@ -266,40 +353,51 @@ export class AuthService {
     async login(input: LoginInput, sessionInfo?: SessionInfo): Promise<AuthResponse> {
         const { email, password } = input;
 
-        // Find user by email
-        const result = await db.query<User & { password_hash: string }>(
+        const result = await db.query<User & {
+            password_hash: string | null;
+            locked_until: Date | null;
+            failed_login_attempts: number;
+        }>(
             `SELECT id, email, password_hash, first_name as "firstName",
                     last_name as "lastName", phone, location,
                     disability_type as "disabilityType",
                     communication_preference as "communicationPreference",
                     email_verified as "emailVerified", is_active as "isActive",
-                    created_at as "createdAt"
+                    created_at as "createdAt", locked_until, failed_login_attempts
              FROM users
              WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL`,
             { values: [email] }
         );
 
         if (result.rowCount === 0) {
-            // Use generic message to prevent user enumeration
+            await verifyPassword(DUMMY_PASSWORD_HASH, password);
+            logger.warn('Failed login attempt for unknown account');
             throw Errors.unauthorized('Invalid email or password');
         }
 
         const user = result.rows[0];
 
-        // Check if account is active
+        if (user.locked_until && new Date(user.locked_until) > new Date()) {
+            await verifyPassword(user.password_hash || DUMMY_PASSWORD_HASH, password);
+            throw Errors.unauthorized('Too many failed attempts. Try again in 15 minutes.');
+        }
+
+        if (!user.password_hash) {
+            await verifyPassword(DUMMY_PASSWORD_HASH, password);
+            throw Errors.unauthorized('Invalid email or password');
+        }
+
+        const isValidPassword = await verifyPassword(user.password_hash, password);
+
+        if (!isValidPassword) {
+            logger.warn('Failed login attempt', { userId: user.id });
+            await recordFailedLogin(user.id);
+        }
+
         if (!user.isActive) {
             throw Errors.forbidden('Your account has been deactivated');
         }
 
-        // Verify password
-        const isValidPassword = await verifyPassword(user.password_hash, password);
-
-        if (!isValidPassword) {
-            logger.warn('Failed login attempt', { email });
-            throw Errors.unauthorized('Invalid email or password');
-        }
-
-        // Check if password needs rehashing (security upgrade)
         if (needsRehash(user.password_hash)) {
             const newHash = await hashPassword(password);
             await db.query(
@@ -309,10 +407,8 @@ export class AuthService {
             logger.info('Password rehashed for user', { userId: user.id });
         }
 
-        // Generate new tokens
         const tokens = generateTokenPair(user.id, user.email, 'user');
 
-        // Store refresh token
         const refreshTokenData = createRefreshTokenData(tokens.refreshToken);
         await db.query(
             `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
@@ -320,17 +416,23 @@ export class AuthService {
             { values: [user.id, refreshTokenData.tokenHash, refreshTokenData.expiresAt] }
         );
 
-        // Update last login timestamp
         await db.query(
-            'UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1',
+            `UPDATE users
+             SET last_login_at = CURRENT_TIMESTAMP,
+                 last_user_activity_at = CURRENT_TIMESTAMP,
+                 failed_login_attempts = 0,
+                 locked_until = NULL
+             WHERE id = $1`,
             { values: [user.id] }
         );
 
         // Track user session for online status
         await upsertUserSession(user.id, tokens.accessToken, sessionInfo);
 
-        // Remove sensitive data
-        const { password_hash, ...safeUser } = user;
+        const { password_hash, locked_until, failed_login_attempts, ...safeUser } = user;
+        void password_hash;
+        void locked_until;
+        void failed_login_attempts;
 
         logger.info('User logged in successfully', { userId: user.id });
 
@@ -353,11 +455,17 @@ export class AuthService {
         const tokenHash = hashToken(refreshToken);
 
         // Find and validate refresh token
-        const result = await db.query<{ user_id: string; expires_at: Date }>(
-            `SELECT rt.user_id, rt.expires_at, u.email
+        const result = await db.query<{
+            user_id: string;
+            expires_at: Date;
+            email: string;
+            is_active: boolean;
+            last_user_activity_at: Date | null;
+        }>(
+            `SELECT rt.user_id, rt.expires_at, u.email, u.is_active, u.last_user_activity_at
              FROM refresh_tokens rt
              JOIN users u ON u.id = rt.user_id
-             WHERE rt.token_hash = $1 AND rt.revoked_at IS NULL`,
+             WHERE rt.token_hash = $1 AND rt.revoked_at IS NULL AND u.deleted_at IS NULL`,
             { values: [tokenHash] }
         );
 
@@ -377,10 +485,16 @@ export class AuthService {
             throw Errors.unauthorized('Refresh token has expired');
         }
 
-        // Generate new tokens
+        if (!tokenData.is_active) {
+            await revokeAllSessions(tokenData.user_id);
+            throw Errors.unauthorized('Authentication required');
+        }
+
+        await enforceIdle(tokenData.user_id, tokenData.last_user_activity_at);
+
         const newTokens = generateTokenPair(
             tokenData.user_id,
-            (result.rows[0] as any).email,
+            tokenData.email,
             'user'
         );
 
@@ -522,8 +636,7 @@ export class AuthService {
 
             logger.debug('Google token payload received', {
                 aud: payload.aud,
-                email: payload.email,
-                email_verified: payload.email_verified,
+                emailVerified: payload.email_verified,
             });
 
             // Verify the token was issued for our app
@@ -616,7 +729,12 @@ export class AuthService {
 
         // Update last login
         await db.query(
-            'UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1',
+            `UPDATE users
+             SET last_login_at = CURRENT_TIMESTAMP,
+                 last_user_activity_at = CURRENT_TIMESTAMP,
+                 failed_login_attempts = 0,
+                 locked_until = NULL
+             WHERE id = $1`,
             { values: [user.id] }
         );
 

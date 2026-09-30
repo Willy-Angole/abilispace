@@ -63,7 +63,7 @@ export default function HomePage() {
               className="hidden items-center gap-2 rounded-sm sm:inline-flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--as-blue)]"
               aria-label={`${t("productOf")} ${t("gdaFullName")}`}
             >
-              <span className="text-[10px] uppercase tracking-[0.16em] text-black/45 dark:text-white/50">
+              <span className="text-[11px] uppercase tracking-[0.16em] text-[#5c5852] dark:text-[#c4bfb6]">
                 {t("productOf")}
               </span>
               <Image
@@ -127,7 +127,7 @@ export default function HomePage() {
                 {t("signIn")}
               </button>
             </div>
-            <p className="mt-6 text-sm text-black/50 sm:hidden dark:text-white/55">
+            <p className="mt-6 text-sm text-[#5c5852] sm:hidden dark:text-[#c4bfb6]">
               {t("productOf")}{" "}
               <a
                 href="https://grassrootsdisability.org/"
@@ -250,8 +250,8 @@ export default function HomePage() {
               </button>
               <QRShare />
             </div>
-            <p className="mx-auto mt-10 max-w-sm text-sm leading-relaxed text-black/50 dark:text-white/50">
-              <span className="font-medium text-black/70 dark:text-white/70">{t("worksOffline")}. </span>
+            <p className="mx-auto mt-10 max-w-sm text-sm leading-relaxed text-[#5c5852] dark:text-[#c4bfb6]">
+              <span className="font-medium text-foreground">{t("worksOffline")}. </span>
               {t("worksOfflineDesc")}
             </p>
           </div>

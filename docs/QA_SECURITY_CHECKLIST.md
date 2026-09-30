@@ -1,12 +1,12 @@
-# QA & Security checklist (v1.3.0)
+# QA & Security checklist (v1.4.0)
 
-Status as of 2026-09-23 production tag.
+Status as of the 2026-09-30 production tag.
 
 ## Automated
 
 | Check | Status |
 |-------|--------|
-| Backend unit tests (`serve` jest) | Pass (14) |
+| Backend unit tests (`serve` jest) | Pass (23) |
 | Frontend `tsc --noEmit` | Pass |
 | Backend `tsc --noEmit` | Pass |
 | CI workflow present | `.github/workflows/ci.yml` |
@@ -39,6 +39,15 @@ Status as of 2026-09-23 production tag.
 | Parameterized SQL | Done |
 | Password strength validation | Done |
 | Anti-enumeration password reset | Done |
+| Member login locks for 15 minutes after 5 failures | Done |
+| Unknown-account login takes a password check | Done |
+| Idle sessions end after 30 minutes; refresh does not extend them | Done |
+| Admin errors do not return database text | Done |
+| Remote database TLS certificates are verified by default | Done |
+| Query failures do not log the full statement | Done |
+| Account deletion requires password or DELETE confirmation | Done |
+| Self-service data export of the user's own records | Done |
+| Admin article writes validate category, priority, and ids | Done |
 
 ## Known residual risks (accepted for v1.0.0)
 
@@ -58,4 +67,5 @@ Status as of 2026-09-23 production tag.
 - [ ] Configure SMTP, Cloudinary, Gemini, Redis as needed
 - [ ] Set `PUBLIC_API_URL` if attachments may be stored on the API host
 - [ ] Set `NEXT_PUBLIC_SITE_URL` to the public site origin
+- [ ] Leave `DATABASE_SSL_REJECT_UNAUTHORIZED` unset unless the database certificate cannot be verified
 - [ ] Verify `/health` and auth login/register smoke tests

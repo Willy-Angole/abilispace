@@ -7,9 +7,10 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, TokenPayload } from '../utils/jwt';
-import { extractAccessToken, COOKIE_NAMES } from '../utils/cookies';
+import { extractAccessToken, clearAuthCookies, COOKIE_NAMES } from '../utils/cookies';
 import { logger } from '../utils/logger';
-import { updateSessionActivity } from '../services/auth.service';
+import { AppError } from './error-handler';
+import { assertUserSessionActive, updateSessionActivity } from '../services/auth.service';
 
 /**
  * Extended Request interface with user context
@@ -55,10 +56,35 @@ export function authenticate(
     req.userId = payload.sub;
     req.accessToken = token;
 
-    // Update session activity asynchronously (non-blocking)
-    updateSessionActivity(payload.sub, token).catch(() => {});
+    void assertUserSessionActive(payload.sub)
+        .then(() => {
+            // Presence only. This does not extend the idle timeout.
+            updateSessionActivity(payload.sub, token).catch(() => {});
+            next();
+        })
+        .catch((error: unknown) => {
+            if (error instanceof AppError) {
+                if (error.code === 'SESSION_IDLE') {
+                    clearAuthCookies(res);
+                }
+                res.status(error.statusCode).json({
+                    success: false,
+                    message: error.message,
+                    code: error.code,
+                });
+                return;
+            }
 
-    next();
+            logger.error('Session check failed', {
+                userId: payload.sub,
+                message: error instanceof Error ? error.message.slice(0, 200) : 'session check failed',
+            });
+            res.status(503).json({
+                success: false,
+                message: 'Service temporarily unavailable',
+                code: 'SERVICE_UNAVAILABLE',
+            });
+        });
 }
 
 /**

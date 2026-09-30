@@ -82,7 +82,8 @@ router.get(
     authenticate,
     asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
         const { page, limit } = paginationSchema.parse(req.query);
-        const result = await articleService.getUserBookmarks(req.userId!, page, limit);
+        const timeSensitive = req.query.timeSensitive === 'true';
+        const result = await articleService.getUserBookmarks(req.userId!, page, limit, timeSensitive);
 
         res.json({
             success: true,

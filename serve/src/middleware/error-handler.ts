@@ -9,6 +9,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { logger } from '../utils/logger';
 import { config } from '../config/environment';
+import { clearAuthCookies } from '../utils/cookies';
 
 /**
  * Custom application error class
@@ -46,6 +47,13 @@ export const Errors = {
 
     unauthorized: (message: string = 'Authentication required') =>
         new AppError(message, 401, 'UNAUTHORIZED'),
+
+    sessionIdle: () =>
+        new AppError(
+            'Your session ended after 30 minutes of inactivity',
+            401,
+            'SESSION_IDLE'
+        ),
 
     forbidden: (message: string = 'Access denied') =>
         new AppError(message, 403, 'FORBIDDEN'),
@@ -134,6 +142,10 @@ export function errorHandler(
             });
         } else {
             logger.error('Programming error:', err);
+        }
+
+        if (err.code === 'SESSION_IDLE') {
+            clearAuthCookies(res);
         }
 
         res.status(err.statusCode).json({

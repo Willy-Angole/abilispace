@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import { databaseSsl } from '../ssl';
 
 dotenv.config();
 
@@ -19,7 +20,7 @@ async function main() {
 
     const pool = new Pool({
         connectionString: databaseUrl,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+        ssl: databaseSsl(databaseUrl),
     });
 
     const seedsPath = path.join(__dirname, '..', 'seeds.sql');

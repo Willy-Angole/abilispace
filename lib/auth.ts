@@ -199,39 +199,68 @@ export async function apiRequest<T>(
         credentials: 'include',
     });
 
-    // Auto-refresh once on 401
-    if (response.status === 401 && !endpoint.includes('/auth/refresh') && !endpoint.includes('/auth/login')) {
-        const refreshed = await refreshAccessToken();
-        if (refreshed) {
-            const retryHeaders = { ...headers };
-            const newToken = getAccessToken();
-            if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
-            const retry = await fetch(`${getApiBaseUrl()}${endpoint}`, {
-                ...options,
-                headers: retryHeaders,
-                credentials: 'include',
-            });
-            const retryData = await retry.json();
-            if (!retry.ok) {
-                throwApiError(retry, retryData);
-            }
-            return retryData;
-        }
-    }
-
-    const data = await response.json();
+    const data = await readJson(response);
 
     if (!response.ok) {
+        if (data.code === 'SESSION_IDLE') {
+            endIdleSession(data.message);
+        }
+        if (
+            response.status === 401 &&
+            !endpoint.includes('/auth/refresh') &&
+            !endpoint.includes('/auth/login')
+        ) {
+            const refreshed = await refreshAccessToken();
+            if (refreshed) {
+                const retryHeaders = { ...headers };
+                const newToken = getAccessToken();
+                if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
+                const retry = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+                    ...options,
+                    headers: retryHeaders,
+                    credentials: 'include',
+                });
+                const retryData = await readJson(retry);
+                if (retryData.code === 'SESSION_IDLE') {
+                    endIdleSession(retryData.message);
+                }
+                if (!retry.ok) {
+                    throwApiError(retry, retryData);
+                }
+                return retryData as T;
+            }
+        }
         throwApiError(response, data);
     }
 
-    return data;
+    return data as T;
 }
 
-function throwApiError(response: Response, data: {
+type ApiErrorBody = {
     message?: string;
+    code?: string;
     errors?: Record<string, string[]>;
-}): never {
+};
+
+async function readJson(response: Response): Promise<ApiErrorBody> {
+    try {
+        return await response.json();
+    } catch {
+        return {};
+    }
+}
+
+function endIdleSession(message?: string): never {
+    clearAuth();
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.assign('/login?reason=idle');
+    }
+    const error = new Error(message || 'Your session ended after 30 minutes of inactivity');
+    error.name = 'SessionIdleError';
+    throw error;
+}
+
+function throwApiError(response: Response, data: ApiErrorBody): never {
     if (response.status === 422 && data.errors) {
         const errorMessages: string[] = [];
         for (const field in data.errors) {
@@ -307,6 +336,10 @@ export async function refreshAccessToken(): Promise<boolean> {
         });
 
         if (!response.ok) {
+            const data = await readJson(response);
+            if (data.code === 'SESSION_IDLE') {
+                endIdleSession(data.message);
+            }
             clearAuth();
             return false;
         }
@@ -316,7 +349,10 @@ export async function refreshAccessToken(): Promise<boolean> {
             storeTokens(data.accessToken, data.refreshToken || refreshToken || '');
             return true;
         }
-    } catch {
+    } catch (error) {
+        if (error instanceof Error && error.name === 'SessionIdleError') {
+            throw error;
+        }
         clearAuth();
     }
 
@@ -334,6 +370,31 @@ export async function restoreSession(): Promise<boolean> {
         return false;
     }
     return refreshAccessToken();
+}
+
+export async function exportMyData(): Promise<void> {
+    const response = await apiRequest<{ success: boolean; data?: unknown }>('/api/users/export');
+    if (typeof window === 'undefined') return;
+    const payload = response.data ?? response;
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'abilispace-data.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+export async function deleteMyAccount(input: {
+    password?: string;
+    confirm?: string;
+}): Promise<{ success: boolean; message?: string }> {
+    return apiRequest('/api/users/account', {
+        method: 'DELETE',
+        body: JSON.stringify(input),
+    });
 }
 
 export async function logout(): Promise<void> {

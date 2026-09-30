@@ -31,7 +31,6 @@ import {
   Send,
   Search,
   Plus,
-  Shield,
   Users,
   CheckCheck,
   Volume2,
@@ -62,6 +61,7 @@ import {
 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
+import { useAccessibility } from "@/components/accessibility-provider"
 import * as messagingApi from "@/lib/messaging"
 import { isAuthenticated, sendTypingIndicator, getTypingUsers, type TypingUser } from "@/lib/messaging"
 import type { Conversation, Message, User } from "@/lib/messaging"
@@ -92,7 +92,6 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
   const [groupName, setGroupName] = useState("")
   const [isGroup, setIsGroup] = useState(false)
-  const [soundEnabled, setSoundEnabled] = useState(true)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editingMessage, setEditingMessage] = useState<Message | null>(null)
   const [editContent, setEditContent] = useState("")
@@ -138,6 +137,8 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
   const shouldAutoScrollRef = useRef<boolean>(true)
   const isInitialLoadRef = useRef<boolean>(true)
   const { toast } = useToast()
+  const { settings, updateSetting } = useAccessibility()
+  const soundEnabled = settings.soundEnabled
   
   // Typing indicator state
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
@@ -940,13 +941,20 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
     <div className="w-full max-w-full min-w-0 space-y-3 md:space-y-4 overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 min-w-0">
-        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">Messages</h2>
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">Messages</h2>
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span>Encrypted in transit. Not end-to-end.</span>
+          </p>
+        </div>
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setSoundEnabled(!soundEnabled)}
-          aria-label={soundEnabled ? "Disable sound notifications" : "Enable sound notifications"}
-          className="hidden sm:flex h-8 w-8 shrink-0"
+          onClick={() => updateSetting("soundEnabled", !soundEnabled, { silent: true })}
+          aria-pressed={soundEnabled}
+          aria-label={soundEnabled ? "Turn off message sounds" : "Turn on message sounds"}
+          className="h-8 w-8 shrink-0"
         >
           {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
         </Button>
@@ -1407,9 +1415,13 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                     </div>
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                    <Badge variant="outline" className="hidden sm:flex items-center gap-1 text-xs">
-                      <Lock className="h-3 w-3" />
-                      Secure
+                    <Badge
+                      variant="outline"
+                      className="flex items-center gap-1 text-xs"
+                      title="Messages are encrypted in transit over HTTPS. They are not end-to-end encrypted."
+                    >
+                      <Lock className="h-3 w-3" aria-hidden="true" />
+                      In transit
                     </Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -1582,7 +1594,12 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                                   {message.isEdited && (
                                     <span className="text-xs opacity-50">(edited)</span>
                                   )}
-                                  <span className="text-xs opacity-50">
+                                  <span className="inline-flex items-center gap-0.5 text-[11px] font-medium">
+                                    <Lock className="h-3 w-3" aria-hidden="true" />
+                                    <span className="sr-only">Encrypted in transit, not end-to-end. </span>
+                                    <span>In transit</span>
+                                  </span>
+                                  <span className="text-xs">
                                     {formatTime(message.createdAt)}
                                   </span>
                                   {isOwn && <CheckCheck className="h-3 w-3 opacity-50" />}
@@ -1788,10 +1805,9 @@ export function SecureMessaging({ user, onUnreadCountChange, onConversationChang
                     </div>
                   </div>
                   )}
-                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                    <Shield className="h-3 w-3" />
-                    <span className="hidden sm:inline">Messages are encrypted and secured</span>
-                    <span className="sm:hidden">Encrypted</span>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
+                    <Lock className="h-3 w-3 mt-0.5 shrink-0" aria-hidden="true" />
+                    <span>Encrypted in transit over HTTPS. Not end-to-end encrypted.</span>
                   </p>
                 </div>
               )}

@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.4.0] — 2026-09-30
+
+### Product
+- Editors can mark a current-affairs story as time-sensitive, and readers can filter for those stories
+- Messages say they are encrypted in transit, and the sound alert stays available on a phone
+- Homepage text contrast meets WCAG AA in light and dark
+- Members can download their own data and delete an account from Edit Profile
+- A session ends after 30 minutes without a pointer, key, or touch
+
+### Security
+- A member account locks for 15 minutes after 5 failed passwords
+- An unknown email takes the same password check and returns the same error
+- Refreshing an access token, or background polling, does not extend an idle session
+- Admin errors return a generic message instead of database text
+- Article writes validate the category, priority, booleans, and article id
+- Deleting an account requires the current password, or DELETE when the account has no password
+- Remote Postgres verifies TLS certificates unless `DATABASE_SSL_REJECT_UNAUTHORIZED=false`
+- Query failures log a short fragment and the error code, not the full statement
+
+### Migrations
+- `011_add_article_time_sensitive.sql`
+- `012_add_user_lockout_and_idle.sql`
+
 ## [1.3.0] — 2026-09-23
 
 ### Product

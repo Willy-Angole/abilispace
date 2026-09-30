@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import { databaseSsl } from '../ssl';
 
 dotenv.config();
 
@@ -21,12 +22,9 @@ async function main() {
         process.exit(1);
     }
 
-    const isLocal =
-        /localhost|127\.0\.0\.1/.test(databaseUrl) ||
-        process.env.DATABASE_SSL === 'false';
     const pool = new Pool({
         connectionString: databaseUrl,
-        ssl: isLocal ? false : { rejectUnauthorized: false },
+        ssl: databaseSsl(databaseUrl),
     });
 
     const client = await pool.connect();

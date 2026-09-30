@@ -23,6 +23,7 @@ import {
   Loader2,
   RefreshCw,
   AlertCircle,
+  Clock,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -39,6 +40,15 @@ import {
   type Pagination,
 } from "@/lib/articles"
 import { isAuthenticated } from "@/lib/auth"
+
+function TimeSensitiveLabel() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md border border-[#8a3b12] bg-[#fff4e8] px-2 py-0.5 text-xs font-semibold text-[#6b2e0e] dark:border-[#e7b08a] dark:bg-[#3a2418] dark:text-[#f6d7c3]">
+      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+      Time-sensitive
+    </span>
+  )
+}
 
 interface CurrentAffairsProps {
   user: {
@@ -81,6 +91,7 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [isBookmarking, setIsBookmarking] = useState(false)
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
+  const [timeSensitiveOnly, setTimeSensitiveOnly] = useState(false)
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("")
@@ -112,12 +123,15 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
     if (selectedPriority !== "all") {
       f.priority = selectedPriority as 'high' | 'medium' | 'low'
     }
+    if (timeSensitiveOnly) {
+      f.timeSensitive = true
+    }
     if (accessibilityFilters.length > 0) {
       f.accessibilityFeatures = accessibilityFilters
     }
 
     return f
-  }, [debouncedSearch, selectedCategory, selectedRegion, selectedPriority, accessibilityFilters, currentPage])
+  }, [debouncedSearch, selectedCategory, selectedRegion, selectedPriority, accessibilityFilters, timeSensitiveOnly, currentPage])
 
   // Fetch categories and trending on mount
   useEffect(() => {
@@ -155,7 +169,7 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
       let response
       
       if (showBookmarksOnly) {
-        response = await getBookmarks(currentPage, 12)
+        response = await getBookmarks(currentPage, 12, timeSensitiveOnly)
       } else {
         response = await getArticles(filters)
       }
@@ -193,7 +207,7 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
     if (currentPage !== 1) {
       setCurrentPage(1)
     }
-  }, [debouncedSearch, selectedCategory, selectedRegion, selectedPriority, accessibilityFilters, showBookmarksOnly])
+  }, [debouncedSearch, selectedCategory, selectedRegion, selectedPriority, accessibilityFilters, showBookmarksOnly, timeSensitiveOnly])
 
   // Handle bookmark toggle
   const handleToggleBookmark = async (articleId: string, currentlyBookmarked: boolean) => {
@@ -285,6 +299,7 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
     setSelectedPriority("all")
     setAccessibilityFilters([])
     setShowBookmarksOnly(false)
+    setTimeSensitiveOnly(false)
     setCurrentPage(1)
   }
 
@@ -332,7 +347,8 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
     selectedRegion !== "all" ||
     selectedPriority !== "all" ||
     accessibilityFilters.length > 0 ||
-    showBookmarksOnly
+    showBookmarksOnly ||
+    timeSensitiveOnly
 
   // Article Detail View
   if (selectedArticle) {
@@ -349,7 +365,14 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
           <Badge variant={getPriorityColor(selectedArticle.priority)}>
             {selectedArticle.priority.toUpperCase()} PRIORITY
           </Badge>
+          {selectedArticle.isTimeSensitive && <TimeSensitiveLabel />}
         </div>
+        {selectedArticle.isTimeSensitive && (
+          <p className="flex items-start gap-2 rounded-md border border-[#8a3b12] bg-[#fff4e8] px-3 py-2 text-sm font-medium text-[#6b2e0e] dark:border-[#e7b08a] dark:bg-[#3a2418] dark:text-[#f6d7c3]" role="status">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            This story is time-sensitive and may need attention soon.
+          </p>
+        )}
 
         <Card>
           <CardHeader>
@@ -555,6 +578,16 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
               </Select>
 
               <Button
+                variant={timeSensitiveOnly ? "default" : "outline"}
+                onClick={() => setTimeSensitiveOnly(!timeSensitiveOnly)}
+                className="flex items-center gap-2"
+                aria-pressed={timeSensitiveOnly}
+              >
+                <Clock className="h-4 w-4" aria-hidden="true" />
+                Time-sensitive
+              </Button>
+
+              <Button
                 variant={showBookmarksOnly ? "default" : "outline"}
                 onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
                 className="flex items-center gap-2"
@@ -671,11 +704,19 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
             </Card>
           ) : (
             articles.map((article) => (
-              <Card key={article.id} className="overflow-hidden">
+              <Card
+                key={article.id}
+                className={
+                  article.isTimeSensitive
+                    ? "overflow-hidden border-l-4 border-l-[#8a3b12] bg-[#fff8f1] dark:border-l-[#e7b08a] dark:bg-[#2a211c]"
+                    : "overflow-hidden"
+                }
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {article.isTimeSensitive && <TimeSensitiveLabel />}
                         <Badge variant={getPriorityColor(article.priority)}>
                           {article.priority.toUpperCase()}
                         </Badge>
@@ -807,6 +848,11 @@ export function CurrentAffairs({ user }: CurrentAffairsProps) {
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm line-clamp-2">{article.title}</p>
+                    {article.isTimeSensitive && (
+                      <p className="mt-1">
+                        <TimeSensitiveLabel />
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1">
                       {article.category} • {article.readTimeMinutes} min read
                     </p>

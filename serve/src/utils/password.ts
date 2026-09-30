@@ -17,6 +17,10 @@ import { config } from '../config/environment';
  */
 const BCRYPT_ROUNDS = config.security.bcryptRounds;
 
+/** Compared when an account has no password hash, so the response takes the same time. */
+export const DUMMY_PASSWORD_HASH =
+    '$2b$12$/dwuxJBzlI18TOsfL3ZZvOg1ZdeufAi8O/cBfoXUOD.Ob5tNJ9vNm';
+
 /**
  * Hash a password using bcrypt
  * 

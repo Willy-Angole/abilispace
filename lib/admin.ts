@@ -474,6 +474,13 @@ export async function toggleArticlePublished(articleId: string, isPublished: boo
   });
 }
 
+export async function setArticleTimeSensitive(articleId: string, isTimeSensitive: boolean): Promise<any> {
+  return adminFetch(`/articles/${articleId}/time-sensitive`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isTimeSensitive }),
+  });
+}
+
 // Create new article
 export interface CreateArticleData {
   title: string;
@@ -485,6 +492,7 @@ export interface CreateArticleData {
   author?: string;
   region?: 'national' | 'international' | 'local';
   priority?: 'high' | 'medium' | 'low';
+  isTimeSensitive?: boolean;
   readTimeMinutes?: number;
   imageUrl?: string;
   imageAlt?: string;

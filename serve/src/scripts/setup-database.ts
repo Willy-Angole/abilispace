@@ -7,6 +7,7 @@ import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import { databaseSsl } from '../database/ssl';
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ async function setupDatabase() {
     
     const pool = new Pool({
         connectionString: databaseUrl,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        ssl: databaseSsl(databaseUrl),
     });
 
     try {

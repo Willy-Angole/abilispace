@@ -27,6 +27,7 @@ export interface Article {
     author?: string;
     region: string;
     priority: 'high' | 'medium' | 'low';
+    isTimeSensitive: boolean;
     readTimeMinutes: number;
     imageUrl?: string;
     imageAlt?: string;
@@ -88,6 +89,7 @@ export class ArticleService {
             category,
             region,
             priority,
+            timeSensitive,
             accessibilityFeatures,
             search,
             page,
@@ -118,6 +120,10 @@ export class ArticleService {
             conditions.push(`a.priority = $${paramIndex}`);
             values.push(priority);
             paramIndex++;
+        }
+
+        if (timeSensitive === 'true') {
+            conditions.push('a.is_time_sensitive = true');
         }
 
         // Search filter (title, summary, content, tags)
@@ -172,7 +178,7 @@ export class ArticleService {
             SELECT 
                 a.id, a.title, a.summary, a.content, a.category,
                 a.source, a.source_url as "sourceUrl", a.author,
-                a.region, a.priority,
+                a.region, a.priority, a.is_time_sensitive as "isTimeSensitive",
                 a.read_time_minutes as "readTimeMinutes",
                 a.image_url as "imageUrl", a.image_alt as "imageAlt",
                 a.has_audio as "hasAudio", a.audio_url as "audioUrl",
@@ -200,6 +206,7 @@ export class ArticleService {
             FROM articles a
             WHERE ${conditions.join(' AND ')}
             ORDER BY 
+                a.is_time_sensitive DESC,
                 CASE a.priority 
                     WHEN 'high' THEN 3 
                     WHEN 'medium' THEN 2 
@@ -234,7 +241,7 @@ export class ArticleService {
             SELECT 
                 a.id, a.title, a.summary, a.content, a.category,
                 a.source, a.source_url as "sourceUrl", a.author,
-                a.region, a.priority,
+                a.region, a.priority, a.is_time_sensitive as "isTimeSensitive",
                 a.read_time_minutes as "readTimeMinutes",
                 a.image_url as "imageUrl", a.image_alt as "imageAlt",
                 a.has_audio as "hasAudio", a.audio_url as "audioUrl",
@@ -320,13 +327,19 @@ export class ArticleService {
     async getUserBookmarks(
         userId: string,
         page: number = 1,
-        limit: number = 20
+        limit: number = 20,
+        timeSensitiveOnly = false
     ): Promise<PaginatedResult<Article>> {
-        // Get total count
-        const countResult = await db.query<{ count: string }>(
-            'SELECT COUNT(*) as count FROM user_bookmarks WHERE user_id = $1',
-            { values: [userId] }
-        );
+        const countSql = timeSensitiveOnly
+            ? `SELECT COUNT(*) as count
+               FROM user_bookmarks ub
+               JOIN articles a ON a.id = ub.article_id
+               WHERE ub.user_id = $1
+                 AND a.is_published = true
+                 AND a.deleted_at IS NULL
+                 AND a.is_time_sensitive = true`
+            : 'SELECT COUNT(*) as count FROM user_bookmarks WHERE user_id = $1';
+        const countResult = await db.query<{ count: string }>(countSql, { values: [userId] });
 
         const total = parseInt(countResult.rows[0].count, 10);
         const offset = (page - 1) * limit;
@@ -336,7 +349,7 @@ export class ArticleService {
         const result = await db.query<Article>(
             `SELECT 
                 a.id, a.title, a.summary, a.category,
-                a.source, a.region, a.priority,
+                a.source, a.region, a.priority, a.is_time_sensitive as "isTimeSensitive",
                 a.read_time_minutes as "readTimeMinutes",
                 a.has_audio as "hasAudio", a.has_video as "hasVideo",
                 a.published_at as "publishedAt",
@@ -352,9 +365,10 @@ export class ArticleService {
              FROM user_bookmarks ub
              JOIN articles a ON a.id = ub.article_id
              WHERE ub.user_id = $1 AND a.is_published = true AND a.deleted_at IS NULL
-             ORDER BY ub.created_at DESC
+               AND ($4::boolean = false OR a.is_time_sensitive = true)
+             ORDER BY a.is_time_sensitive DESC, ub.created_at DESC
              LIMIT $2 OFFSET $3`,
-            { values: [userId, limit, offset] }
+            { values: [userId, limit, offset, timeSensitiveOnly] }
         );
 
         return {
@@ -375,7 +389,7 @@ export class ArticleService {
         const result = await db.query<Article>(
             `SELECT 
                 a.id, a.title, a.summary, a.category,
-                a.source, a.region, a.priority,
+                a.source, a.region, a.priority, a.is_time_sensitive as "isTimeSensitive",
                 a.read_time_minutes as "readTimeMinutes",
                 a.has_audio as "hasAudio", a.has_video as "hasVideo",
                 a.published_at as "publishedAt",
@@ -413,7 +427,7 @@ export class ArticleService {
         const result = await db.query<Article & { priority: string }>(
             `SELECT 
                 a.id, a.title, a.summary, a.category,
-                a.source, a.region, a.priority,
+                a.source, a.region, a.priority, a.is_time_sensitive as "isTimeSensitive",
                 a.read_time_minutes as "readTimeMinutes",
                 a.has_audio as "hasAudio", a.has_video as "hasVideo",
                 a.published_at as "publishedAt"
@@ -468,7 +482,7 @@ export class ArticleService {
         const result = await db.query<Article>(
             `SELECT 
                 a.id, a.title, a.summary, a.category,
-                a.source, a.region, a.priority,
+                a.source, a.region, a.priority, a.is_time_sensitive as "isTimeSensitive",
                 a.published_at as "publishedAt"
              FROM articles a
              WHERE a.region = $1 AND a.is_published = true AND a.deleted_at IS NULL

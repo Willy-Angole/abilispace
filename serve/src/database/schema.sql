@@ -132,6 +132,9 @@ CREATE TABLE users (
     email_verified BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     last_login_at TIMESTAMPTZ,
+    failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    last_user_activity_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
@@ -335,6 +338,7 @@ CREATE TABLE articles (
     author VARCHAR(255),
     region article_region DEFAULT 'national',
     priority article_priority DEFAULT 'medium',
+    is_time_sensitive BOOLEAN NOT NULL DEFAULT FALSE,
     read_time_minutes INTEGER DEFAULT 5,
     image_url VARCHAR(500),
     image_alt VARCHAR(500),
@@ -458,6 +462,7 @@ CREATE INDEX idx_conv_participants_conversation ON conversation_participants(con
 CREATE INDEX idx_articles_category ON articles(category);
 CREATE INDEX idx_articles_region ON articles(region);
 CREATE INDEX idx_articles_priority ON articles(priority);
+CREATE INDEX idx_articles_time_sensitive ON articles(published_at DESC) WHERE is_time_sensitive = TRUE AND deleted_at IS NULL;
 CREATE INDEX idx_articles_published_at ON articles(published_at DESC);
 CREATE INDEX idx_articles_title_trgm ON articles USING gin(title gin_trgm_ops);
 CREATE INDEX idx_articles_content_trgm ON articles USING gin(content gin_trgm_ops);

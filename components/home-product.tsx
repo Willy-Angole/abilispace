@@ -12,7 +12,7 @@ function Frame({
 }) {
   return (
     <div className="max-w-full overflow-hidden rounded-md border border-black/10 bg-white text-[#1c1c1c] shadow-[0_24px_60px_-36px_rgba(40,30,20,0.45)]">
-      <div className="flex items-center gap-2 border-b border-black/10 px-4 py-2.5 text-[11px] uppercase tracking-[0.14em] text-black/45">
+      <div className="flex items-center gap-2 border-b border-black/10 px-4 py-2.5 text-[11px] uppercase tracking-[0.14em] text-[#5c5852]">
         <span className="font-medium text-[#427690]">Abilispace</span>
         <span aria-hidden="true">/</span>
         <span>{title}</span>
@@ -55,7 +55,7 @@ export function HomeProduct() {
                 >
                   <div className="px-4 py-3">
                     <p className="text-sm font-medium">{thread.name}</p>
-                    <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-black/55">
+                    <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[#5c5852]">
                       {thread.preview}
                     </p>
                   </div>
@@ -64,13 +64,13 @@ export function HomeProduct() {
             </ul>
             <div className="flex min-w-0 flex-col justify-end gap-3 overflow-hidden bg-[#fbfaf7] px-4 py-4">
               <p className="min-w-0 max-w-full self-start break-words rounded-md bg-white px-3 py-2 text-[13px] leading-snug text-black/80 ring-1 ring-black/10 sm:max-w-[16rem]">
-                <span className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-black/40">
+                <span className="mb-1 block text-[11px] uppercase tracking-[0.14em] text-[#5c5852]">
                   {t("msg1Name")}
                 </span>
                 {t("msgThreadA")}
               </p>
               <p className="ml-auto min-w-0 max-w-[85%] self-end break-words rounded-md bg-[#427690] px-3 py-2 text-[13px] leading-snug text-white">
-                <span className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-white/70">
+                <span className="mb-1 block text-[11px] uppercase tracking-[0.14em] text-white">
                   {t("msgYou")}
                 </span>
                 {t("msgThreadB")}
@@ -78,7 +78,7 @@ export function HomeProduct() {
             </div>
           </div>
         </Frame>
-        <figcaption className="mt-3 text-sm text-black/55 dark:text-white/60">
+        <figcaption className="mt-3 text-sm text-[#5c5852] dark:text-[#c4bfb6]">
           {t("shotMessagesNote")}
         </figcaption>
       </figure>
@@ -90,12 +90,12 @@ export function HomeProduct() {
               {events.map((event) => (
                 <li key={event.title} className="px-4 py-3.5">
                   <p className="text-sm font-medium">{event.title}</p>
-                  <p className="mt-0.5 text-[13px] text-black/55">{event.meta}</p>
+                  <p className="mt-0.5 text-[13px] text-[#5c5852]">{event.meta}</p>
                 </li>
               ))}
             </ul>
           </Frame>
-          <figcaption className="mt-3 text-sm text-black/55 dark:text-white/60">
+          <figcaption className="mt-3 text-sm text-[#5c5852] dark:text-[#c4bfb6]">
             {t("shotEventsNote")}
           </figcaption>
         </figure>
@@ -106,14 +106,14 @@ export function HomeProduct() {
               {articles.map((article) => (
                 <li key={article.title} className="px-4 py-3.5">
                   <p className="text-sm font-medium leading-snug">{article.title}</p>
-                  <p className="mt-1 text-[12px] uppercase tracking-[0.12em] text-black/40">
+                  <p className="mt-1 text-[12px] uppercase tracking-[0.12em] text-[#5c5852]">
                     {article.meta}
                   </p>
                 </li>
               ))}
             </ul>
           </Frame>
-          <figcaption className="mt-3 text-sm text-black/55 dark:text-white/60">
+          <figcaption className="mt-3 text-sm text-[#5c5852] dark:text-[#c4bfb6]">
             {t("shotNewsNote")}
           </figcaption>
         </figure>

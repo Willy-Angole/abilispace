@@ -2,7 +2,10 @@ import { Router, Request, Response, NextFunction } from 'express';
 import type { Router as RouterType } from 'express';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
+import { z } from 'zod';
 import { config } from '../config/environment';
+import { adminCatch } from '../utils/admin-error';
+import { createArticleSchema, uuidSchema } from '../utils/validators';
 import * as adminService from '../services/admin.service';
 import * as thoughtsService from '../services/thoughts.service';
 import { uploadToCloudinary } from '../config/cloudinary';
@@ -104,8 +107,7 @@ router.post('/auth/login', strictRateLimiter, async (req: Request, res: Response
       data: result
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Login failed';
-    res.status(401).json({ error: message });
+    adminCatch(res, error, 'Login failed', 401);
   }
 });
 
@@ -121,8 +123,7 @@ router.post('/auth/logout', adminAuth, async (req: AdminRequest, res: Response) 
     
     res.json({ success: true, message: 'Logged out successfully' });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Logout failed';
-    res.status(500).json({ error: message });
+    adminCatch(res, error, 'Logout failed');
   }
 });
 
@@ -147,7 +148,7 @@ router.get('/dashboard/stats', adminAuth, async (req: AdminRequest, res: Respons
       data: stats
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch stats' });
+    adminCatch(res, error, 'Failed to fetch stats');
   }
 });
 
@@ -160,7 +161,7 @@ router.get('/dashboard/online-users', adminAuth, async (req: AdminRequest, res: 
       data: onlineUsers
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch online users' });
+    adminCatch(res, error, 'Failed to fetch online users');
   }
 });
 
@@ -174,7 +175,7 @@ router.get('/dashboard/daily-stats', adminAuth, async (req: AdminRequest, res: R
       data: stats
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch daily stats' });
+    adminCatch(res, error, 'Failed to fetch daily stats');
   }
 });
 
@@ -188,7 +189,7 @@ router.get('/dashboard/user-growth', adminAuth, async (req: AdminRequest, res: R
       data
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch user growth data' });
+    adminCatch(res, error, 'Failed to fetch user growth data');
   }
 });
 
@@ -202,7 +203,7 @@ router.get('/dashboard/registration-trends', adminAuth, async (req: AdminRequest
       data
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch registration trends' });
+    adminCatch(res, error, 'Failed to fetch registration trends');
   }
 });
 
@@ -216,7 +217,7 @@ router.get('/dashboard/top-events', adminAuth, async (req: AdminRequest, res: Re
       data
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch top events' });
+    adminCatch(res, error, 'Failed to fetch top events');
   }
 });
 
@@ -239,7 +240,7 @@ router.get('/users', adminAuth, async (req: AdminRequest, res: Response) => {
       data: result
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch users' });
+    adminCatch(res, error, 'Failed to fetch users');
   }
 });
 
@@ -255,7 +256,7 @@ router.get('/users/:id', adminAuth, async (req: AdminRequest, res: Response) => 
       data: user
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch user' });
+    adminCatch(res, error, 'Failed to fetch user');
   }
 });
 
@@ -273,7 +274,7 @@ router.patch('/users/:id/status', adminAuth, requireRole('super_admin', 'admin')
       data: user
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to update user status' });
+    adminCatch(res, error, 'Failed to update user status');
   }
 });
 
@@ -286,7 +287,7 @@ router.delete('/users/:id', adminAuth, requireRole('super_admin', 'admin'), asyn
       message: 'User deleted successfully'
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to delete user' });
+    adminCatch(res, error, 'Failed to delete user');
   }
 });
 
@@ -307,7 +308,7 @@ router.get('/caregivers', adminAuth, async (req: AdminRequest, res: Response) =>
       data: result
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch caregivers' });
+    adminCatch(res, error, 'Failed to fetch caregivers');
   }
 });
 
@@ -329,7 +330,7 @@ router.get('/events', adminAuth, async (req: AdminRequest, res: Response) => {
       data: result
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch events' });
+    adminCatch(res, error, 'Failed to fetch events');
   }
 });
 
@@ -344,11 +345,8 @@ router.get('/events/:id/registrations', adminAuth, async (req: AdminRequest, res
       success: true,
       data: result
     });
-  } catch (error: any) {
-    if (error.message === 'Event not found') {
-      return res.status(404).json({ error: 'Event not found' });
-    }
-    res.status(500).json({ error: error.message || 'Failed to fetch registrations' });
+  } catch (error: unknown) {
+    adminCatch(res, error, 'Failed to fetch registrations');
   }
 });
 
@@ -366,7 +364,7 @@ router.patch('/events/:id/publish', adminAuth, requireRole('super_admin', 'admin
       data: event
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to update event' });
+    adminCatch(res, error, 'Failed to update event');
   }
 });
 
@@ -384,7 +382,7 @@ router.patch('/events/:id/feature', adminAuth, requireRole('super_admin', 'admin
       data: event
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to update event' });
+    adminCatch(res, error, 'Failed to update event');
   }
 });
 
@@ -417,7 +415,7 @@ router.post('/events', adminAuth, requireRole('super_admin', 'admin', 'moderator
       data: event
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to create event' });
+    adminCatch(res, error, 'Failed to create event');
   }
 });
 
@@ -430,7 +428,7 @@ router.delete('/events/:id', adminAuth, requireRole('super_admin', 'admin'), asy
       message: 'Event deleted successfully'
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to delete event' });
+    adminCatch(res, error, 'Failed to delete event');
   }
 });
 
@@ -443,7 +441,7 @@ router.patch('/events/:id', adminAuth, requireRole('super_admin', 'admin', 'mode
       data: event
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to update event' });
+    adminCatch(res, error, 'Failed to update event');
   }
 });
 
@@ -495,7 +493,7 @@ router.post('/events/:id/poster', adminAuth, requireRole('super_admin', 'admin',
         imageUrl: uploadResult.url,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Failed to upload event poster' });
+      adminCatch(res, error, 'Failed to upload event poster');
     }
   });
 });
@@ -509,7 +507,7 @@ router.get('/events/categories', adminAuth, async (req: AdminRequest, res: Respo
       data: categories
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch categories' });
+    adminCatch(res, error, 'Failed to fetch categories');
   }
 });
 
@@ -522,7 +520,7 @@ router.get('/events/accessibility-features', adminAuth, async (req: AdminRequest
       data: features
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch accessibility features' });
+    adminCatch(res, error, 'Failed to fetch accessibility features');
   }
 });
 
@@ -544,48 +542,47 @@ router.get('/articles', adminAuth, async (req: AdminRequest, res: Response) => {
       data: result
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch articles' });
+    adminCatch(res, error, 'Failed to fetch articles');
   }
 });
 
 // Toggle article published status
 router.patch('/articles/:id/publish', adminAuth, requireRole('super_admin', 'admin', 'moderator'), async (req: AdminRequest, res: Response) => {
   try {
-    const { isPublished } = req.body;
-    if (typeof isPublished !== 'boolean') {
-      return res.status(400).json({ error: 'isPublished boolean required' });
-    }
-
-    const article = await adminService.toggleArticlePublished(req.admin!.sub, req.params.id, isPublished);
+    const articleId = uuidSchema.parse(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
+    const { isPublished } = z.object({ isPublished: z.boolean() }).parse(req.body);
+    const article = await adminService.toggleArticlePublished(req.admin!.sub, articleId, isPublished);
     res.json({
       success: true,
       data: article
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to update article' });
+    adminCatch(res, error, 'Failed to update article');
+  }
+});
+
+// Highlight or clear a time-sensitive current-affairs story
+router.patch('/articles/:id/time-sensitive', adminAuth, requireRole('super_admin', 'admin', 'moderator'), async (req: AdminRequest, res: Response) => {
+  try {
+    const articleId = uuidSchema.parse(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
+    const { isTimeSensitive } = z.object({ isTimeSensitive: z.boolean() }).parse(req.body);
+    const article = await adminService.setArticleTimeSensitive(req.admin!.sub, articleId, isTimeSensitive);
+    res.json({
+      success: true,
+      data: article
+    });
+  } catch (error: any) {
+    adminCatch(res, error, 'Failed to update article');
   }
 });
 
 // Create new article
 router.post('/articles', adminAuth, requireRole('super_admin', 'admin', 'moderator'), async (req: AdminRequest, res: Response) => {
   try {
-    const {
-      title, summary, content, category, source, sourceUrl, author,
-      region, priority, readTimeMinutes, imageUrl, imageAlt,
-      hasAudio, audioUrl, hasVideo, videoUrl, isPublished, tags
-    } = req.body;
-
-    // Validate required fields
-    if (!title || !summary || !content || !category || !source) {
-      return res.status(400).json({ 
-        error: 'Required fields: title, summary, content, category, source' 
-      });
-    }
-
+    const input = createArticleSchema.parse(req.body);
     const article = await adminService.createArticle(req.admin!.sub, {
-      title, summary, content, category, source, sourceUrl, author,
-      region, priority, readTimeMinutes, imageUrl, imageAlt,
-      hasAudio, audioUrl, hasVideo, videoUrl, isPublished, tags
+      ...input,
+      isTimeSensitive: input.isTimeSensitive === true,
     });
 
     res.status(201).json({
@@ -593,20 +590,21 @@ router.post('/articles', adminAuth, requireRole('super_admin', 'admin', 'moderat
       data: article
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to create article' });
+    adminCatch(res, error, 'Failed to create article');
   }
 });
 
 // Delete article
 router.delete('/articles/:id', adminAuth, requireRole('super_admin', 'admin'), async (req: AdminRequest, res: Response) => {
   try {
-    await adminService.deleteArticle(req.admin!.sub, req.params.id);
+    const articleId = uuidSchema.parse(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
+    await adminService.deleteArticle(req.admin!.sub, articleId);
     res.json({
       success: true,
       message: 'Article deleted successfully'
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to delete article' });
+    adminCatch(res, error, 'Failed to delete article');
   }
 });
 
@@ -619,7 +617,7 @@ router.get('/articles/categories', adminAuth, async (req: AdminRequest, res: Res
       data: categories
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch article categories' });
+    adminCatch(res, error, 'Failed to fetch article categories');
   }
 });
 
@@ -635,7 +633,7 @@ router.get('/sponsored-thoughts', adminAuth, async (req: AdminRequest, res: Resp
     const data = await thoughtsService.listSponsorshipRequests(status);
     res.json({ success: true, data });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch sponsorship requests' });
+    adminCatch(res, error, 'Failed to fetch sponsorship requests');
   }
 });
 
@@ -654,11 +652,8 @@ router.patch(
       }
       const data = await thoughtsService.reviewSponsorship(req.params.id, decision);
       res.json({ success: true, data });
-    } catch (error: any) {
-      const status = error.statusCode || 500;
-      res.status(status).json({
-        error: error.statusCode ? error.message : 'Failed to review sponsorship',
-      });
+    } catch (error: unknown) {
+      adminCatch(res, error, 'Failed to review sponsorship');
     }
   }
 );
@@ -680,7 +675,7 @@ router.get('/reports', adminAuth, async (req: AdminRequest, res: Response) => {
       data: result
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch reports' });
+    adminCatch(res, error, 'Failed to fetch reports');
   }
 });
 
@@ -703,7 +698,7 @@ router.patch('/reports/:id', adminAuth, requireRole('super_admin', 'admin', 'mod
       data: report
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to update report' });
+    adminCatch(res, error, 'Failed to update report');
   }
 });
 
@@ -725,7 +720,7 @@ router.get('/audit-logs', adminAuth, requireRole('super_admin', 'admin'), async 
       data: result
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch audit logs' });
+    adminCatch(res, error, 'Failed to fetch audit logs');
   }
 });
 
@@ -743,7 +738,7 @@ router.get('/settings', adminAuth, async (req: AdminRequest, res: Response) => {
       data: settings
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch settings' });
+    adminCatch(res, error, 'Failed to fetch settings');
   }
 });
 
@@ -765,7 +760,7 @@ router.patch('/settings/:key', adminAuth, requireRole('super_admin'), async (req
       data: setting
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to update setting' });
+    adminCatch(res, error, 'Failed to update setting');
   }
 });
 
@@ -782,7 +777,7 @@ router.get('/admins', adminAuth, requireRole('super_admin'), async (req: AdminRe
       data: admins
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch admins' });
+    adminCatch(res, error, 'Failed to fetch admins');
   }
 });
 
@@ -807,7 +802,7 @@ router.post('/admins', adminAuth, requireRole('super_admin'), async (req: AdminR
       data: admin
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to create admin' });
+    adminCatch(res, error, 'Failed to create admin');
   }
 });
 
@@ -825,7 +820,7 @@ router.patch('/admins/:id/role', adminAuth, requireRole('super_admin'), async (r
       data: admin
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to update admin role' });
+    adminCatch(res, error, 'Failed to update admin role');
   }
 });
 
@@ -842,7 +837,7 @@ router.post('/utils/aggregate-stats', adminAuth, requireRole('super_admin'), asy
       message: 'Daily statistics aggregated successfully'
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to aggregate stats' });
+    adminCatch(res, error, 'Failed to aggregate stats');
   }
 });
 

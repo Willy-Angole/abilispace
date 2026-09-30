@@ -8,7 +8,7 @@
 
 import { Router, Request, Response, IRouter } from 'express';
 import { z } from 'zod';
-import { authService } from '../services/auth.service';
+import { authService, touchUserActivity } from '../services/auth.service';
 import { asyncHandler } from '../middleware/error-handler';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { strictRateLimiter } from '../middleware/rate-limiter';
@@ -194,6 +194,19 @@ router.post(
         const { email, code, newPassword } = resetPasswordSchema.parse(req.body);
         const result = await authService.resetPassword(email, code, newPassword);
         res.json(result);
+    })
+);
+
+/**
+ * POST /api/auth/activity
+ * Records a real pointer, key, or touch. Background polls must not call this.
+ */
+router.post(
+    '/activity',
+    authenticate,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        await touchUserActivity(req.userId!);
+        res.json({ success: true });
     })
 );
 

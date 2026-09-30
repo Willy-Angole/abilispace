@@ -7,6 +7,7 @@ import { OfflineProvider, OfflineIndicator } from "@/components/offline-manager"
 import { DataSaverProvider } from "@/components/data-saver-mode"
 import { SkipLinks } from "@/components/skip-links"
 import { Toaster } from "@/components/ui/toaster"
+import { SessionActivity } from "@/components/session-activity"
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -21,6 +22,7 @@ export function Providers({ children }: { children: ReactNode }) {
               ]}
             />
             <OfflineIndicator />
+            <SessionActivity />
             {children}
             <Toaster />
           </OfflineProvider>

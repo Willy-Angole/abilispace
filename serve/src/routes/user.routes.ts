@@ -12,7 +12,9 @@ import {
     updateUserSchema,
     updateAccessibilitySettingsSchema,
     searchUsersSchema,
+    deleteAccountSchema,
 } from '../utils/validators';
+import { clearAuthCookies } from '../utils/cookies';
 
 const router: IRouter = Router();
 
@@ -130,14 +132,33 @@ router.get(
 );
 
 /**
+ * GET /api/users/export
+ * Download the signed-in user's own data.
+ */
+router.get(
+    '/export',
+    authenticate,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const data = await userService.exportAccount(req.userId!);
+        res.setHeader('Content-Disposition', 'attachment; filename="abilispace-data.json"');
+        res.json({
+            success: true,
+            data,
+        });
+    })
+);
+
+/**
  * DELETE /api/users/account
- * Soft delete user account
+ * Soft delete user account after the owner confirms it.
  */
 router.delete(
     '/account',
     authenticate,
     asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-        await userService.deleteAccount(req.userId!);
+        const input = deleteAccountSchema.parse(req.body ?? {});
+        await userService.deleteAccount(req.userId!, input);
+        clearAuthCookies(res);
 
         res.json({
             success: true,

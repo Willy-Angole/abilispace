@@ -24,6 +24,14 @@ const envSchema = z.object({
 
     // Database
     DATABASE_URL: z.string().url(),
+    DATABASE_SSL: z.preprocess(
+        (val) => (val === '' ? undefined : val),
+        z.enum(['true', 'false']).optional()
+    ),
+    DATABASE_SSL_REJECT_UNAUTHORIZED: z.preprocess(
+        (val) => (val === '' ? undefined : val),
+        z.enum(['true', 'false']).optional()
+    ),
     POSTGRES_USER: z.string().optional(),
     POSTGRES_PASSWORD: z.string().optional(),
     POSTGRES_DB: z.string().optional(),

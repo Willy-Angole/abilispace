@@ -668,6 +668,34 @@ export async function toggleArticlePublished(adminId: string, articleId: string,
   });
 }
 
+export async function setArticleTimeSensitive(adminId: string, articleId: string, isTimeSensitive: boolean) {
+  return db.transaction(async (client) => {
+    const result = await client.query(
+      `UPDATE articles SET is_time_sensitive = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND deleted_at IS NULL RETURNING *`,
+      [isTimeSensitive, articleId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Article not found');
+    }
+
+    await client.query(
+      `INSERT INTO admin_audit_logs (admin_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        adminId,
+        isTimeSensitive ? 'MARK_ARTICLE_TIME_SENSITIVE' : 'UNMARK_ARTICLE_TIME_SENSITIVE',
+        'articles',
+        articleId,
+        `Article ${isTimeSensitive ? 'marked' : 'unmarked'} as time-sensitive`,
+      ]
+    );
+
+    return result.rows[0];
+  });
+}
+
 // Analytics & Metrics
 export async function getDailyStatistics(days: number = 30): Promise<DailyStatistic[]> {
   const result = await db.query<DailyStatistic>(
@@ -1252,6 +1280,7 @@ export interface CreateArticleData {
   author?: string;
   region?: 'national' | 'international' | 'local';
   priority?: 'high' | 'medium' | 'low';
+  isTimeSensitive?: boolean;
   readTimeMinutes?: number;
   imageUrl?: string;
   imageAlt?: string;
@@ -1269,9 +1298,9 @@ export async function createArticle(adminId: string, data: CreateArticleData) {
     const result = await client.query(
       `INSERT INTO articles (
         title, summary, content, category, source, source_url, author,
-        region, priority, read_time_minutes, image_url, image_alt,
+        region, priority, is_time_sensitive, read_time_minutes, image_url, image_alt,
         has_audio, audio_url, has_video, video_url, is_published
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *`,
       [
         data.title,
@@ -1283,6 +1312,7 @@ export async function createArticle(adminId: string, data: CreateArticleData) {
         data.author || null,
         data.region || 'national',
         data.priority || 'medium',
+        data.isTimeSensitive === true,
         data.readTimeMinutes || 5,
         data.imageUrl || null,
         data.imageAlt || null,
