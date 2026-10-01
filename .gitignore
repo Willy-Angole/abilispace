@@ -53,3 +53,4 @@ package-lock.json
 
 # OS
 .DS_Store
+node_modules/
